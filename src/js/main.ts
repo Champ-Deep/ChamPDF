@@ -34,7 +34,7 @@ const init = async () => {
       }
 
       const githubLink = document.querySelector(
-        'a[href*="github.com/alam00000/champdf"]'
+        'a[href*="github.com/Champ-Deep/ChamPDF"]'
       );
       if (githubLink) {
         (githubLink as HTMLElement).style.display = 'none';
@@ -407,7 +407,7 @@ const init = async () => {
   ];
 
   if (githubStarsElements.some((el) => el) && !__SIMPLE_MODE__) {
-    fetch('https://api.github.com/repos/alam00000/champdf')
+    fetch('https://api.github.com/repos/Champ-Deep/ChamPDF')
       .then((response) => response.json())
       .then((data) => {
         if (data.stargazers_count !== undefined) {

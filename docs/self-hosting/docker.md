@@ -18,7 +18,7 @@ docker run -d \
   --name champdf \
   -p 3000:8080 \
   --restart unless-stopped \
-  ghcr.io/alam00000/champdf:latest
+  ghcr.io/Champ-Deep/ChamPDF:latest
 ```
 
 ## Docker Compose
@@ -28,7 +28,7 @@ Create `docker-compose.yml`:
 ```yaml
 services:
   champdf:
-    image: ghcr.io/alam00000/champdf:latest
+    image: ghcr.io/Champ-Deep/ChamPDF:latest
     container_name: champdf
     ports:
       - "3000:8080"
@@ -84,7 +84,7 @@ Example:
 docker run -d \
   -e SIMPLE_MODE=true \
   -p 3000:8080 \
-  ghcr.io/alam00000/champdf:latest
+  ghcr.io/Champ-Deep/ChamPDF:latest
 ```
 
 ## With Traefik (Reverse Proxy)
@@ -108,7 +108,7 @@ services:
       - ./letsencrypt:/letsencrypt
 
   champdf:
-    image: ghcr.io/alam00000/champdf:latest
+    image: ghcr.io/Champ-Deep/ChamPDF:latest
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.champdf.rule=Host(`pdf.example.com`)"
@@ -136,7 +136,7 @@ services:
       - caddy_data:/data
     
   champdf:
-    image: ghcr.io/alam00000/champdf:latest
+    image: ghcr.io/Champ-Deep/ChamPDF:latest
     restart: unless-stopped
 
 volumes:
@@ -158,7 +158,7 @@ pdf.example.com {
 ```yaml
 services:
   champdf:
-    image: ghcr.io/alam00000/champdf:latest
+    image: ghcr.io/Champ-Deep/ChamPDF:latest
     deploy:
       resources:
         limits:

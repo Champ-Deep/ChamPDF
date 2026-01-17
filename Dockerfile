@@ -35,8 +35,8 @@ RUN if [ -z "$BASE_URL" ]; then \
 # Production stage
 FROM nginxinc/nginx-unprivileged:stable-alpine-slim
 
-LABEL org.opencontainers.image.source="https://github.com/alam00000/bentopdf"
-LABEL org.opencontainers.image.url="https://github.com/alam00000/bentopdf"
+LABEL org.opencontainers.image.source="https://github.com/Champ-Deep/ChamPDF"
+LABEL org.opencontainers.image.url="https://github.com/Champ-Deep/ChamPDF"
 
 # global arg to local arg
 ARG BASE_URL

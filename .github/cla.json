@@ -11,8 +11,8 @@
     ],
     "notes": {
         "purpose": "This CLA enables ChamPDF's dual licensing model (AGPL-3.0 + commercial license)",
-        "icla_url": "https://github.com/alam00000/champdf/blob/main/ICLA.md",
-        "ccla_url": "https://github.com/alam00000/champdf/blob/main/CCLA.md",
+        "icla_url": "https://github.com/Champ-Deep/ChamPDF/blob/main/ICLA.md",
+        "ccla_url": "https://github.com/Champ-Deep/ChamPDF/blob/main/CCLA.md",
         "contact": "deep@championsmail.com"
     }
 }

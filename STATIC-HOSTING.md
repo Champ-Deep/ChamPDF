@@ -6,9 +6,9 @@ As an alternative to running ChamPDF locally or in a Docker container, you can v
 
 ### Netlify - static deployment
 
-One of simplest ways to host ChamPDF is to create a project at [Netlify](https://www.netlify.com/) and create a static deployment.  You can accomplish this by first downloading the pre-built distribution file from our [GitHub releases](https://github.com/alam00000/champdf/releases). Each release includes a `dist-{version}.zip` file that contains all necessary files for self-hosting.
+One of simplest ways to host ChamPDF is to create a project at [Netlify](https://www.netlify.com/) and create a static deployment.  You can accomplish this by first downloading the pre-built distribution file from our [GitHub releases](https://github.com/Champ-Deep/ChamPDF/releases). Each release includes a `dist-{version}.zip` file that contains all necessary files for self-hosting.
 
-1. Go to [ChamPDF Releases](https://github.com/alam00000/champdf/releases)
+1. Go to [ChamPDF Releases](https://github.com/Champ-Deep/ChamPDF/releases)
 2. Download the latest `dist-{version}.zip` file
 3. Next, if you have not already done so, create a Netlify account and log in.
 4. From your Netlify projects page, add a new project and select "Deploy manually".

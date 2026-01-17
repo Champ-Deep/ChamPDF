@@ -32,7 +32,7 @@ docker run -p 3000:8080 champdf/champdf-simple:latest
 **Using GitHub Container Registry:**
 
 ```bash
-docker run -p 3000:8080 ghcr.io/alam00000/champdf-simple:latest
+docker run -p 3000:8080 ghcr.io/Champ-Deep/ChamPDF-simple:latest
 ```
 
 Or with Docker Compose:
@@ -43,7 +43,7 @@ services:
     # Using Docker Hub
     image: champdf/champdf-simple:latest
     # Or using GitHub Container Registry
-    # image: ghcr.io/alam00000/champdf-simple:latest
+    # image: ghcr.io/Champ-Deep/ChamPDF-simple:latest
     container_name: champdf
     restart: unless-stopped
     ports:
@@ -160,8 +160,8 @@ When Simple Mode is working correctly, you should see:
 
 **GitHub Container Registry:**
 
-- `ghcr.io/alam00000/champdf:latest`
-- `ghcr.io/alam00000/champdf:v1.0.0` (versioned)
+- `ghcr.io/Champ-Deep/ChamPDF:latest`
+- `ghcr.io/Champ-Deep/ChamPDF:v1.0.0` (versioned)
 
 ### Simple Mode (Clean Interface)
 
@@ -172,8 +172,8 @@ When Simple Mode is working correctly, you should see:
 
 **GitHub Container Registry:**
 
-- `ghcr.io/alam00000/champdf-simple:latest`
-- `ghcr.io/alam00000/champdf-simple:v1.0.0` (versioned)
+- `ghcr.io/Champ-Deep/ChamPDF-simple:latest`
+- `ghcr.io/Champ-Deep/ChamPDF-simple:v1.0.0` (versioned)
 
 ## 🚀 Production Deployment Examples
 

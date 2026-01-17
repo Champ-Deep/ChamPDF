@@ -4,13 +4,13 @@
 
 ## One-Click Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/alam00000/champdf)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Champ-Deep/ChamPDF)
 
 ## Manual Deployment
 
 ### Step 1: Fork the Repository
 
-Fork [champdf/champdf](https://github.com/alam00000/champdf) to your GitHub account.
+Fork [champdf/champdf](https://github.com/Champ-Deep/ChamPDF) to your GitHub account.
 
 ### Step 2: Import to Vercel
 

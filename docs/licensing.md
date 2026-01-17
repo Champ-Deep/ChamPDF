@@ -26,7 +26,7 @@ For complete licensing information, delivery details, AGPL component notices, an
 - Upon purchase, users receive a ZIP archive containing the complete ChamPDF source code and binaries.
 - The source code provided is identical to the code published in our public open-source repository.
 
-**GitHub Repository:** [github.com/alam00000/champdf](https://github.com/alam00000/champdf)
+**GitHub Repository:** [github.com/Champ-Deep/ChamPDF](https://github.com/Champ-Deep/ChamPDF)
 
 ## Important Notice on Third-Party Components
 

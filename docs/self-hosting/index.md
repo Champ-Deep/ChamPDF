@@ -7,7 +7,7 @@ ChamPDF can be self-hosted on your own infrastructure. This guide covers various
 The fastest way to self-host ChamPDF:
 
 ```bash
-docker run -d -p 3000:8080 ghcr.io/alam00000/champdf:latest
+docker run -d -p 3000:8080 ghcr.io/Champ-Deep/ChamPDF:latest
 ```
 
 Or with Docker Compose:
@@ -16,7 +16,7 @@ Or with Docker Compose:
 # docker-compose.yml
 services:
   champdf:
-    image: ghcr.io/alam00000/champdf:latest
+    image: ghcr.io/Champ-Deep/ChamPDF:latest
     ports:
       - "3000:8080"
     restart: unless-stopped
@@ -30,7 +30,7 @@ docker compose up -d
 
 ```bash
 # Clone and build
-git clone https://github.com/alam00000/champdf.git
+git clone https://github.com/Champ-Deep/ChamPDF.git
 cd champdf
 npm install
 npm run build
@@ -59,7 +59,7 @@ SIMPLE_MODE=true npm run build
 docker run -p 3000:8080 champdf/champdf-simple:latest
 ```
 
-See [SIMPLE_MODE.md](https://github.com/alam00000/champdf/blob/main/SIMPLE_MODE.md) for full details.
+See [SIMPLE_MODE.md](https://github.com/Champ-Deep/ChamPDF/blob/main/SIMPLE_MODE.md) for full details.
 
 ### Base URL
 

@@ -112,18 +112,18 @@ Add entries to all locale files in `public/locales/`:
 
 ## Translation
 
-See [TRANSLATION.md](https://github.com/alam00000/champdf/blob/main/TRANSLATION.md) for adding new languages.
+See [TRANSLATION.md](https://github.com/Champ-Deep/ChamPDF/blob/main/TRANSLATION.md) for adding new languages.
 
 ## Contributor License Agreement
 
 Before your PR can be merged, you'll need to sign our CLA:
 
-- [Individual CLA (ICLA)](https://github.com/alam00000/champdf/blob/main/ICLA.md)
-- [Corporate CLA (CCLA)](https://github.com/alam00000/champdf/blob/main/CCLA.md)
+- [Individual CLA (ICLA)](https://github.com/Champ-Deep/ChamPDF/blob/main/ICLA.md)
+- [Corporate CLA (CCLA)](https://github.com/Champ-Deep/ChamPDF/blob/main/CCLA.md)
 
 ## Getting Help
 
-- [GitHub Issues](https://github.com/alam00000/champdf/issues)
+- [GitHub Issues](https://github.com/Champ-Deep/ChamPDF/issues)
 - [Discord Community](https://discord.gg/Bgq3Ay3f2w)
 
 ## License

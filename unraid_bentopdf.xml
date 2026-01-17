@@ -7,16 +7,16 @@
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/alam00000/champdf</Support>
+  <Support>https://github.com/Champ-Deep/ChamPDF</Support>
   <Project>https://www.champdf.com/</Project>
-  <Overview>Uploaded on behalf of creator: alam00000&#13;
+  <Overview>Uploaded on behalf of creator: Champ-Deep&#13;
 ChamPDF is a privacy first PDF Toolkit&#13;
 &#13;
 https://hub.docker.com/r/champdf/champdf/</Overview>
   <Category>Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
   <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/alam00000/champdf/refs/heads/main/public/images/favicon.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/Champ-Deep/ChamPDF/refs/heads/main/public/images/favicon.svg</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>

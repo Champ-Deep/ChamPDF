@@ -59,7 +59,7 @@ export default defineConfig({
         },
 
         socialLinks: [
-            { icon: 'github', link: 'https://github.com/alam00000/bentopdf' },
+            { icon: 'github', link: 'https://github.com/Champ-Deep/ChamPDF' },
             { icon: 'discord', link: 'https://discord.gg/Bgq3Ay3f2w' }
         ],
 

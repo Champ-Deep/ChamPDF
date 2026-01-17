@@ -80,7 +80,7 @@ When submitting code contributions, please use our [pull request template](.gith
 1.  **Fork the Repository**
 
     ```bash
-    git clone https://github.com/alam00000/champdf.git
+    git clone https://github.com/Champ-Deep/ChamPDF.git
     cd cham-pdf
     npm install
     ```

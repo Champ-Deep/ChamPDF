@@ -11,7 +11,7 @@ Host ChamPDF on your own server using Nginx.
 ## Step 1: Build the Project
 
 ```bash
-git clone https://github.com/alam00000/champdf.git
+git clone https://github.com/Champ-Deep/ChamPDF.git
 cd champdf
 npm install
 npm run build

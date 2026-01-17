@@ -16,10 +16,10 @@ Visit [champdf.com](https://champdf.com) to use ChamPDF instantly—no installat
 
 ```bash
 # Pull and run the Docker image
-docker run -d -p 3000:8080 ghcr.io/alam00000/champdf:latest
+docker run -d -p 3000:8080 ghcr.io/Champ-Deep/ChamPDF:latest
 
 # Or use Docker Compose
-curl -O https://raw.githubusercontent.com/alam00000/champdf/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/Champ-Deep/ChamPDF/main/docker-compose.yml
 docker compose up -d
 ```
 
@@ -29,7 +29,7 @@ Then open `http://localhost:3000` in your browser.
 
 ```bash
 # Clone the repository
-git clone https://github.com/alam00000/champdf.git
+git clone https://github.com/Champ-Deep/ChamPDF.git
 cd champdf
 
 # Install dependencies

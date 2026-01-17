@@ -3,8 +3,8 @@
 
 **ChamPDF** is a powerful, privacy-first, client-side PDF toolkit that is self hostable and allows you to manipulate, edit, merge, and process PDF files directly in your browser. No server-side processing is required, ensuring your files remain secure and private.
 
-![Docker Pulls](https://img.shields.io/docker/pulls/champdf/champdf) [![Ko-fi](https://img.shields.io/badge/Buy%20me%20a%20Coffee-yellow?logo=kofi&style=flat-square)](https://ko-fi.com/alio01) ![GitHub Stars](https://img.shields.io/github/stars/alam00000/champdf?style=social)
-[![Sponsor me on GitHub](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ff69b4)](https://github.com/sponsors/alam00000)
+![Docker Pulls](https://img.shields.io/docker/pulls/champdf/champdf) [![Ko-fi](https://img.shields.io/badge/Buy%20me%20a%20Coffee-yellow?logo=kofi&style=flat-square)](https://ko-fi.com/alio01) ![GitHub Stars](https://img.shields.io/github/stars/Champ-Deep/ChamPDF?style=social)
+[![Sponsor me on GitHub](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ff69b4)](https://github.com/sponsors/Champ-Deep)
 
 ![ChamPDF Tools](public/images/champdf-tools.png)
 
@@ -55,7 +55,7 @@ ChamPDF is **dual-licensed** to fit your needs:
 
 ## ⭐ Stargazers over time
 
-[![Star History Chart](https://api.star-history.com/svg?repos=alam00000/champdf&type=Date)](https://star-history.com/#alam00000/champdf&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=Champ-Deep/ChamPDF&type=Date)](https://star-history.com/#Champ-Deep/ChamPDF&Date)
 
 ---
 
@@ -63,7 +63,7 @@ ChamPDF is **dual-licensed** to fit your needs:
 
 We're incredibly grateful to all our sponsors and supporters who help keep ChamPDF free and open source!
 
-[![Sponsor me on GitHub](https://img.shields.io/badge/Become%20a%20Sponsor-%E2%9D%A4-ff69b4?style=for-the-badge)](https://github.com/sponsors/alam00000)
+[![Sponsor me on GitHub](https://img.shields.io/badge/Become%20a%20Sponsor-%E2%9D%A4-ff69b4?style=for-the-badge)](https://github.com/sponsors/Champ-Deep)
 [![Buy me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20Coffee-yellow?style=for-the-badge&logo=kofi)](https://ko-fi.com/alio01)
 
 <!-- sponsors -->
@@ -265,7 +265,7 @@ docker run -p 3000:8080 champdf/champdf:latest
 **Using GitHub Container Registry:**
 
 ```bash
-docker run -p 3000:8080 ghcr.io/alam00000/champdf:latest
+docker run -p 3000:8080 ghcr.io/Champ-Deep/ChamPDF:latest
 ```
 
 Open your browser at: http://localhost:3000
@@ -274,7 +274,7 @@ This is the fastest way to try ChamPDF without setting up a development environm
 
 ### Static Hosting using Netlify, Vercel, and GitHub Pages
 
-It is very straightforward to host your own instance of ChamPDF using a static web page hosting service. Plus, services such as Netlify, Vercel, and GitHub Pages all offer a free tier for getting started. See [Static Hosting](https://github.com/alam00000/champdf/blob/main/STATIC-HOSTING.md)) for details.
+It is very straightforward to host your own instance of ChamPDF using a static web page hosting service. Plus, services such as Netlify, Vercel, and GitHub Pages all offer a free tier for getting started. See [Static Hosting](https://github.com/Champ-Deep/ChamPDF/blob/main/STATIC-HOSTING.md)) for details.
 
 ### 🏠 Self-Hosting Locally
 
@@ -282,9 +282,9 @@ Since ChamPDF is fully client-side, all processing happens in the user's browser
 
 **Download from Releases (Recommended):**
 
-The easiest way to self-host is to download the pre-built distribution file from our [GitHub releases](https://github.com/alam00000/champdf/releases). Each release includes a `dist-{version}.zip` file that contains all necessary files for self-hosting.
+The easiest way to self-host is to download the pre-built distribution file from our [GitHub releases](https://github.com/Champ-Deep/ChamPDF/releases). Each release includes a `dist-{version}.zip` file that contains all necessary files for self-hosting.
 
-1. Go to [ChamPDF Releases](https://github.com/alam00000/champdf/releases)
+1. Go to [ChamPDF Releases](https://github.com/Champ-Deep/ChamPDF/releases)
 2. Download the latest `dist-{version}.zip` file
 3. Extract the zip file
 4. Serve the extracted folder with your preferred web server
@@ -309,7 +309,7 @@ If you prefer to build from source:
 
 ```bash
 # Clone the repository
-git clone https://github.com/alam00000/champdf.git
+git clone https://github.com/Champ-Deep/ChamPDF.git
 cd champdf
 
 # Install dependencies
@@ -584,9 +584,9 @@ ChamPDF supports semantic versioning with multiple Docker tags available on both
 
 **GitHub Container Registry:**
 
-- **Latest**: `ghcr.io/alam00000/champdf:latest`
-- **Specific Version**: `ghcr.io/alam00000/champdf:1.0.0`
-- **Version with Prefix**: `ghcr.io/alam00000/champdf:v1.0.0`
+- **Latest**: `ghcr.io/Champ-Deep/ChamPDF:latest`
+- **Specific Version**: `ghcr.io/Champ-Deep/ChamPDF:1.0.0`
+- **Version with Prefix**: `ghcr.io/Champ-Deep/ChamPDF:v1.0.0`
 
 #### Quick Release
 
@@ -610,7 +610,7 @@ For detailed release instructions, see [RELEASE.md](RELEASE.md).
 1. **Clone the Repository**:
 
    ```bash
-   git clone https://github.com/alam00000/champdf.git
+   git clone https://github.com/Champ-Deep/ChamPDF.git
    cd champdf
    ```
 
@@ -631,7 +631,7 @@ For detailed release instructions, see [RELEASE.md](RELEASE.md).
 1. **Clone the Repository**:
 
    ```bash
-   git clone https://github.com/alam00000/champdf.git
+   git clone https://github.com/Champ-Deep/ChamPDF.git
    cd champdf
    ```
 
@@ -689,7 +689,7 @@ We welcome contributions from the community! Here's how you can get started:
 3.  Make your changes and commit them with a clear message.
 4.  **Open a Pull Request** and describe the changes you've made.
 
-Have an idea for a new tool or an improvement? [Open an issue](https://github.com/alam00000/champdf/issues) to discuss it first.
+Have an idea for a new tool or an improvement? [Open an issue](https://github.com/Champ-Deep/ChamPDF/issues) to discuss it first.
 
 ### 📖 Contributing to Documentation
 

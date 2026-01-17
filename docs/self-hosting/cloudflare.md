@@ -116,4 +116,4 @@ npx wrangler deploy
 VITE_CORS_PROXY_URL=https://your-worker.workers.dev npm run build
 ```
 
-> **Note:** See [README](https://github.com/alam00000/champdf#digital-signature-cors-proxy-required) for HMAC signature setup.
+> **Note:** See [README](https://github.com/Champ-Deep/ChamPDF#digital-signature-cors-proxy-required) for HMAC signature setup.
