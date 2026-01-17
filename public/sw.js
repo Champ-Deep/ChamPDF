@@ -1,11 +1,11 @@
 /**
- * BentoPDF Service Worker
+ * ChamPDF Service Worker
  * Caches WASM files and static assets for offline support and faster loading
  * Supports both local and CDN delivery with deduplication
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'bentopdf-v7';
+const CACHE_VERSION = 'champdf-v7';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 
@@ -68,7 +68,7 @@ self.addEventListener('activate', (event) => {
             .then((cacheNames) => {
                 return Promise.all(
                     cacheNames.map((cacheName) => {
-                        if (cacheName.startsWith('bentopdf-') && cacheName !== CACHE_NAME) {
+                        if (cacheName.startsWith('champdf-') && cacheName !== CACHE_NAME) {
                             // console.log('[ServiceWorker] Deleting old cache:', cacheName);
                             return caches.delete(cacheName);
                         }
@@ -220,10 +220,10 @@ async function networkFirstStrategy(request) {
  * Returns the local directory path for a given CDN package
  */
 function getLocalPathForCDNUrl(pathname) {
-    if (pathname.includes('/@bentopdf/pymupdf-wasm')) {
+    if (pathname.includes('/@champdf/pymupdf-wasm')) {
         return '/pymupdf-wasm/';
     }
-    if (pathname.includes('/@bentopdf/gs-wasm')) {
+    if (pathname.includes('/@champdf/gs-wasm')) {
         return '/ghostscript-wasm/';
     }
     if (pathname.includes('/@matbee/libreoffice-converter')) {
@@ -239,8 +239,8 @@ function getLocalPathForCDNUrl(pathname) {
 function shouldCache(pathname, isCDN = false) {
     if (isCDN) {
         return (
-            pathname.includes('/@bentopdf/pymupdf-wasm') ||
-            pathname.includes('/@bentopdf/gs-wasm') ||
+            pathname.includes('/@champdf/pymupdf-wasm') ||
+            pathname.includes('/@champdf/gs-wasm') ||
             pathname.includes('/@matbee/libreoffice-converter') ||
             pathname.match(/\.(wasm|whl|zip|json|js|gz)$/)
         );

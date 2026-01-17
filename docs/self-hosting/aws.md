@@ -1,6 +1,6 @@
 # Deploy to AWS S3 + CloudFront
 
-Host BentoPDF on AWS for maximum control and scalability.
+Host ChamPDF on AWS for maximum control and scalability.
 
 ## Architecture
 
@@ -12,10 +12,10 @@ User → CloudFront (CDN) → S3 (Static Files)
 
 ```bash
 # Create bucket
-aws s3 mb s3://your-bentopdf-bucket --region us-east-1
+aws s3 mb s3://your-champdf-bucket --region us-east-1
 
 # Enable static website hosting
-aws s3 website s3://your-bentopdf-bucket \
+aws s3 website s3://your-champdf-bucket \
   --index-document index.html \
   --error-document index.html
 ```
@@ -27,12 +27,12 @@ aws s3 website s3://your-bentopdf-bucket \
 npm run build
 
 # Sync to S3
-aws s3 sync dist/ s3://your-bentopdf-bucket \
+aws s3 sync dist/ s3://your-champdf-bucket \
   --delete \
   --cache-control "max-age=31536000"
 
 # Set correct MIME types for WASM
-aws s3 cp s3://your-bentopdf-bucket/ s3://your-bentopdf-bucket/ \
+aws s3 cp s3://your-champdf-bucket/ s3://your-champdf-bucket/ \
   --recursive \
   --exclude "*" \
   --include "*.wasm" \
@@ -44,7 +44,7 @@ aws s3 cp s3://your-bentopdf-bucket/ s3://your-bentopdf-bucket/ \
 
 ```bash
 aws cloudfront create-distribution \
-  --origin-domain-name your-bentopdf-bucket.s3.amazonaws.com \
+  --origin-domain-name your-champdf-bucket.s3.amazonaws.com \
   --default-root-object index.html
 ```
 
@@ -71,7 +71,7 @@ Allow CloudFront to access the bucket:
         "Service": "cloudfront.amazonaws.com"
       },
       "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::your-bentopdf-bucket/*",
+      "Resource": "arn:aws:s3:::your-champdf-bucket/*",
       "Condition": {
         "StringEquals": {
           "AWS:SourceArn": "arn:aws:cloudfront::ACCOUNT_ID:distribution/DISTRIBUTION_ID"
@@ -108,13 +108,13 @@ Use S3 Intelligent Tiering for cost optimization on infrequently accessed files.
 
 ```hcl
 # main.tf
-resource "aws_s3_bucket" "bentopdf" {
-  bucket = "your-bentopdf-bucket"
+resource "aws_s3_bucket" "champdf" {
+  bucket = "your-champdf-bucket"
 }
 
-resource "aws_cloudfront_distribution" "bentopdf" {
+resource "aws_cloudfront_distribution" "champdf" {
   origin {
-    domain_name = aws_s3_bucket.bentopdf.bucket_regional_domain_name
+    domain_name = aws_s3_bucket.champdf.bucket_regional_domain_name
     origin_id   = "S3Origin"
   }
   

@@ -1,5 +1,5 @@
 /**
- * BentoPDF CORS Proxy Worker
+ * ChamPDF CORS Proxy Worker
  * 
  * This Cloudflare Worker proxies certificate requests for the digital signing tool.
  * It fetches certificates from external CAs that don't have CORS headers enabled
@@ -23,8 +23,8 @@ const ALLOWED_PATTERNS = [
 ];
 
 const ALLOWED_ORIGINS = [
-    'https://www.bentopdf.com',
-    'https://bentopdf.com',
+    'https://www.champdf.com',
+    'https://champdf.com',
 ];
 
 const BLOCKED_DOMAINS = [
@@ -149,7 +149,7 @@ export default {
         if (!isAllowedOrigin(origin)) {
             return new Response(JSON.stringify({
                 error: 'Forbidden',
-                message: 'This proxy only accepts requests from bentopdf.com',
+                message: 'This proxy only accepts requests from champdf.com',
             }), {
                 status: 403,
                 headers: {
@@ -275,7 +275,7 @@ export default {
         try {
             const response = await fetch(targetUrl, {
                 headers: {
-                    'User-Agent': 'BentoPDF-CertProxy/1.0',
+                    'User-Agent': 'ChamPDF-CertProxy/1.0',
                 },
             });
 

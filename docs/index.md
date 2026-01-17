@@ -3,7 +3,7 @@
 layout: home
 
 hero:
-  name: "BentoPDF"
+  name: "ChamPDF"
   text: "Free, Open-Source PDF Tools"
   tagline: Process PDFs entirely in your browser. No uploads. No servers. Complete privacy.
   actions:

@@ -57,11 +57,11 @@
           <div class="flex-shrink-0 flex items-center cursor-pointer">
             <img
               src="/images/favicon-no-bg.svg"
-              alt="Bento PDF Logo"
+              alt="ChamPDF Logo"
               class="h-8 w-8"
             />
             <span class="text-white font-bold text-xl ml-2">
-              <a href="/">BentoPDF</a>
+              <a href="/">ChamPDF</a>
             </span>
           </div>
         </div>
@@ -88,7 +88,7 @@
             <input
               type="text"
               id="search-bar"
-              class="w-full pl-10 pr-4 py-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full pl-10 pr-4 py-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:ring-red-500 focus:border-red-500"
               placeholder="Search for a tool (e.g., 'split', 'organize'...)"
               data-i18n-placeholder="tools.searchPlaceholder"
             />
@@ -122,7 +122,7 @@
       >
         <button
           id="back-to-grid"
-          class="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 mb-6 font-semibold"
+          class="flex items-center gap-2 text-orange-400 hover:text-orange-300 mb-6 font-semibold"
         >
           <i data-lucide="arrow-left" class="cursor-pointer"></i>
           <span class="cursor-pointer" data-i18n="tools.backToTools">
@@ -165,7 +165,7 @@
           </p>
           <button
             id="alert-ok"
-            class="btn bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-indigo-700"
+            class="btn bg-red-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-red-700"
           >
             OK
           </button>
@@ -184,7 +184,7 @@
             <div class="flex gap-4">
               <button
                 id="preview-download-btn"
-                class="btn bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-indigo-700"
+                class="btn bg-red-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-red-700"
               >
                 Download as PDF
               </button>
@@ -212,7 +212,7 @@
             class="p-6 border-b border-gray-700 flex justify-between items-center"
           >
             <h3 class="text-xl font-bold text-white flex items-center gap-2">
-              <i data-lucide="settings" class="w-6 h-6 text-indigo-400"></i>
+              <i data-lucide="settings" class="w-6 h-6 text-orange-400"></i>
               Settings
             </h3>
             <button
@@ -227,7 +227,7 @@
           <div class="flex border-b border-gray-700">
             <button
               id="shortcuts-tab-btn"
-              class="flex-1 py-3 text-sm font-medium bg-indigo-600 text-white"
+              class="flex-1 py-3 text-sm font-medium bg-red-600 text-white"
             >
               <i data-lucide="keyboard" class="inline-block w-4 h-4 mr-1"></i>
               Shortcuts
@@ -253,19 +253,19 @@
                   type="text"
                   id="shortcut-search"
                   placeholder="Search shortcuts..."
-                  class="w-full bg-gray-900 border border-gray-700 text-white rounded-lg pl-10 pr-4 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  class="w-full bg-gray-900 border border-gray-700 text-white rounded-lg pl-10 pr-4 py-2 focus:ring-red-500 focus:border-red-500"
                 />
               </div>
             </div>
 
             <div
-              class="mb-4 p-3 bg-indigo-900/20 border border-indigo-500/30 rounded-lg flex items-start gap-3"
+              class="mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded-lg flex items-start gap-3"
             >
               <i
                 data-lucide="info"
-                class="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5"
+                class="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5"
               ></i>
-              <p class="text-sm text-indigo-200">
+              <p class="text-sm text-orange-200">
                 <span data-i18n="settings.shortcutsInfo"
                   >Press and hold keys to set a shortcut. Changes are
                   <strong>auto-saved</strong>.</span
@@ -325,7 +325,7 @@
                     class="sr-only peer"
                   />
                   <div
-                    class="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"
+                    class="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"
                   ></div>
                 </label>
               </div>
@@ -422,16 +422,74 @@
       <!-- Scroll to Top Button -->
       <button
         id="scroll-to-top-btn"
-        class="fixed bottom-12 right-8 bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 opacity-0 translate-y-10 invisible z-40"
+        class="fixed bottom-12 right-8 bg-red-600 hover:bg-red-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 opacity-0 translate-y-10 invisible z-40"
         aria-label="Scroll to top"
       >
         <i data-lucide="arrow-up" class="w-6 h-6"></i>
       </button>
     </div>
 
+    <!-- Privacy Compliance Section -->
+    <section id="security-compliance-section" class="py-12 border-t border-gray-700 mt-12">
+      <div class="container mx-auto px-4">
+        <div class="mb-6 text-center">
+          <h2 class="text-2xl md:text-3xl font-bold text-white leading-tight mb-4">
+            <span class="inline-flex items-center gap-2">
+              <i data-lucide="shield" class="w-6 h-6 md:w-8 md:h-8 text-orange-400 bg-red-900 rounded-lg p-1"></i>
+              <span data-i18n="compliance.weKeep">We keep</span>
+            </span>
+            <span
+              class="inline-block border-2 border-orange-400 bg-red-900 text-orange-300 px-3 py-1 rounded-full mx-2 text-xl md:text-2xl font-bold"
+              data-i18n="compliance.yourInfoSafe"
+            >
+              your information safe
+            </span>
+          </h2>
+          <p class="text-orange-400 text-base font-medium" data-i18n="compliance.processingLocal">
+            All the processing happens locally on your device.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <!-- GDPR -->
+          <div class="flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center mb-3">
+              <img src="images/gdpr.svg" alt="GDPR compliance" class="w-full h-full" />
+            </div>
+            <h3 class="text-base font-bold text-white mb-2" data-i18n="compliance.gdpr.title">GDPR compliance</h3>
+            <p class="text-gray-400 text-sm leading-relaxed" data-i18n="compliance.gdpr.description">
+              Protects the personal data and privacy of individuals within the European Union.
+            </p>
+          </div>
+
+          <!-- CCPA -->
+          <div class="flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center mb-3">
+              <img src="images/ccpa.svg" alt="CCPA compliance" class="w-full h-full" />
+            </div>
+            <h3 class="text-base font-bold text-white mb-2" data-i18n="compliance.ccpa.title">CCPA compliance</h3>
+            <p class="text-gray-400 text-sm leading-relaxed" data-i18n="compliance.ccpa.description">
+              Gives California residents rights over how their personal information is collected, used, and shared.
+            </p>
+          </div>
+
+          <!-- HIPAA -->
+          <div class="flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center mb-3">
+              <img src="images/hipaa.svg" alt="HIPAA compliance" class="w-full h-full" />
+            </div>
+            <h3 class="text-base font-bold text-white mb-2" data-i18n="compliance.hipaa.title">HIPAA compliance</h3>
+            <p class="text-gray-400 text-sm leading-relaxed" data-i18n="compliance.hipaa.description">
+              Sets safeguards for handling sensitive health information in the United States healthcare system.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Simple mode footer -->
     <footer
-      class="mt-16 border-t-2 border-gray-700 py-8"
+      class="border-t border-gray-700 py-8"
       data-simple-footer="true"
     >
       <div class="container mx-auto px-4">
@@ -440,13 +498,13 @@
             <div class="flex items-center mb-2">
               <img
                 src="/images/favicon.svg"
-                alt="Bento PDF Logo"
+                alt="ChamPDF Logo"
                 class="h-8 w-8 mr-2"
               />
-              <span class="text-white font-bold text-lg">BentoPDF</span>
+              <span class="text-white font-bold text-lg">ChamPDF</span>
             </div>
             <p class="text-gray-400 text-sm">
-              &copy; 2026 BentoPDF. All rights reserved.
+              &copy; 2026 ChamPDF. All rights reserved.
             </p>
             <p class="text-gray-500 text-xs mt-2">
               Version <span id="app-version-simple"></span>

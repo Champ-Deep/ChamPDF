@@ -1,18 +1,18 @@
 {
-    "name": "BentoPDF CLA",
+    "name": "ChamPDF CLA",
     "text": [
-        "Thank you for your contribution to BentoPDF!",
+        "Thank you for your contribution to ChamPDF!",
         "",
         "By signing this CLA, you agree to the terms of our Contributor License Agreement.",
         "",
         "**Individual Contributors**: Please review and sign our [Individual CLA (ICLA)](ICLA.md)",
         "",
-        "**Corporate Contributors**: If you are contributing on behalf of your employer, please have your organization sign our [Corporate CLA (CCLA)](CCLA.md) by contacting contact@bentopdf.com"
+        "**Corporate Contributors**: If you are contributing on behalf of your employer, please have your organization sign our [Corporate CLA (CCLA)](CCLA.md) by contacting deep@championsmail.com"
     ],
     "notes": {
-        "purpose": "This CLA enables BentoPDF's dual licensing model (AGPL-3.0 + commercial license)",
-        "icla_url": "https://github.com/alam00000/bentopdf/blob/main/ICLA.md",
-        "ccla_url": "https://github.com/alam00000/bentopdf/blob/main/CCLA.md",
-        "contact": "contact@bentopdf.com"
+        "purpose": "This CLA enables ChamPDF's dual licensing model (AGPL-3.0 + commercial license)",
+        "icla_url": "https://github.com/alam00000/champdf/blob/main/ICLA.md",
+        "ccla_url": "https://github.com/alam00000/champdf/blob/main/CCLA.md",
+        "contact": "deep@championsmail.com"
     }
 }

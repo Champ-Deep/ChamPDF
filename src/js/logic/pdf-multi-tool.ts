@@ -280,14 +280,14 @@ function initializeTool() {
   if (uploadArea) {
     uploadArea.addEventListener('dragover', (e) => {
       e.preventDefault();
-      uploadArea.classList.add('border-indigo-500');
+      uploadArea.classList.add('border-red-500');
     });
     uploadArea.addEventListener('dragleave', () => {
-      uploadArea.classList.remove('border-indigo-500');
+      uploadArea.classList.remove('border-red-500');
     });
     uploadArea.addEventListener('drop', (e) => {
       e.preventDefault();
-      uploadArea.classList.remove('border-indigo-500');
+      uploadArea.classList.remove('border-red-500');
       const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type === 'application/pdf');
       if (files.length > 0) {
         loadPdfs(files);
@@ -486,7 +486,7 @@ function createPageElement(canvas: HTMLCanvasElement | null, index: number): HTM
   }
 
   if (selectedPages.has(index)) {
-    card.classList.add('border-indigo-500', 'ring-2', 'ring-indigo-500');
+    card.classList.add('border-red-500', 'ring-2', 'ring-red-500');
   }
 
   const preview = document.createElement('div');
@@ -528,7 +528,7 @@ function createPageElement(canvas: HTMLCanvasElement | null, index: number): HTM
   const selectBtn = document.createElement('button');
   selectBtn.className = 'absolute top-2 right-2 p-1 rounded bg-gray-900/70 hover:bg-gray-800 z-10';
   selectBtn.innerHTML = selectedPages.has(index)
-    ? '<i data-lucide="check-square" class="w-4 h-4 text-indigo-400"></i>'
+    ? '<i data-lucide="check-square" class="w-4 h-4 text-orange-400"></i>'
     : '<i data-lucide="square" class="w-4 h-4 text-gray-200"></i>';
   selectBtn.onclick = (e) => {
     e.stopPropagation();
@@ -659,10 +659,10 @@ function toggleSelectOptimized(index: number) {
   if (!selectBtn) return;
 
   if (selectedPages.has(index)) {
-    card.classList.add('border-indigo-500', 'ring-2', 'ring-indigo-500');
-    selectBtn.innerHTML = '<i data-lucide="check-square" class="w-4 h-4 text-indigo-400"></i>';
+    card.classList.add('border-red-500', 'ring-2', 'ring-red-500');
+    selectBtn.innerHTML = '<i data-lucide="check-square" class="w-4 h-4 text-orange-400"></i>';
   } else {
-    card.classList.remove('border-indigo-500', 'ring-2', 'ring-indigo-500');
+    card.classList.remove('border-red-500', 'ring-2', 'ring-red-500');
     selectBtn.innerHTML = '<i data-lucide="square" class="w-4 h-4 text-gray-200"></i>';
   }
 
@@ -1108,10 +1108,10 @@ function updatePageDisplay() {
       const selectBtn = card.querySelector('button[class*="absolute top-2 right-2"]');
       if (selectBtn) {
         if (selectedPages.has(index)) {
-          card.classList.add('border-indigo-500', 'ring-2', 'ring-indigo-500');
-          selectBtn.innerHTML = '<i data-lucide="check-square" class="w-4 h-4 text-indigo-400"></i>';
+          card.classList.add('border-red-500', 'ring-2', 'ring-red-500');
+          selectBtn.innerHTML = '<i data-lucide="check-square" class="w-4 h-4 text-orange-400"></i>';
         } else {
-          card.classList.remove('border-indigo-500', 'ring-2', 'ring-indigo-500');
+          card.classList.remove('border-red-500', 'ring-2', 'ring-red-500');
           selectBtn.innerHTML = '<i data-lucide="square" class="w-4 h-4 text-gray-200"></i>';
         }
         // Update click handler to use new index

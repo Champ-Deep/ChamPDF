@@ -101,11 +101,11 @@ function setViewMode(mode: 'overlay' | 'side-by-side') {
         if (overlayControls) overlayControls.classList.remove('hidden');
         if (sideControls) sideControls.classList.add('hidden');
         if (btnOverlay) {
-            btnOverlay.classList.add('bg-indigo-600');
+            btnOverlay.classList.add('bg-red-600');
             btnOverlay.classList.remove('bg-gray-700');
         }
         if (btnSide) {
-            btnSide.classList.remove('bg-indigo-600');
+            btnSide.classList.remove('bg-red-600');
             btnSide.classList.add('bg-gray-700');
         }
         if (canvas2 && opacitySlider) canvas2.style.opacity = opacitySlider.value;
@@ -114,11 +114,11 @@ function setViewMode(mode: 'overlay' | 'side-by-side') {
         if (overlayControls) overlayControls.classList.add('hidden');
         if (sideControls) sideControls.classList.remove('hidden');
         if (btnOverlay) {
-            btnOverlay.classList.remove('bg-indigo-600');
+            btnOverlay.classList.remove('bg-red-600');
             btnOverlay.classList.add('bg-gray-700');
         }
         if (btnSide) {
-            btnSide.classList.add('bg-indigo-600');
+            btnSide.classList.add('bg-red-600');
             btnSide.classList.remove('bg-gray-700');
         }
         if (canvas2) canvas2.style.opacity = '1';

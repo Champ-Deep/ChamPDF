@@ -2,7 +2,7 @@ import { languageToFontFamily, fontFamilyToUrl } from '../config/font-mappings.j
 
 const fontCache: Map<string, ArrayBuffer> = new Map();
 
-const DB_NAME = 'bentopdf-fonts';
+const DB_NAME = 'champdf-fonts';
 const DB_VERSION = 1;
 const STORE_NAME = 'fonts';
 

@@ -1,6 +1,6 @@
 # Tools Reference
 
-BentoPDF offers **50+ tools** for working with PDFs. All tools run entirely in your browser—your files never leave your device.
+ChamPDF offers **50+ tools** for working with PDFs. All tools run entirely in your browser—your files never leave your device.
 
 ## Organize & Manage PDFs
 

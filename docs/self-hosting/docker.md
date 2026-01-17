@@ -1,6 +1,6 @@
 # Deploy with Docker
 
-The easiest way to self-host BentoPDF in a production environment.
+The easiest way to self-host ChamPDF in a production environment.
 
 > [!IMPORTANT]
 > **Required Headers for Office File Conversion**
@@ -15,10 +15,10 @@ The easiest way to self-host BentoPDF in a production environment.
 
 ```bash
 docker run -d \
-  --name bentopdf \
+  --name champdf \
   -p 3000:8080 \
   --restart unless-stopped \
-  ghcr.io/alam00000/bentopdf:latest
+  ghcr.io/alam00000/champdf:latest
 ```
 
 ## Docker Compose
@@ -27,9 +27,9 @@ Create `docker-compose.yml`:
 
 ```yaml
 services:
-  bentopdf:
-    image: ghcr.io/alam00000/bentopdf:latest
-    container_name: bentopdf
+  champdf:
+    image: ghcr.io/alam00000/champdf:latest
+    container_name: champdf
     ports:
       - "3000:8080"
     restart: unless-stopped
@@ -67,8 +67,8 @@ CMD ["nginx", "-g", "daemon off;"]
 Build and run:
 
 ```bash
-docker build -t bentopdf:custom .
-docker run -d -p 3000:8080 bentopdf:custom
+docker build -t champdf:custom .
+docker run -d -p 3000:8080 champdf:custom
 ```
 
 ## Environment Variables
@@ -84,7 +84,7 @@ Example:
 docker run -d \
   -e SIMPLE_MODE=true \
   -p 3000:8080 \
-  ghcr.io/alam00000/bentopdf:latest
+  ghcr.io/alam00000/champdf:latest
 ```
 
 ## With Traefik (Reverse Proxy)
@@ -107,18 +107,18 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./letsencrypt:/letsencrypt
 
-  bentopdf:
-    image: ghcr.io/alam00000/bentopdf:latest
+  champdf:
+    image: ghcr.io/alam00000/champdf:latest
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.bentopdf.rule=Host(`pdf.example.com`)"
-      - "traefik.http.routers.bentopdf.entrypoints=websecure"
-      - "traefik.http.routers.bentopdf.tls.certresolver=letsencrypt"
-      - "traefik.http.services.bentopdf.loadbalancer.server.port=8080"
+      - "traefik.http.routers.champdf.rule=Host(`pdf.example.com`)"
+      - "traefik.http.routers.champdf.entrypoints=websecure"
+      - "traefik.http.routers.champdf.tls.certresolver=letsencrypt"
+      - "traefik.http.services.champdf.loadbalancer.server.port=8080"
       # Required headers for SharedArrayBuffer (LibreOffice WASM)
-      - "traefik.http.routers.bentopdf.middlewares=bentopdf-headers"
-      - "traefik.http.middlewares.bentopdf-headers.headers.customresponseheaders.Cross-Origin-Opener-Policy=same-origin"
-      - "traefik.http.middlewares.bentopdf-headers.headers.customresponseheaders.Cross-Origin-Embedder-Policy=require-corp"
+      - "traefik.http.routers.champdf.middlewares=champdf-headers"
+      - "traefik.http.middlewares.champdf-headers.headers.customresponseheaders.Cross-Origin-Opener-Policy=same-origin"
+      - "traefik.http.middlewares.champdf-headers.headers.customresponseheaders.Cross-Origin-Embedder-Policy=require-corp"
     restart: unless-stopped
 ```
 
@@ -135,8 +135,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
     
-  bentopdf:
-    image: ghcr.io/alam00000/bentopdf:latest
+  champdf:
+    image: ghcr.io/alam00000/champdf:latest
     restart: unless-stopped
 
 volumes:
@@ -147,7 +147,7 @@ Caddyfile:
 
 ```
 pdf.example.com {
-    reverse_proxy bentopdf:8080
+    reverse_proxy champdf:8080
     header Cross-Origin-Opener-Policy "same-origin"
     header Cross-Origin-Embedder-Policy "require-corp"
 }
@@ -157,8 +157,8 @@ pdf.example.com {
 
 ```yaml
 services:
-  bentopdf:
-    image: ghcr.io/alam00000/bentopdf:latest
+  champdf:
+    image: ghcr.io/alam00000/champdf:latest
     deploy:
       resources:
         limits:

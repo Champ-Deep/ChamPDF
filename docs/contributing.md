@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing to BentoPDF! This guide will help you get started.
+Thank you for your interest in contributing to ChamPDF! This guide will help you get started.
 
 ## Getting Started
 
@@ -14,8 +14,8 @@ Thank you for your interest in contributing to BentoPDF! This guide will help yo
 
 ```bash
 # Fork and clone the repository
-git clone https://github.com/YOUR_USERNAME/bentopdf.git
-cd bentopdf
+git clone https://github.com/YOUR_USERNAME/champdf.git
+cd champdf
 
 # Install dependencies
 npm install
@@ -27,7 +27,7 @@ npm run dev
 ## Project Structure
 
 ```
-bentopdf/
+champdf/
 ├── src/
 │   ├── js/
 │   │   ├── config/       # Tool definitions
@@ -112,25 +112,25 @@ Add entries to all locale files in `public/locales/`:
 
 ## Translation
 
-See [TRANSLATION.md](https://github.com/alam00000/bentopdf/blob/main/TRANSLATION.md) for adding new languages.
+See [TRANSLATION.md](https://github.com/alam00000/champdf/blob/main/TRANSLATION.md) for adding new languages.
 
 ## Contributor License Agreement
 
 Before your PR can be merged, you'll need to sign our CLA:
 
-- [Individual CLA (ICLA)](https://github.com/alam00000/bentopdf/blob/main/ICLA.md)
-- [Corporate CLA (CCLA)](https://github.com/alam00000/bentopdf/blob/main/CCLA.md)
+- [Individual CLA (ICLA)](https://github.com/alam00000/champdf/blob/main/ICLA.md)
+- [Corporate CLA (CCLA)](https://github.com/alam00000/champdf/blob/main/CCLA.md)
 
 ## Getting Help
 
-- [GitHub Issues](https://github.com/alam00000/bentopdf/issues)
+- [GitHub Issues](https://github.com/alam00000/champdf/issues)
 - [Discord Community](https://discord.gg/Bgq3Ay3f2w)
 
 ## License
 
-BentoPDF is dual-licensed:
+ChamPDF is dual-licensed:
 
 - **AGPL-3.0** for open-source projects where you share your full source code publicly
-- **Commercial License** for proprietary/closed-source applications - [Get Lifetime License for $49](https://ko-fi.com/s/f32ca4cb75)
+- **Commercial License** for proprietary/closed-source applications - [Contact for License](mailto:deep@championsmail.com?subject=ChamPDF%20Commercial%20License%20Inquiry) ($20 one-time)
 
 By contributing, you agree that your contributions will be licensed under these terms.

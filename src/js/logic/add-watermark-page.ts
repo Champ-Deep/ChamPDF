@@ -26,11 +26,11 @@ function initializePage() {
     }
 
     if (dropZone) {
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500'); });
-        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-indigo-500'); });
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-red-500'); });
+        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-red-500'); });
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropZone.classList.remove('border-indigo-500');
+            dropZone.classList.remove('border-red-500');
             if (e.dataTransfer?.files.length) handleFiles(e.dataTransfer.files);
         });
     }

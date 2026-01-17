@@ -491,7 +491,7 @@
   },
   "digitalSignPdf": {
     "name": "Tanda Tangan Digital PDF",
-    "pageTitle": "Tanda Tangan Digital PDF - Tambah Tanda Tangan Kriptografi | BentoPDF",
+    "pageTitle": "Tanda Tangan Digital PDF - Tambah Tanda Tangan Kriptografi | ChamPDF",
     "subtitle": "Tambah tanda tangan digital kriptografi ke PDF Anda menggunakan sertifikat X.509. Mendukung format PKCS#12 (.pfx, .p12) dan PEM. Kunci pribadi Anda tidak pernah meninggalkan browser Anda.",
     "certificateSection": "Sertifikat",
     "uploadCert": "Unggah sertifikat (.pfx, .p12)",
@@ -513,7 +513,7 @@
   },
   "validateSignaturePdf": {
     "name": "Validasi Tanda Tangan PDF",
-    "pageTitle": "Validasi Tanda Tangan PDF - Verifikasi Tanda Tangan Digital | BentoPDF",
+    "pageTitle": "Validasi Tanda Tangan PDF - Verifikasi Tanda Tangan Digital | ChamPDF",
     "subtitle": "Verifikasi tanda tangan digital di file PDF Anda. Periksa validitas sertifikat, lihat detail penandatangan, dan konfirmasi integritas dokumen. Semua pemrosesan terjadi di browser Anda."
   },
   "emailToPdf": {

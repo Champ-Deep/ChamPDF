@@ -60,7 +60,7 @@ export const showLoader = (text = t('common.loading'), progress?: number) => {
                 progressContainer.className = 'loader-progress-container w-64 mt-4';
                 progressContainer.innerHTML = `
                     <div class="bg-gray-700 rounded-full h-2 overflow-hidden">
-                        <div class="loader-progress-bar bg-indigo-500 h-full transition-all duration-300" style="width: 0%"></div>
+                        <div class="loader-progress-bar bg-red-500 h-full transition-all duration-300" style="width: 0%"></div>
                     </div>
                     <p class="loader-progress-text text-xs text-gray-400 mt-1 text-center">0%</p>
                 `;
@@ -469,7 +469,7 @@ const createFileInputHTML = (options = {}) => {
             ? `
             <!-- NEW: Add control buttons for multi-file uploads -->
             <div id="file-controls" class="hidden mt-4 flex gap-3">
-                <button id="add-more-btn" class="btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2">
+                <button id="add-more-btn" class="btn bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2">
                     <i data-lucide="plus"></i> ${t('upload.addMore')}
                 </button>
                 <button id="clear-files-btn" class="btn bg-gray-700 hover:bg-gray-600 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2">

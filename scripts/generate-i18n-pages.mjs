@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 const DIST_DIR = path.resolve(__dirname, '../dist');
 const LOCALES_DIR = path.resolve(__dirname, '../public/locales');
-const SITE_URL = process.env.SITE_URL || 'https://bentopdf.com';
+const SITE_URL = process.env.SITE_URL || 'https://champdf.com';
 const BASE_PATH = (process.env.BASE_URL || '/').replace(/\/$/, '');
 
 const languages = fs.readdirSync(LOCALES_DIR).filter((file) => {
@@ -87,7 +87,7 @@ async function generateI18nPages() {
         title =
           tools[translationKey].pageTitle ||
           (tools[translationKey].name
-            ? `${tools[translationKey].name} - BentoPDF`
+            ? `${tools[translationKey].name} - ChamPDF`
             : null);
         description = tools[translationKey].subtitle;
       }

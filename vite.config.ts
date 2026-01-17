@@ -105,7 +105,9 @@ function createLanguageMiddleware(isDev: boolean): Connect.NextHandleFunction {
 
       if (rest === '' || rest === '/') {
         if (isDev) {
-          req.url = '/index.html' + (queryString ? `?${queryString}` : '');
+          // Use simple-index.html by default in dev mode (Simple Mode)
+          const indexFile = process.env.SIMPLE_MODE !== 'false' ? '/simple-index.html' : '/index.html';
+          req.url = indexFile + (queryString ? `?${queryString}` : '');
         } else {
           const langIndexPath = resolve(__dirname, 'dist', lang, 'index.html');
           if (fs.existsSync(langIndexPath)) {
@@ -215,7 +217,7 @@ function flattenPagesPlugin(): Plugin {
           delete bundle[fileName];
         }
       }
-      if (process.env.SIMPLE_MODE === 'true' && bundle['simple-index.html']) {
+      if (process.env.SIMPLE_MODE !== 'false' && bundle['simple-index.html']) {
         bundle['index.html'] = bundle['simple-index.html'];
         bundle['index.html'].fileName = 'index.html';
         delete bundle['simple-index.html'];
@@ -315,7 +317,7 @@ export default defineConfig(() => {
         partialDirectory: resolve(__dirname, 'src/partials'),
         context: {
           baseUrl: (process.env.BASE_URL || '/').replace(/\/?$/, '/'),
-          simpleMode: process.env.SIMPLE_MODE === 'true',
+          simpleMode: process.env.SIMPLE_MODE !== 'false',
         },
       }),
       languageRouterPlugin(),
@@ -356,7 +358,8 @@ export default defineConfig(() => {
       }),
     ],
     define: {
-      __SIMPLE_MODE__: JSON.stringify(process.env.SIMPLE_MODE === 'true'),
+      // Simple Mode is enabled by default; set SIMPLE_MODE=false to disable
+      __SIMPLE_MODE__: JSON.stringify(process.env.SIMPLE_MODE !== 'false'),
     },
     resolve: {
       alias: {
@@ -385,8 +388,9 @@ export default defineConfig(() => {
     build: {
       rollupOptions: {
         input: {
+          // Simple Mode is enabled by default; set SIMPLE_MODE=false to use full index.html
           main:
-            process.env.SIMPLE_MODE === 'true'
+            process.env.SIMPLE_MODE !== 'false'
               ? resolve(__dirname, 'simple-index.html')
               : resolve(__dirname, 'index.html'),
           about: resolve(__dirname, 'about.html'),

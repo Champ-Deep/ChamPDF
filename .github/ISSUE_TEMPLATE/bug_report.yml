@@ -1,5 +1,5 @@
 name: 🐛 Bug Report
-description: Report a bug in BentoPDF
+description: Report a bug in ChamPDF
 title: "(Bug) "
 labels: ["bug", "needs triage"]
 body:
@@ -92,9 +92,9 @@ body:
       required: true
 
   - type: input
-    id: bentopdf-version
+    id: champdf-version
     attributes:
-      label: BentoPDF Version
+      label: ChamPDF Version
       description: Check the footer or package.json
       placeholder: "1.15.4"
     validations:

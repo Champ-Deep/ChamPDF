@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Translation Checker for BentoPDF
+ * Translation Checker for ChamPDF
  * 
  * This script compares translation files across languages and reports:
  * - Missing keys (keys present in English but absent in other languages)
@@ -136,7 +136,7 @@ function printSection(title, items, color = colors.yellow) {
  * Main function
  */
 function main() {
-    console.log(`${colors.blue}🌍 BentoPDF Translation Checker${colors.reset}\n`);
+    console.log(`${colors.blue}🌍 ChamPDF Translation Checker${colors.reset}\n`);
 
     const languages = getAvailableLanguages();
 

@@ -4,13 +4,13 @@
 
 ## One-Click Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/alam00000/bentopdf)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/alam00000/champdf)
 
 ## Manual Deployment
 
 ### Step 1: Fork the Repository
 
-Fork [bentopdf/bentopdf](https://github.com/alam00000/bentopdf) to your GitHub account.
+Fork [champdf/champdf](https://github.com/alam00000/champdf) to your GitHub account.
 
 ### Step 2: Import to Vercel
 
@@ -47,7 +47,7 @@ Click "Deploy" and wait for the build to complete.
 ## Limitations
 
 ::: warning Large Files
-Vercel's serverless functions have a 50MB limit. Since BentoPDF is a static site, this shouldn't affect you, but WASM modules are large (~100MB total). Ensure they're served from the `/public` folder.
+Vercel's serverless functions have a 50MB limit. Since ChamPDF is a static site, this shouldn't affect you, but WASM modules are large (~100MB total). Ensure they're served from the `/public` folder.
 :::
 
 ## Troubleshooting

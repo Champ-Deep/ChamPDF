@@ -34,7 +34,7 @@ if (isDevelopment) {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                 console.log('[SW] New version available! Reload to update.');
 
-                                if (confirm('A new version of BentoPDF is available. Reload to update?')) {
+                                if (confirm('A new version of ChamPDF is available. Reload to update?')) {
                                     newWorker.postMessage({ type: 'SKIP_WAITING' });
                                     window.location.reload();
                                 }

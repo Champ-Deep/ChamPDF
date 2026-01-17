@@ -440,7 +440,7 @@ function createSignatureCard(result: SignatureValidationResult, index: number): 
             ` : ''}
 
             <details class="mt-2">
-                <summary class="cursor-pointer text-indigo-400 hover:text-indigo-300 text-sm">
+                <summary class="cursor-pointer text-orange-400 hover:text-orange-300 text-sm">
                     Technical Details
                 </summary>
                 <div class="mt-2 p-3 bg-gray-800 rounded text-xs space-y-1">

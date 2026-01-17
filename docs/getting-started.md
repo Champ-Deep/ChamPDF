@@ -1,25 +1,25 @@
 # Getting Started
 
-Welcome to BentoPDF! This guide will help you get up and running quickly.
+Welcome to ChamPDF! This guide will help you get up and running quickly.
 
-## What is BentoPDF?
+## What is ChamPDF?
 
-BentoPDF is a free, open-source, privacy-first PDF toolkit that runs **entirely in your browser**. Your files never leave your device—all processing happens locally using WebAssembly (WASM) technology.
+ChamPDF is a free, open-source, privacy-first PDF toolkit that runs **entirely in your browser**. Your files never leave your device—all processing happens locally using WebAssembly (WASM) technology.
 
 ## Quick Start
 
 ### Option 1: Use the Hosted Version
 
-Visit [bentopdf.com](https://bentopdf.com) to use BentoPDF instantly—no installation required.
+Visit [champdf.com](https://champdf.com) to use ChamPDF instantly—no installation required.
 
 ### Option 2: Self-Host with Docker
 
 ```bash
 # Pull and run the Docker image
-docker run -d -p 3000:8080 ghcr.io/alam00000/bentopdf:latest
+docker run -d -p 3000:8080 ghcr.io/alam00000/champdf:latest
 
 # Or use Docker Compose
-curl -O https://raw.githubusercontent.com/alam00000/bentopdf/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/alam00000/champdf/main/docker-compose.yml
 docker compose up -d
 ```
 
@@ -29,8 +29,8 @@ Then open `http://localhost:3000` in your browser.
 
 ```bash
 # Clone the repository
-git clone https://github.com/alam00000/bentopdf.git
-cd bentopdf
+git clone https://github.com/alam00000/champdf.git
+cd champdf
 
 # Install dependencies
 npm install
@@ -52,7 +52,7 @@ npm run dev
 
 ## Browser Support
 
-BentoPDF works best on modern browsers:
+ChamPDF works best on modern browsers:
 
 - ✅ Chrome/Edge 90+
 - ✅ Firefox 90+
@@ -61,5 +61,5 @@ BentoPDF works best on modern browsers:
 ## Next Steps
 
 - [Explore all tools](/tools/)
-- [Self-host BentoPDF](/self-hosting/)
+- [Self-host ChamPDF](/self-hosting/)
 - [Contribute to the project](/contributing)

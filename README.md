@@ -1,12 +1,12 @@
 <p align="center"><img src="public/images/favicon-no-bg.svg" width="80"></p>
-<h1 align="center">BentoPDF</h1>
+<h1 align="center">ChamPDF</h1>
 
-**BentoPDF** is a powerful, privacy-first, client-side PDF toolkit that is self hostable and allows you to manipulate, edit, merge, and process PDF files directly in your browser. No server-side processing is required, ensuring your files remain secure and private.
+**ChamPDF** is a powerful, privacy-first, client-side PDF toolkit that is self hostable and allows you to manipulate, edit, merge, and process PDF files directly in your browser. No server-side processing is required, ensuring your files remain secure and private.
 
-![Docker Pulls](https://img.shields.io/docker/pulls/bentopdf/bentopdf) [![Ko-fi](https://img.shields.io/badge/Buy%20me%20a%20Coffee-yellow?logo=kofi&style=flat-square)](https://ko-fi.com/alio01) ![GitHub Stars](https://img.shields.io/github/stars/alam00000/bentopdf?style=social)
+![Docker Pulls](https://img.shields.io/docker/pulls/champdf/champdf) [![Ko-fi](https://img.shields.io/badge/Buy%20me%20a%20Coffee-yellow?logo=kofi&style=flat-square)](https://ko-fi.com/alio01) ![GitHub Stars](https://img.shields.io/github/stars/alam00000/champdf?style=social)
 [![Sponsor me on GitHub](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ff69b4)](https://github.com/sponsors/alam00000)
 
-![BentoPDF Tools](public/images/bentopdf-tools.png)
+![ChamPDF Tools](public/images/champdf-tools.png)
 
 ---
 
@@ -20,9 +20,9 @@ Have questions, feature requests, or want to chat with the community? Join our D
 
 ## 📚 Documentation
 
-[![Documentation](https://img.shields.io/badge/Docs-VitePress-646cff?style=for-the-badge&logo=vite&logoColor=white)](https://bentopdf.com/docs/)
+[![Documentation](https://img.shields.io/badge/Docs-VitePress-646cff?style=for-the-badge&logo=vite&logoColor=white)](https://champdf.com/docs/)
 
-Visit our [Documentation](https://bentopdf.com/docs/) for:
+Visit our [Documentation](https://champdf.com/docs/) for:
 
 - **Getting Started** guide
 - **Tools Reference** (50+ tools)
@@ -34,34 +34,34 @@ Visit our [Documentation](https://bentopdf.com/docs/) for:
 
 ## 📜 Licensing
 
-BentoPDF is **dual-licensed** to fit your needs:
+ChamPDF is **dual-licensed** to fit your needs:
 
 | License        | Best For                                     | Price              |
 | -------------- | -------------------------------------------- | ------------------ |
 | **AGPL-3.0**   | Open-source projects with public source code | **Free**           |
-| **Commercial** | Proprietary / closed-source applications     | **$49** (lifetime) |
+| **Commercial** | Proprietary / closed-source applications     | **$20** (lifetime) |
 
 <p align="center">
-  <a href="https://buy.polar.sh/polar_cl_ThDfffbl733x7oAodcIryCzhlO57ZtcWPq6HJ1qMChd">
-    <img src="https://img.shields.io/badge/🚀_Get_Commercial_License-$49_Lifetime-6366f1?style=for-the-badge&labelColor=1f2937" alt="Get Commercial License">
+  <a href="mailto:deep@championsmail.com?subject=ChamPDF%20Commercial%20License%20Inquiry">
+    <img src="https://img.shields.io/badge/📧_Contact_for_Commercial_License-6366f1?style=for-the-badge&labelColor=1f2937" alt="Contact for Commercial License">
   </a>
 </p>
 
 > **One-time purchase** · **Unlimited devices & users** · **Lifetime updates** · **No AGPL obligations**
 
-📖 For more details, see our [Licensing Page](https://bentopdf.com/licensing.html)
+📖 For more details, see our [Licensing Page](https://champdf.com/licensing.html)
 
 <hr>
 
 ## ⭐ Stargazers over time
 
-[![Star History Chart](https://api.star-history.com/svg?repos=alam00000/bentopdf&type=Date)](https://star-history.com/#alam00000/bentopdf&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=alam00000/champdf&type=Date)](https://star-history.com/#alam00000/champdf&Date)
 
 ---
 
 ## 💖 Thank You to Our Sponsors
 
-We're incredibly grateful to all our sponsors and supporters who help keep BentoPDF free and open source!
+We're incredibly grateful to all our sponsors and supporters who help keep ChamPDF free and open source!
 
 [![Sponsor me on GitHub](https://img.shields.io/badge/Become%20a%20Sponsor-%E2%9D%A4-ff69b4?style=for-the-badge)](https://github.com/sponsors/alam00000)
 [![Buy me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20Coffee-yellow?style=for-the-badge&logo=kofi)](https://ko-fi.com/alio01)
@@ -71,18 +71,18 @@ We're incredibly grateful to all our sponsors and supporters who help keep Bento
 
 ---
 
-## ✨ Why BentoPDF?
+## ✨ Why ChamPDF?
 
 - **Privacy First**: All processing happens in your browser. Your files are never uploaded to a server, guaranteeing 100% privacy.
 - **No Limits**: Manipulate as many files as you want, as often you want. There are no restrictions or upload limits.
-- **High Performance**: Built with modern web technologies, BentoPDF is fast and efficient, handling even large PDF files with ease.
-- **Completely Free**: BentoPDF is a free and open-source tool for everyone.
+- **High Performance**: Built with modern web technologies, ChamPDF is fast and efficient, handling even large PDF files with ease.
+- **Completely Free**: ChamPDF is a free and open-source tool for everyone.
 
 ---
 
 ## 🛠️ Features / Tools Supported
 
-BentoPDF offers a comprehensive suite of tools to handle all your PDF needs.
+ChamPDF offers a comprehensive suite of tools to handle all your PDF needs.
 
 ### Organize & Manage PDFs
 
@@ -218,7 +218,7 @@ BentoPDF offers a comprehensive suite of tools to handle all your PDF needs.
 
 ## 🌍 Translations
 
-BentoPDF is available in multiple languages:
+ChamPDF is available in multiple languages:
 
 | Language            | Status                                                                                                                    |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
@@ -233,13 +233,13 @@ BentoPDF is available in multiple languages:
 | Turkish             | [![Turkish](https://img.shields.io/badge/Complete-green?style=flat-square)](public/locales/tr/common.json)                |
 | Vietnamese          | [![Vietnamese](https://img.shields.io/badge/Complete-green?style=flat-square)](public/locales/vi/common.json)             |
 
-Want to help translate BentoPDF into your language? Check out our [Translation Guide](TRANSLATION.md)!
+Want to help translate ChamPDF into your language? Check out our [Translation Guide](TRANSLATION.md)!
 
 ---
 
 ## 🚀 Getting Started
 
-You can run BentoPDF locally for development or personal use.
+You can run ChamPDF locally for development or personal use.
 
 ### Prerequisites
 
@@ -251,40 +251,40 @@ You can run BentoPDF locally for development or personal use.
 
 [![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/K4AU2B)
 
-You can run BentoPDF directly from Docker Hub or GitHub Container Registry without cloning the repository:
+You can run ChamPDF directly from Docker Hub or GitHub Container Registry without cloning the repository:
 
 You can also watch the video on how to set it up 👉
-[BentoPDF Docker Setup](https://drive.google.com/file/d/1C4eJ2nqeaH__1Tlad-xuBHaF2Ha4fSBf/view?usp=drive_link)
+[ChamPDF Docker Setup](https://drive.google.com/file/d/1C4eJ2nqeaH__1Tlad-xuBHaF2Ha4fSBf/view?usp=drive_link)
 
 **Using Docker Hub:**
 
 ```bash
-docker run -p 3000:8080 bentopdf/bentopdf:latest
+docker run -p 3000:8080 champdf/champdf:latest
 ```
 
 **Using GitHub Container Registry:**
 
 ```bash
-docker run -p 3000:8080 ghcr.io/alam00000/bentopdf:latest
+docker run -p 3000:8080 ghcr.io/alam00000/champdf:latest
 ```
 
 Open your browser at: http://localhost:3000
 
-This is the fastest way to try BentoPDF without setting up a development environment.
+This is the fastest way to try ChamPDF without setting up a development environment.
 
 ### Static Hosting using Netlify, Vercel, and GitHub Pages
 
-It is very straightforward to host your own instance of BentoPDF using a static web page hosting service. Plus, services such as Netlify, Vercel, and GitHub Pages all offer a free tier for getting started. See [Static Hosting](https://github.com/alam00000/bentopdf/blob/main/STATIC-HOSTING.md)) for details.
+It is very straightforward to host your own instance of ChamPDF using a static web page hosting service. Plus, services such as Netlify, Vercel, and GitHub Pages all offer a free tier for getting started. See [Static Hosting](https://github.com/alam00000/champdf/blob/main/STATIC-HOSTING.md)) for details.
 
 ### 🏠 Self-Hosting Locally
 
-Since BentoPDF is fully client-side, all processing happens in the user's browser and no server-side processing is required. This means you can host BentoPDF as simple static files on any web server or hosting platform.
+Since ChamPDF is fully client-side, all processing happens in the user's browser and no server-side processing is required. This means you can host ChamPDF as simple static files on any web server or hosting platform.
 
 **Download from Releases (Recommended):**
 
-The easiest way to self-host is to download the pre-built distribution file from our [GitHub releases](https://github.com/alam00000/bentopdf/releases). Each release includes a `dist-{version}.zip` file that contains all necessary files for self-hosting.
+The easiest way to self-host is to download the pre-built distribution file from our [GitHub releases](https://github.com/alam00000/champdf/releases). Each release includes a `dist-{version}.zip` file that contains all necessary files for self-hosting.
 
-1. Go to [BentoPDF Releases](https://github.com/alam00000/bentopdf/releases)
+1. Go to [ChamPDF Releases](https://github.com/alam00000/champdf/releases)
 2. Download the latest `dist-{version}.zip` file
 3. Extract the zip file
 4. Serve the extracted folder with your preferred web server
@@ -309,8 +309,8 @@ If you prefer to build from source:
 
 ```bash
 # Clone the repository
-git clone https://github.com/alam00000/bentopdf.git
-cd bentopdf
+git clone https://github.com/alam00000/champdf.git
+cd champdf
 
 # Install dependencies
 npm install
@@ -330,24 +330,24 @@ npm run preview
 
 **Compression Modes:**
 
-BentoPDF supports different compression modes for optimized builds:
+ChamPDF supports different compression modes for optimized builds:
 
 ```bash
 # Gzip only (smallest Docker image size)
 npm run build:gzip
-docker build --build-arg COMPRESSION_MODE=g -t bentopdf:gzip .
+docker build --build-arg COMPRESSION_MODE=g -t champdf:gzip .
 
 # Brotli only (best compression ratio)
 npm run build:brotli
-docker build --build-arg COMPRESSION_MODE=b -t bentopdf:brotli .
+docker build --build-arg COMPRESSION_MODE=b -t champdf:brotli .
 
 # No compression (fastest build time)
 npm run build:original
-docker build --build-arg COMPRESSION_MODE=o -t bentopdf:original .
+docker build --build-arg COMPRESSION_MODE=o -t champdf:original .
 
 # All formats (default, maximum browser compatibility)
 npm run build:all
-docker build --build-arg COMPRESSION_MODE=all -t bentopdf:all .
+docker build --build-arg COMPRESSION_MODE=all -t champdf:all .
 ```
 
 | Mode  | Files Kept  | Use Case                          |
@@ -359,7 +359,7 @@ docker build --build-arg COMPRESSION_MODE=all -t bentopdf:all .
 
 **CDN Optimization:**
 
-BentoPDF can use jsDelivr CDN to serve large WASM files (LibreOffice, Ghostscript, PyMuPDF) for improved performance and reduced bandwidth costs:
+ChamPDF can use jsDelivr CDN to serve large WASM files (LibreOffice, Ghostscript, PyMuPDF) for improved performance and reduced bandwidth costs:
 
 ```bash
 # Production build with CDN (Recommended)
@@ -377,41 +377,41 @@ npm run build
 
 **Subdirectory Hosting:**
 
-BentoPDF can also be hosted from a subdirectory (e.g., `example.com/tools/bentopdf/`):
+ChamPDF can also be hosted from a subdirectory (e.g., `example.com/tools/champdf/`):
 
 ```bash
 
 # Example:
-# 1. Build the app with the specific BASE_URL. BASE_URL must have a trailing and leading slash. The BASE_URL can be any url of your choice. Here we are using /tools/bentopdf/ as an example.
+# 1. Build the app with the specific BASE_URL. BASE_URL must have a trailing and leading slash. The BASE_URL can be any url of your choice. Here we are using /tools/champdf/ as an example.
 
-BASE_URL=/tools/bentopdf/ npm run build
+BASE_URL=/tools/champdf/ npm run build
 
 # 2. Create the nested directory structure inside serve-test (or any folder of your choice for local testing. In case of production, create the nested directory structure inside the root directory)
-mkdir -p serve-test/tools/bentopdf
+mkdir -p serve-test/tools/champdf
 
 # 3. Copy all files from the 'dist' folder into that nested directory
-cp -r dist/* serve-test/tools/bentopdf/
+cp -r dist/* serve-test/tools/champdf/
 
 # 4. Serve the 'serve-test' folder
 npx serve serve-test
 ```
 
-The website can be accessible at: `http://localhost:3000/tools/bentopdf/`
+The website can be accessible at: `http://localhost:3000/tools/champdf/`
 
 The `npm run package` command creates a `dist-{version}.zip` file that you can use for self-hosting.
 
 **Docker Subdirectory Deployment:**
 
-BentoPDF's Docker image also supports the `BASE_URL` build argument for subdirectory deployments:
+ChamPDF's Docker image also supports the `BASE_URL` build argument for subdirectory deployments:
 
 ```bash
 # Build for subdirectory deployment
-docker build --build-arg BASE_URL=/bentopdf/ -t bentopdf .
+docker build --build-arg BASE_URL=/champdf/ -t champdf .
 
 # Run the container
-docker run -p 3000:8080 bentopdf
+docker run -p 3000:8080 champdf
 
-# The app will be accessible at http://localhost:3000/bentopdf/
+# The app will be accessible at http://localhost:3000/champdf/
 ```
 
 **Combined with Simple Mode:**
@@ -421,14 +421,14 @@ docker run -p 3000:8080 bentopdf
 docker build \
   --build-arg BASE_URL=/tools/pdf/ \
   --build-arg SIMPLE_MODE=true \
-  -t bentopdf-simple .
+  -t champdf-simple .
 
-docker run -p 3000:8080 bentopdf-simple
+docker run -p 3000:8080 champdf-simple
 ```
 
 > **Important**:
 >
-> - Always include trailing slashes in `BASE_URL` (e.g., `/bentopdf/` not `/bentopdf`)
+> - Always include trailing slashes in `BASE_URL` (e.g., `/champdf/` not `/champdf`)
 > - The default value is `/` for root deployment
 
 ### 🚀 Run with Docker Compose (Recommended)
@@ -439,9 +439,9 @@ For a more robust setup with auto-restart capabilities:
 
 ```yaml
 services:
-  bentopdf:
-    image: bentopdf/bentopdf:latest
-    container_name: bentopdf
+  champdf:
+    image: champdf/champdf:latest
+    container_name: champdf
     ports:
       - '3000:8080'
     restart: unless-stopped
@@ -457,7 +457,7 @@ The application will be available at `http://localhost:3000`.
 
 ### 🏢 Simple Mode for Internal Use
 
-For organizations that want a clean, distraction-free interface focused solely on PDF tools, BentoPDF supports a **Simple Mode** that hides all branding and marketing content.
+For organizations that want a clean, distraction-free interface focused solely on PDF tools, ChamPDF supports a **Simple Mode** that hides all branding and marketing content.
 
 **What Simple Mode does:**
 
@@ -470,7 +470,7 @@ For more details, see [SIMPLE_MODE.md](SIMPLE_MODE.md).
 
 ### 🔒 Security Features
 
-BentoPDF runs as a non-root user using nginx-unprivileged for enhanced security:
+ChamPDF runs as a non-root user using nginx-unprivileged for enhanced security:
 
 - **Non-Root Execution**: Container runs with minimal privileges using nginx-unprivileged
 - **Port 8080**: Uses high port number to avoid requiring root privileges
@@ -479,8 +479,8 @@ BentoPDF runs as a non-root user using nginx-unprivileged for enhanced security:
 #### Basic Usage
 
 ```bash
-docker build -t bentopdf .
-docker run -p 8080:8080 bentopdf
+docker build -t champdf .
+docker run -p 8080:8080 champdf
 ```
 
 For detailed security configuration, see [SECURITY.md](SECURITY.md).
@@ -515,7 +515,7 @@ The **Digital Signature** tool uses a signing library that may need to fetch cer
    npx wrangler deploy
    ```
 
-4. **Note your worker URL** (e.g., `https://bentopdf-cors-proxy.your-subdomain.workers.dev`)
+4. **Note your worker URL** (e.g., `https://champdf-cors-proxy.your-subdomain.workers.dev`)
 
 5. **Set the environment variable when building:**
    ```bash
@@ -559,7 +559,7 @@ npx wrangler deploy
 
 > **⚠️ Security Warning:** Client-side secrets can be extracted from bundled JavaScript. For production deployments with sensitive requirements, use your own backend server to proxy requests instead of embedding secrets in frontend code.
 
-BentoPDF uses client-side HMAC as a deterrent against casual abuse, but accepts this tradeoff due to its fully client-side architecture. To enable:
+ChamPDF uses client-side HMAC as a deterrent against casual abuse, but accepts this tradeoff due to its fully client-side architecture. To enable:
 
 ```bash
 # Generate a secret
@@ -574,19 +574,19 @@ VITE_CORS_PROXY_SECRET=your-secret npm run build
 
 ### 📦 Version Management
 
-BentoPDF supports semantic versioning with multiple Docker tags available on both Docker Hub and GitHub Container Registry:
+ChamPDF supports semantic versioning with multiple Docker tags available on both Docker Hub and GitHub Container Registry:
 
 **Docker Hub:**
 
-- **Latest**: `bentopdf/bentopdf:latest`
-- **Specific Version**: `bentopdf/bentopdf:1.0.0`
-- **Version with Prefix**: `bentopdf/bentopdf:v1.0.0`
+- **Latest**: `champdf/champdf:latest`
+- **Specific Version**: `champdf/champdf:1.0.0`
+- **Version with Prefix**: `champdf/champdf:v1.0.0`
 
 **GitHub Container Registry:**
 
-- **Latest**: `ghcr.io/alam00000/bentopdf:latest`
-- **Specific Version**: `ghcr.io/alam00000/bentopdf:1.0.0`
-- **Version with Prefix**: `ghcr.io/alam00000/bentopdf:v1.0.0`
+- **Latest**: `ghcr.io/alam00000/champdf:latest`
+- **Specific Version**: `ghcr.io/alam00000/champdf:1.0.0`
+- **Version with Prefix**: `ghcr.io/alam00000/champdf:v1.0.0`
 
 #### Quick Release
 
@@ -610,8 +610,8 @@ For detailed release instructions, see [RELEASE.md](RELEASE.md).
 1. **Clone the Repository**:
 
    ```bash
-   git clone https://github.com/alam00000/bentopdf.git
-   cd bentopdf
+   git clone https://github.com/alam00000/champdf.git
+   cd champdf
    ```
 
 2. **Install Dependencies**:
@@ -631,8 +631,8 @@ For detailed release instructions, see [RELEASE.md](RELEASE.md).
 1. **Clone the Repository**:
 
    ```bash
-   git clone https://github.com/alam00000/bentopdf.git
-   cd bentopdf
+   git clone https://github.com/alam00000/champdf.git
+   cd champdf
    ```
 
 2. **Run with Docker Compose**:
@@ -655,7 +655,7 @@ For detailed release instructions, see [RELEASE.md](RELEASE.md).
 
 ## 🛠️ Tech Stack & Background
 
-BentoPDF was originally built using **HTML**, **CSS**, and **vanilla JavaScript**. As the project grew, it was migrated to a modern stack for better maintainability and scalability:
+ChamPDF was originally built using **HTML**, **CSS**, and **vanilla JavaScript**. As the project grew, it was migrated to a modern stack for better maintainability and scalability:
 
 - **Vite**: A fast build tool for modern web development.
 - **TypeScript**: For type safety and an improved developer experience.
@@ -689,7 +689,7 @@ We welcome contributions from the community! Here's how you can get started:
 3.  Make your changes and commit them with a clear message.
 4.  **Open a Pull Request** and describe the changes you've made.
 
-Have an idea for a new tool or an improvement? [Open an issue](https://github.com/alam00000/bentopdf/issues) to discuss it first.
+Have an idea for a new tool or an improvement? [Open an issue](https://github.com/alam00000/champdf/issues) to discuss it first.
 
 ### 📖 Contributing to Documentation
 
@@ -722,7 +722,7 @@ Documentation files are in the `docs/` folder:
 
 ## Special Thanks
 
-BentoPDF wouldn't be possible without the amazing open-source tools and libraries that power it. We'd like to extend our heartfelt thanks to the creators and maintainers of:
+ChamPDF wouldn't be possible without the amazing open-source tools and libraries that power it. We'd like to extend our heartfelt thanks to the creators and maintainers of:
 
 - **[PDFLib.js](https://pdf-lib.js.org/)** – For enabling powerful client-side PDF manipulation.
 - **[PDF.js](https://mozilla.github.io/pdf.js/)** – For the robust PDF rendering engine in the browser.

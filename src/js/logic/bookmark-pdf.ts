@@ -900,9 +900,9 @@ function handleResize(): void {
   if (window.innerWidth >= 1024) {
     viewerSection?.classList.remove('hidden');
     bookmarksSection?.classList.remove('hidden');
-    showViewerBtn?.classList.remove('bg-indigo-600', 'text-white');
+    showViewerBtn?.classList.remove('bg-red-600', 'text-white');
     showViewerBtn?.classList.add('text-gray-300');
-    showBookmarksBtn?.classList.remove('bg-indigo-600', 'text-white');
+    showBookmarksBtn?.classList.remove('bg-red-600', 'text-white');
     showBookmarksBtn?.classList.add('text-gray-300');
   }
 }
@@ -912,18 +912,18 @@ window.addEventListener('resize', handleResize);
 showViewerBtn?.addEventListener('click', () => {
   viewerSection?.classList.remove('hidden');
   bookmarksSection?.classList.add('hidden');
-  showViewerBtn?.classList.add('bg-indigo-600', 'text-white');
+  showViewerBtn?.classList.add('bg-red-600', 'text-white');
   showViewerBtn?.classList.remove('text-gray-300');
-  showBookmarksBtn?.classList.remove('bg-indigo-600', 'text-white');
+  showBookmarksBtn?.classList.remove('bg-red-600', 'text-white');
   showBookmarksBtn?.classList.add('text-gray-300');
 });
 
 showBookmarksBtn?.addEventListener('click', () => {
   viewerSection?.classList.add('hidden');
   bookmarksSection?.classList.remove('hidden');
-  showBookmarksBtn?.classList.add('bg-indigo-600', 'text-white');
+  showBookmarksBtn?.classList.add('bg-red-600', 'text-white');
   showBookmarksBtn?.classList.remove('text-gray-300');
-  showViewerBtn?.classList.remove('bg-indigo-600', 'text-white');
+  showViewerBtn?.classList.remove('bg-red-600', 'text-white');
   showViewerBtn?.classList.add('text-gray-300');
 });
 
@@ -1042,9 +1042,9 @@ function resetToUploader(): void {
 
   viewerSection?.classList.remove('hidden');
   bookmarksSection?.classList.add('hidden');
-  showViewerBtn?.classList.add('bg-indigo-600', 'text-white');
+  showViewerBtn?.classList.add('bg-red-600', 'text-white');
   showViewerBtn?.classList.remove('text-gray-300');
-  showBookmarksBtn?.classList.remove('bg-indigo-600', 'text-white');
+  showBookmarksBtn?.classList.remove('bg-red-600', 'text-white');
   showBookmarksBtn?.classList.add('text-gray-300');
 }
 

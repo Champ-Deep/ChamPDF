@@ -1,11 +1,11 @@
 {
-    "name": "BentoPDF",
-    "short_name": "BentoPDF",
+    "name": "ChamPDF",
+    "short_name": "ChamPDF",
     "description": "Free online PDF tools - Privacy-first PDF toolkit that works 100% in your browser",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#262d3b",
-    "theme_color": "#4f46e5",
+    "theme_color": "#C8232C",
     "orientation": "portrait-primary",
     "icons": [
         {

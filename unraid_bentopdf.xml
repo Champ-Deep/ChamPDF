@@ -1,22 +1,22 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>bentopdf</Name>
-  <Repository>bentopdf/bentopdf</Repository>
-  <Registry>https://hub.docker.com/r/bentopdf/bentopdf/</Registry>
+  <Name>champdf</Name>
+  <Repository>champdf/champdf</Repository>
+  <Registry>https://hub.docker.com/r/champdf/champdf/</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/alam00000/bentopdf</Support>
-  <Project>https://www.bentopdf.com/</Project>
+  <Support>https://github.com/alam00000/champdf</Support>
+  <Project>https://www.champdf.com/</Project>
   <Overview>Uploaded on behalf of creator: alam00000&#13;
-BentoPDF is a privacy first PDF Toolkit&#13;
+ChamPDF is a privacy first PDF Toolkit&#13;
 &#13;
-https://hub.docker.com/r/bentopdf/bentopdf/</Overview>
+https://hub.docker.com/r/champdf/champdf/</Overview>
   <Category>Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
   <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/alam00000/bentopdf/refs/heads/main/public/images/favicon.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/alam00000/champdf/refs/heads/main/public/images/favicon.svg</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>
@@ -24,7 +24,7 @@ https://hub.docker.com/r/bentopdf/bentopdf/</Overview>
   <DonateText/>
   <DonateLink/>
   <Requires/>
-  <Config Name="Web Port for Nginx and GUI" Target="8080" Default="8080" Mode="tcp" Description="Port used for BentoPDF's web GUI" Type="Port" Display="always" Required="false" Mask="false">80</Config>
+  <Config Name="Web Port for Nginx and GUI" Target="8080" Default="8080" Mode="tcp" Description="Port used for ChamPDF's web GUI" Type="Port" Display="always" Required="false" Mask="false">80</Config>
   <TailscaleStateDir/>
 </Container>
 

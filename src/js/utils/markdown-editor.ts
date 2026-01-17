@@ -79,7 +79,7 @@ export interface MarkdownItOptions {
   highlight?: (str: string, lang: string) => string;
 }
 
-const DEFAULT_MARKDOWN = `# Welcome to BentoPDF Markdown Editor
+const DEFAULT_MARKDOWN = `# Welcome to ChamPDF Markdown Editor
 
 This is a **live preview** markdown editor with full plugin support.
 
@@ -89,7 +89,7 @@ This is a **live preview** markdown editor with full plugin support.
 
 - **Bold** and *italic* text
 - ~~Strikethrough~~ text
-- [Links](https://bentopdf.com)
+- [Links](https://champdf.com)
 - ==Highlighted text== using mark
 - ++Inserted text++ using ins
 - H~2~O for subscript
@@ -149,12 +149,12 @@ graph TD
 \`\`\`mermaid
 sequenceDiagram
     participant User
-    participant BentoPDF
+    participant ChamPDF
     participant Server
-    User->>BentoPDF: Upload PDF
-    BentoPDF->>BentoPDF: Process locally
-    BentoPDF-->>User: Download result
-    Note over BentoPDF: No server needed!
+    User->>ChamPDF: Upload PDF
+    ChamPDF->>ChamPDF: Process locally
+    ChamPDF-->>User: Download result
+    Note over ChamPDF: No server needed!
 \`\`\`
 
 ### Pie Chart
@@ -222,7 +222,7 @@ erDiagram
 
 \`\`\`mermaid
 mindmap
-    root((BentoPDF))
+    root((ChamPDF))
         Convert
             Word to PDF
             Excel to PDF

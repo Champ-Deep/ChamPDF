@@ -73,7 +73,7 @@ body {
   box-shadow:
     0 10px 15px -3px rgba(0, 0, 0, 0.2),
     0 4px 6px -2px rgba(0, 0, 0, 0.1);
-  border-color: #4f46e5;
+  border-color: #C8232C;
 }
 
 .btn {
@@ -88,7 +88,7 @@ body {
 
 /* Custom file input */
 input[type='file']::file-selector-button {
-  @apply bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-indigo-700 transition-colors duration-200 mr-4;
+  @apply bg-red-600 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-red-700 transition-colors duration-200 mr-4;
 }
 
 /* Custom scrollbar */
@@ -101,19 +101,19 @@ input[type='file']::file-selector-button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #4f46e5;
+  background: #C8232C;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4338ca;
-  /* indigo-700 */
+  background: #A01D24;
+  /* Champions dark red */
 }
 
 /* Style for drag-and-drop placeholder */
 .sortable-ghost {
   opacity: 0.4;
-  border: 2px dashed #4f46e5;
+  border: 2px dashed #C8232C;
 }
 
 #embed-pdf-container>div {
@@ -210,8 +210,8 @@ footer a {
 }
 
 .cta-button {
-  background-color: #4f46e5;
-  /* indigo-600 */
+  background-color: #C8232C;
+  /* Champions red */
   color: white;
   font-weight: 600;
   padding: 12px 24px;
@@ -221,8 +221,8 @@ footer a {
 }
 
 .cta-button:hover {
-  background-color: #4338ca;
-  /* indigo-700 */
+  background-color: #A01D24;
+  /* Champions dark red */
 }
 
 .marker-text {
@@ -260,7 +260,7 @@ footer a {
   right: 0;
   bottom: 0;
   height: 6px;
-  background: linear-gradient(120deg, #6366f1, #8b5cf6);
+  background: linear-gradient(120deg, #D65A36, #E88B2D);
   z-index: -1;
 }
 
@@ -268,8 +268,8 @@ footer a {
 
 .section-divider {
   height: 1px;
-  background: linear-gradient(to right, transparent, #4d44f7, transparent);
-  /* Fades from transparent to indigo and back */
+  background: linear-gradient(to right, transparent, #C8232C, transparent);
+  /* Fades from transparent to Champions red and back */
   margin: 2rem auto;
   /* my-16 */
   max-width: 42rem;
@@ -283,8 +283,8 @@ footer a {
   /* py-3 px-8 */
   border-radius: 0.5rem;
   /* rounded-lg */
-  background-image: linear-gradient(to bottom, #6366f1, #4f46e5);
-  /* from-indigo-500 to-indigo-600 */
+  background-image: linear-gradient(to bottom, #D65A36, #C8232C);
+  /* Champions red-orange gradient */
   color: #ffffff;
   /* text-white */
   font-weight: 600;
@@ -296,8 +296,8 @@ footer a {
 
 .btn-gradient:hover {
   box-shadow:
-    0 10px 15px -3px rgba(79, 70, 229, 0.3),
-    0 4px 6px -4px rgba(79, 70, 229, 0.3);
+    0 10px 15px -3px rgba(200, 35, 44, 0.3),
+    0 4px 6px -4px rgba(200, 35, 44, 0.3);
 }
 
 .btn-gradient:focus {
@@ -305,8 +305,8 @@ footer a {
   outline-offset: 2px;
   box-shadow:
     0 0 0 2px #111827,
-    0 0 0 4px #818cf8;
-  /* focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-400 */
+    0 0 0 4px #E88B2D;
+  /* focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-orange-400 */
 }
 
 .btn-gradient:disabled {
@@ -323,8 +323,8 @@ footer a {
   /* h-16 */
   border: 5px solid #374151;
   /* border-gray-700 */
-  border-bottom-color: #4f46e5;
-  /* border-indigo-600 */
+  border-bottom-color: #C8232C;
+  /* Champions red */
   border-radius: 50%;
   display: inline-block;
   box-sizing: border-box;
@@ -353,9 +353,9 @@ footer a {
 
 /* Highlight for selected signature in the saved list */
 .saved-signature.selected {
-  border-color: #4f46e5;
-  /* indigo-600 */
-  box-shadow: 0 0 10px rgba(79, 70, 229, 0.5);
+  border-color: #C8232C;
+  /* Champions red */
+  box-shadow: 0 0 10px rgba(200, 35, 44, 0.5);
 }
 
 /* Cursor change when hovering over a placed signature */
@@ -380,8 +380,8 @@ footer a {
 }
 
 .faq-item.open .faq-question {
-  color: #818cf8;
-  /* indigo-400 */
+  color: #E88B2D;
+  /* Champions orange */
 }
 
 .faq-item.open .faq-icon {
@@ -473,7 +473,7 @@ footer a {
   font-size: 1.25rem;
   line-height: 1.75rem;
   font-weight: 600;
-  color: rgb(129 140 248);
+  color: rgb(232 139 45);
   margin-top: 1.5rem;
   margin-bottom: 0.75rem;
 }
@@ -493,12 +493,12 @@ footer a {
 }
 
 .legal-content a {
-  color: rgb(129 140 248);
+  color: rgb(232 139 45);
   text-decoration: underline;
 }
 
 .legal-content a:hover {
-  color: rgb(165 180 252);
+  color: rgb(245 184 112);
 }
 
 details>summary {
@@ -553,8 +553,8 @@ button:disabled,
 
 .shortcut-input:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  border-color: #D65A36;
+  box-shadow: 0 0 0 2px rgba(214, 90, 54, 0.2);
 }
 
 /* Custom Scrollbar for Modal Content */

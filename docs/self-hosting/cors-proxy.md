@@ -13,7 +13,7 @@ When signing a PDF with a certificate:
 
 ## Self-Hosting the CORS Proxy
 
-If you're self-hosting BentoPDF, you'll need to deploy your own CORS proxy.
+If you're self-hosting ChamPDF, you'll need to deploy your own CORS proxy.
 
 ### Option 1: Cloudflare Workers (Recommended)
 
@@ -39,7 +39,7 @@ If you're self-hosting BentoPDF, you'll need to deploy your own CORS proxy.
    VITE_CORS_PROXY_URL=https://your-worker-name.your-subdomain.workers.dev
    ```
 
-5. **Rebuild BentoPDF**:
+5. **Rebuild ChamPDF**:
    ```bash
    npm run build
    ```

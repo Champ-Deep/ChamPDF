@@ -491,7 +491,7 @@
   },
   "digitalSignPdf": {
     "name": "Digitale PDF-Signatur",
-    "pageTitle": "Digitale PDF-Signatur - Kryptografische Signatur hinzufügen | BentoPDF",
+    "pageTitle": "Digitale PDF-Signatur - Kryptografische Signatur hinzufügen | ChamPDF",
     "subtitle": "Fügen Sie eine kryptografische digitale Signatur mit X.509-Zertifikaten zu Ihrer PDF hinzu. Unterstützt PKCS#12 (.pfx, .p12) und PEM-Formate. Ihr privater Schlüssel verlässt niemals Ihren Browser.",
     "certificateSection": "Zertifikat",
     "uploadCert": "Zertifikat hochladen (.pfx, .p12)",
@@ -513,7 +513,7 @@
   },
   "validateSignaturePdf": {
     "name": "PDF-Signatur überprüfen",
-    "pageTitle": "PDF-Signatur überprüfen - Digitale Signaturen verifizieren | BentoPDF",
+    "pageTitle": "PDF-Signatur überprüfen - Digitale Signaturen verifizieren | ChamPDF",
     "subtitle": "Überprüfen Sie digitale Signaturen in Ihren PDF-Dateien. Prüfen Sie die Zertifikatsgültigkeit, sehen Sie Unterzeichnerdetails und bestätigen Sie die Dokumentenintegrität. Die gesamte Verarbeitung erfolgt in Ihrem Browser."
   },
   "emailToPdf": {

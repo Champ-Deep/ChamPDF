@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const createWrapper = (canvas: HTMLCanvasElement, pageNumber: number) => {
                 const wrapper = document.createElement('div');
                 wrapper.className =
-                    'page-thumbnail-wrapper p-1 border-2 border-transparent rounded-lg cursor-pointer hover:border-indigo-500 relative';
+                    'page-thumbnail-wrapper p-1 border-2 border-transparent rounded-lg cursor-pointer hover:border-red-500 relative';
                 wrapper.dataset.pageIndex = (pageNumber - 1).toString();
 
                 const img = document.createElement('img');
@@ -153,10 +153,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const isSelected = wrapper.classList.contains('selected');
 
                     if (isSelected) {
-                        wrapper.classList.remove('selected', 'border-indigo-500');
+                        wrapper.classList.remove('selected', 'border-red-500');
                         wrapper.classList.add('border-transparent');
                     } else {
-                        wrapper.classList.add('selected', 'border-indigo-500');
+                        wrapper.classList.add('selected', 'border-red-500');
                         wrapper.classList.remove('border-transparent');
                     }
                 };
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Reset visual selection
         document.querySelectorAll('.page-thumbnail-wrapper.selected').forEach(el => {
-            el.classList.remove('selected', 'border-indigo-500');
+            el.classList.remove('selected', 'border-red-500');
             el.classList.add('border-transparent');
         });
         visualSelectorRendered = false;

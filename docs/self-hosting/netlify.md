@@ -4,7 +4,7 @@
 
 ## One-Click Deploy
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/alam00000/bentopdf)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/alam00000/champdf)
 
 ## Manual Deployment
 
@@ -13,7 +13,7 @@
 1. Log in to [Netlify](https://app.netlify.com)
 2. Click "Add new site" → "Import an existing project"
 3. Connect your GitHub account
-4. Select your BentoPDF fork
+4. Select your ChamPDF fork
 
 ### Step 2: Configure Build Settings
 
