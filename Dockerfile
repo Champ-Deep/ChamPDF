@@ -17,7 +17,7 @@ COPY . .
 
 # Build without type checking (vite build only)
 # Pass SIMPLE_MODE environment variable if provided
-ARG SIMPLE_MODE=false
+ARG SIMPLE_MODE=true
 ENV SIMPLE_MODE=$SIMPLE_MODE
 ARG COMPRESSION_MODE=all
 ENV COMPRESSION_MODE=$COMPRESSION_MODE
