@@ -1,10 +1,8 @@
-<p align="center"><img src="public/images/favicon-no-bg.svg" width="80"></p>
 <h1 align="center">ChamPDF</h1>
 
 **ChamPDF** is a powerful, privacy-first, client-side PDF toolkit that is self hostable and allows you to manipulate, edit, merge, and process PDF files directly in your browser. No server-side processing is required, ensuring your files remain secure and private.
 
-![Docker Pulls](https://img.shields.io/docker/pulls/champdf/champdf) [![Ko-fi](https://img.shields.io/badge/Buy%20me%20a%20Coffee-yellow?logo=kofi&style=flat-square)](https://ko-fi.com/alio01) ![GitHub Stars](https://img.shields.io/github/stars/Champ-Deep/ChamPDF?style=social)
-[![Sponsor me on GitHub](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ff69b4)](https://github.com/sponsors/Champ-Deep)
+![GitHub Stars](https://img.shields.io/github/stars/Champ-Deep/ChamPDF?style=social)
 
 ![ChamPDF Tools](public/images/champdf-tools.png)
 
@@ -29,45 +27,6 @@ Visit our [Documentation](https://champdf.com/docs/) for:
 - **Self-Hosting** guides (Docker, Vercel, Netlify, Cloudflare, AWS, Hostinger, Nginx, Apache)
 - **Contributing** guide
 - **Commercial License** details
-
----
-
-## 📜 Licensing
-
-ChamPDF is **dual-licensed** to fit your needs:
-
-| License        | Best For                                     | Price              |
-| -------------- | -------------------------------------------- | ------------------ |
-| **AGPL-3.0**   | Open-source projects with public source code | **Free**           |
-| **Commercial** | Proprietary / closed-source applications     | **$20** (lifetime) |
-
-<p align="center">
-  <a href="mailto:deep@championsmail.com?subject=ChamPDF%20Commercial%20License%20Inquiry">
-    <img src="https://img.shields.io/badge/📧_Contact_for_Commercial_License-6366f1?style=for-the-badge&labelColor=1f2937" alt="Contact for Commercial License">
-  </a>
-</p>
-
-> **One-time purchase** · **Unlimited devices & users** · **Lifetime updates** · **No AGPL obligations**
-
-📖 For more details, see our [Licensing Page](https://champdf.com/licensing.html)
-
-<hr>
-
-## ⭐ Stargazers over time
-
-[![Star History Chart](https://api.star-history.com/svg?repos=Champ-Deep/ChamPDF&type=Date)](https://star-history.com/#Champ-Deep/ChamPDF&Date)
-
----
-
-## 💖 Thank You to Our Sponsors
-
-We're incredibly grateful to all our sponsors and supporters who help keep ChamPDF free and open source!
-
-[![Sponsor me on GitHub](https://img.shields.io/badge/Become%20a%20Sponsor-%E2%9D%A4-ff69b4?style=for-the-badge)](https://github.com/sponsors/Champ-Deep)
-[![Buy me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20Coffee-yellow?style=for-the-badge&logo=kofi)](https://ko-fi.com/alio01)
-
-<!-- sponsors -->
-<!-- sponsors -->
 
 ---
 

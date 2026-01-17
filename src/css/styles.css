@@ -17,6 +17,11 @@
 @import 'cropperjs/dist/cropper.css';
 @import 'tailwindcss';
 
+/* Prevent marketing content flash - hide sections immediately via CSS */
+.hide-section {
+  display: none !important;
+}
+
 @theme {
   --font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
   --font-dancing: 'Dancing Script', cursive;

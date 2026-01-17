@@ -53,7 +53,7 @@
       data-simple-nav="true"
     >
       <div class="container mx-auto px-4">
-        <div class="flex justify-start items-center h-16">
+        <div class="flex justify-between items-center h-16">
           <div class="flex-shrink-0 flex items-center cursor-pointer">
             <img
               src="/images/favicon-no-bg.svg"
@@ -63,6 +63,10 @@
             <span class="text-white font-bold text-xl ml-2">
               <a href="/">ChamPDF</a>
             </span>
+          </div>
+          <div class="flex items-center gap-4">
+            <a href="/contact.html" class="text-gray-300 hover:text-white text-sm">Contact</a>
+            <a href="/privacy.html" class="text-gray-300 hover:text-white text-sm">Privacy</a>
           </div>
         </div>
       </div>
@@ -493,7 +497,7 @@
       data-simple-footer="true"
     >
       <div class="container mx-auto px-4">
-        <div class="flex items-center justify-between flex-wrap gap-4">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div class="flex items-center mb-2">
               <img
@@ -509,6 +513,11 @@
             <p class="text-gray-500 text-xs mt-2">
               Version <span id="app-version-simple"></span>
             </p>
+          </div>
+          <div class="flex items-center gap-4 text-sm">
+            <a href="/contact.html" class="text-gray-400 hover:text-white">Contact</a>
+            <a href="/privacy.html" class="text-gray-400 hover:text-white">Privacy</a>
+            <a href="/terms.html" class="text-gray-400 hover:text-white">Terms</a>
           </div>
           <div id="simple-mode-lang-switcher" class="flex-shrink-0"></div>
         </div>
