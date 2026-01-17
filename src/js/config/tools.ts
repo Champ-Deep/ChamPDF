@@ -138,6 +138,12 @@ export const categories = [
         subtitle: 'Draw, type, or upload your signature.',
       },
       {
+        href: import.meta.env.BASE_URL + 'create-signature.html',
+        name: 'Create Signature',
+        icon: 'ph-signature',
+        subtitle: 'Generate handwritten-style signature from your name.',
+      },
+      {
         href: import.meta.env.BASE_URL + 'add-stamps.html',
         name: 'Add Stamps',
         icon: 'ph-stamp',
@@ -759,6 +765,12 @@ export const categories = [
         name: 'Validate Signature',
         icon: 'ph-seal-check',
         subtitle: 'Verify digital signatures and view certificate details.',
+      },
+      {
+        href: import.meta.env.BASE_URL + 'create-signature.html',
+        name: 'Create Signature',
+        icon: 'ph-signature',
+        subtitle: 'Generate handwritten-style signature from your name.',
       },
     ],
   },

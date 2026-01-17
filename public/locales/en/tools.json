@@ -58,6 +58,22 @@
     "name": "Sign PDF",
     "subtitle": "Draw, type, or upload your signature."
   },
+  "createSignature": {
+    "name": "Create Signature",
+    "subtitle": "Generate a handwritten-style signature from your name.",
+    "inputPlaceholder": "Enter your full name",
+    "styleLabel": "Choose a Style",
+    "colorLabel": "Signature Color",
+    "sizeLabel": "Signature Size",
+    "downloadBtn": "Download PNG",
+    "useInSignBtn": "Use in Sign PDF",
+    "styles": {
+      "elegant": "Elegant",
+      "stylish": "Stylish",
+      "natural": "Natural",
+      "casual": "Casual"
+    }
+  },
   "cropPdf": {
     "name": "Crop PDF",
     "subtitle": "Trim the margins of every page in your PDF."

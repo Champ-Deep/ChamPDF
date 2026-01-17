@@ -578,6 +578,10 @@ export default defineConfig(() => {
             'src/pages/font-to-outline.html'
           ),
           'deskew-pdf': resolve(__dirname, 'src/pages/deskew-pdf.html'),
+          'create-signature': resolve(
+            __dirname,
+            'src/pages/create-signature.html'
+          ),
         },
       },
     },

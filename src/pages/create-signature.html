@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Primary Meta Tags -->
+    <title>Create Signature Online Free - Signature Generator | ChamPDF</title>
+    <meta
+      name="title"
+      content="Create Signature Online Free - Signature Generator | ChamPDF"
+    />
+    <meta
+      name="description"
+      content="Generate handwritten-style signatures from your name. Choose from multiple signature styles, customize colors, and download as PNG or use directly in Sign PDF."
+    />
+    <meta
+      name="keywords"
+      content="create signature, signature generator, handwritten signature, digital signature, sign documents"
+    />
+    <meta name="author" content="ChamPDF" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://www.champdf.com/create-signature.html" />
+
+    <!-- Open Graph / Facebook / LinkedIn -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.champdf.com/create-signature" />
+    <meta
+      property="og:title"
+      content="Create Signature Online Free - Signature Generator | ChamPDF"
+    />
+    <meta
+      property="og:description"
+      content="Generate handwritten-style signatures from your name. Choose from multiple signature styles, customize colors, and download as PNG."
+    />
+    <meta
+      property="og:image"
+      content="https://www.champdf.com/images/og-create-signature.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="ChamPDF" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://www.champdf.com/create-signature" />
+    <meta name="twitter:title" content="Create Signature Free" />
+    <meta
+      name="twitter:description"
+      content="Generate handwritten-style signatures from your name. Multiple styles, custom colors, download as PNG."
+    />
+    <meta
+      name="twitter:image"
+      content="https://www.champdf.com/images/twitter-create-signature.png"
+    />
+    <meta name="twitter:site" content="@ChamPDF" />
+
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Create Signature" />
+
+    <link href="/src/css/styles.css" rel="stylesheet" />
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="/images/favicon-192x192.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="512x512"
+      href="/images/favicon-512x512.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/images/apple-touch-icon.png"
+    />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  </head>
+
+  <body class="antialiased bg-gray-900">
+    {{> navbar }}
+
+    <div
+      id="signature-creator"
+      class="min-h-screen flex flex-col items-center justify-start py-12 p-4 bg-gray-900"
+    >
+      <div
+        class="bg-gray-800 rounded-xl shadow-xl px-4 py-8 md:p-8 max-w-4xl w-full text-gray-200 border border-gray-700"
+      >
+        <button
+          id="back-to-tools"
+          class="flex items-center gap-2 text-orange-400 hover:text-orange-300 mb-6 font-semibold"
+        >
+          <i data-lucide="arrow-left" class="cursor-pointer"></i>
+          <span class="cursor-pointer" data-i18n="tools.backToTools">
+            Back to Tools
+          </span>
+        </button>
+
+        <h1
+          class="text-2xl font-bold text-white mb-2"
+          data-i18n="tools:createSignature.name"
+        >
+          Create Your Signature
+        </h1>
+        <p class="text-gray-400 mb-6" data-i18n="tools:createSignature.subtitle">
+          Type your name below and choose from multiple handwritten signature styles.
+          Download as PNG or use directly in Sign PDF.
+        </p>
+
+        <!-- Name Input -->
+        <div class="mb-6">
+          <label for="signature-name" class="block text-sm font-medium text-gray-300 mb-2">
+            Your Name
+          </label>
+          <input
+            type="text"
+            id="signature-name"
+            placeholder="Enter your full name"
+            class="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-lg"
+            maxlength="50"
+          />
+        </div>
+
+        <!-- Signature Style Previews -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-300 mb-3">
+            Choose a Style
+          </label>
+          <div id="signature-styles" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Style cards will be generated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Color and Size Controls -->
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+          <!-- Color Picker -->
+          <div class="flex-1">
+            <label for="signature-color" class="block text-sm font-medium text-gray-300 mb-2">
+              Signature Color
+            </label>
+            <div class="flex gap-2">
+              <button
+                class="color-btn w-10 h-10 rounded-lg border-2 border-gray-600 hover:border-orange-500 transition-colors"
+                data-color="#1a365d"
+                style="background-color: #1a365d"
+                title="Dark Blue"
+              ></button>
+              <button
+                class="color-btn w-10 h-10 rounded-lg border-2 border-gray-600 hover:border-orange-500 transition-colors"
+                data-color="#000000"
+                style="background-color: #000000"
+                title="Black"
+              ></button>
+              <button
+                class="color-btn w-10 h-10 rounded-lg border-2 border-gray-600 hover:border-orange-500 transition-colors"
+                data-color="#1e3a5f"
+                style="background-color: #1e3a5f"
+                title="Navy"
+              ></button>
+              <button
+                class="color-btn w-10 h-10 rounded-lg border-2 border-gray-600 hover:border-orange-500 transition-colors"
+                data-color="#7c2d12"
+                style="background-color: #7c2d12"
+                title="Brown"
+              ></button>
+            </div>
+          </div>
+
+          <!-- Size Slider -->
+          <div class="flex-1">
+            <label for="signature-size" class="block text-sm font-medium text-gray-300 mb-2">
+              Signature Size: <span id="size-value">1.0x</span>
+            </label>
+            <input
+              type="range"
+              id="signature-size"
+              min="0.5"
+              max="1.5"
+              step="0.1"
+              value="1"
+              class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+            />
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-col sm:flex-row gap-3">
+          <button
+            id="download-btn"
+            class="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled
+          >
+            <i data-lucide="download" class="w-5 h-5"></i>
+            Download PNG
+          </button>
+          <button
+            id="use-in-sign-pdf-btn"
+            class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled
+          >
+            <i data-lucide="pen-tool" class="w-5 h-5"></i>
+            Use in Sign PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- How It Works Section -->
+    <section class="max-w-4xl mx-auto px-4 py-12">
+      <h2 class="text-2xl md:text-3xl font-bold text-white mb-8 text-center">
+        How It Works
+      </h2>
+      <div class="space-y-6">
+        <div class="flex items-start gap-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold"
+          >
+            1
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-white mb-1">Enter Your Name</h3>
+            <p class="text-gray-400">
+              Type your full name in the input field above
+            </p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold"
+          >
+            2
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-white mb-1">Choose a Style</h3>
+            <p class="text-gray-400">
+              Select from 4 different handwriting styles. Customize color and size.
+            </p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold"
+          >
+            3
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-white mb-1">Download or Use</h3>
+            <p class="text-gray-400">
+              Download as PNG or use directly in Sign PDF to add to your documents
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Related Tools Section -->
+    <section class="max-w-6xl mx-auto px-4 py-12">
+      <h2 class="text-2xl md:text-3xl font-bold text-white mb-6 text-center">
+        Related PDF Tools
+      </h2>
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <a
+          href="sign-pdf.html"
+          class="block bg-gray-800 p-4 rounded-lg hover:bg-gray-700 transition-colors border border-gray-700"
+        >
+          <h3 class="text-white font-semibold mb-1">Sign PDF</h3>
+          <p class="text-gray-400 text-sm">Add signatures to PDF documents</p>
+        </a>
+        <a
+          href="digital-sign-pdf.html"
+          class="block bg-gray-800 p-4 rounded-lg hover:bg-gray-700 transition-colors border border-gray-700"
+        >
+          <h3 class="text-white font-semibold mb-1">Digital Sign</h3>
+          <p class="text-gray-400 text-sm">Add cryptographic signatures</p>
+        </a>
+        <a
+          href="edit-pdf.html"
+          class="block bg-gray-800 p-4 rounded-lg hover:bg-gray-700 transition-colors border border-gray-700"
+        >
+          <h3 class="text-white font-semibold mb-1">Edit PDF</h3>
+          <p class="text-gray-400 text-sm">Edit PDF documents online</p>
+        </a>
+        <a
+          href="add-stamps.html"
+          class="block bg-gray-800 p-4 rounded-lg hover:bg-gray-700 transition-colors border border-gray-700"
+        >
+          <h3 class="text-white font-semibold mb-1">Add Stamps</h3>
+          <p class="text-gray-400 text-sm">Add stamps to PDF pages</p>
+        </a>
+        <a
+          href="form-filler.html"
+          class="block bg-gray-800 p-4 rounded-lg hover:bg-gray-700 transition-colors border border-gray-700"
+        >
+          <h3 class="text-white font-semibold mb-1">Form Filler</h3>
+          <p class="text-gray-400 text-sm">Fill PDF forms online</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="max-w-4xl mx-auto px-4 py-12">
+      <h2 class="text-2xl md:text-3xl font-bold text-white mb-6 text-center">
+        Frequently Asked Questions
+      </h2>
+      <div class="space-y-4">
+        <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
+          <summary
+            class="cursor-pointer font-semibold text-white flex items-center justify-between"
+          >
+            Is this signature generator free?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            Yes! ChamPDF signature generator is 100% free with no hidden fees, no signup required,
+            and unlimited signature creation.
+          </p>
+        </details>
+        <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
+          <summary
+            class="cursor-pointer font-semibold text-white flex items-center justify-between"
+          >
+            Are my signatures stored anywhere?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            No! All signature generation happens in your browser. Your name and signatures
+            are never sent to any server, ensuring complete privacy.
+          </p>
+        </details>
+        <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
+          <summary
+            class="cursor-pointer font-semibold text-white flex items-center justify-between"
+          >
+            Can I use these signatures for legal documents?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            These signatures are visual representations of your handwriting style. For
+            legally binding documents, consider using our Digital Sign PDF tool which
+            adds cryptographic signatures with certificates.
+          </p>
+        </details>
+      </div>
+    </section>
+    {{> footer }}
+    <script type="module" src="/src/js/utils/lucide-init.ts"></script>
+    <script type="module" src="/src/js/utils/full-width.ts"></script>
+    <script type="module" src="/src/js/utils/simple-mode-footer.ts"></script>
+    <script type="module" src="/src/version.ts"></script>
+    <script type="module" src="/src/js/logic/create-signature-page.ts"></script>
+    <script type="module" src="/src/js/mobileMenu.ts"></script>
+    <script type="module" src="/src/js/main.ts"></script>
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Create Signature - ChamPDF",
+        "applicationCategory": "Signature Tool",
+        "operatingSystem": "Any - Web Browser",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.9",
+          "ratingCount": "2150"
+        }
+      }
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "How to create a signature online",
+        "description": "Learn how to create handwritten-style signatures using ChamPDF",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "position": 1,
+            "name": "Enter Your Name",
+            "text": "Type your full name in the input field"
+          },
+          {
+            "@type": "HowToStep",
+            "position": 2,
+            "name": "Choose a Style",
+            "text": "Select from different handwriting styles and customize color"
+          },
+          {
+            "@type": "HowToStep",
+            "position": 3,
+            "name": "Download or Use",
+            "text": "Download as PNG or use directly in Sign PDF"
+          }
+        ]
+      }
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://www.champdf.com"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Create Signature",
+            "item": "https://www.champdf.com/create-signature"
+          }
+        ]
+      }
+    </script>
+  </body>
+</html>
