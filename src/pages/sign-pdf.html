@@ -165,35 +165,120 @@
       </div>
 
       <!-- Signature Editor (shown after file upload) -->
-      <div id="signature-editor" class="hidden w-full max-w-6xl mt-6">
+      <div id="signature-editor" class="hidden w-full mt-6">
         <div
-          id="canvas-container-sign"
-          class="relative w-full overflow-auto bg-gray-900 rounded-lg border border-gray-600"
-          style="height: 85vh"
+          class="flex gap-4"
+          style="height: calc(100vh - 200px); min-height: 500px"
         >
-          <!-- PDF.js viewer iframe will be loaded here -->
-        </div>
-
-        <div class="mt-4 flex items-center gap-2">
-          <label
-            class="flex items-center gap-2 text-sm font-medium text-gray-300 cursor-pointer"
+          <!-- Left Toolbar -->
+          <div
+            id="signer-toolbar"
+            class="w-56 bg-gray-800 rounded-lg flex-shrink-0 overflow-y-auto border border-gray-700"
           >
-            <input
-              type="checkbox"
-              id="flatten-signature-toggle"
-              class="w-4 h-4 rounded text-red-600 bg-gray-700 border-gray-600 focus:ring-red-500"
-            />
-            Flatten PDF (use the Save button below)
-          </label>
+            <!-- Populated by SignerToolbar component -->
+          </div>
+
+          <!-- PDF Viewer Area -->
+          <div class="flex-1 flex flex-col min-w-0">
+            <!-- PDF Canvas Container (with overlay) -->
+            <div
+              id="pdf-scroll-container"
+              class="flex-1 bg-gray-900 rounded-lg overflow-auto relative border border-gray-700"
+            >
+              <div
+                id="pdf-viewer-wrapper"
+                class="flex items-start justify-center p-4 min-h-full"
+              >
+                <!-- This wrapper contains both canvas and overlay, sized to match canvas -->
+                <div id="pdf-page-container" class="relative">
+                  <div id="pdf-canvas-container">
+                    <!-- PDF canvas rendered here -->
+                  </div>
+                  <div
+                    id="annotation-overlay"
+                    class="absolute inset-0 pointer-events-auto"
+                  >
+                    <!-- Annotation elements rendered here - now overlays exactly on canvas -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Page Navigation with Zoom -->
+            <div
+              class="flex items-center justify-center gap-4 mt-4 text-gray-300"
+            >
+              <!-- Zoom Controls -->
+              <div
+                class="flex items-center gap-1 mr-4 border-r border-gray-700 pr-4"
+              >
+                <button
+                  id="zoom-out"
+                  class="p-2 hover:bg-gray-700 rounded transition-colors"
+                  title="Zoom out"
+                >
+                  <i data-lucide="zoom-out" class="w-4 h-4"></i>
+                </button>
+                <span id="zoom-level" class="text-sm min-w-[50px] text-center"
+                  >100%</span
+                >
+                <button
+                  id="zoom-in"
+                  class="p-2 hover:bg-gray-700 rounded transition-colors"
+                  title="Zoom in"
+                >
+                  <i data-lucide="zoom-in" class="w-4 h-4"></i>
+                </button>
+                <button
+                  id="zoom-fit"
+                  class="p-1.5 hover:bg-gray-700 rounded transition-colors text-xs border border-gray-600"
+                  title="Fit to width"
+                >
+                  Fit
+                </button>
+              </div>
+
+              <!-- Page Navigation -->
+              <button
+                id="prev-page"
+                class="p-2 hover:bg-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Previous page"
+              >
+                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+              </button>
+              <span
+                id="page-indicator"
+                class="text-sm font-medium min-w-[100px] text-center"
+                >Page 1 of 1</span
+              >
+              <button
+                id="next-page"
+                class="p-2 hover:bg-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Next page"
+              >
+                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+              </button>
+            </div>
+          </div>
         </div>
 
-        <button
-          id="process-btn"
-          class="btn-gradient w-full mt-4"
-          style="display: none"
-        >
-          Save & Download Signed PDF
-        </button>
+        <!-- Action Buttons -->
+        <div class="flex justify-between items-center mt-6">
+          <button
+            id="back-to-upload"
+            class="text-gray-400 hover:text-white flex items-center gap-2 transition-colors"
+          >
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            Back
+          </button>
+          <button
+            id="save-signed-pdf"
+            class="bg-orange-600 hover:bg-orange-500 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+          >
+            <i data-lucide="download" class="w-5 h-5"></i>
+            Save Signed PDF
+          </button>
+        </div>
       </div>
     </div>
 
@@ -370,7 +455,8 @@
         </details>
       </div>
     </section>
-    {{> footer }}
+
+    {{> signature-library-modal }} {{> footer }}
     <script type="module" src="/src/js/utils/lucide-init.ts"></script>
     <script type="module" src="/src/js/utils/full-width.ts"></script>
     <script type="module" src="/src/js/utils/simple-mode-footer.ts"></script>

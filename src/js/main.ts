@@ -16,6 +16,9 @@ import {
   t,
 } from './i18n/index.js';
 import { startBackgroundPreload } from './utils/wasm-preloader.js';
+import { initSignatureLibraryModal } from './utils/signature-library-init.js';
+import { initAuthModal, onProfileChange } from './components/auth-modal.js';
+import { getCurrentProfile } from './utils/profile-manager.js';
 
 const init = async () => {
   await initI18n();
@@ -426,6 +429,17 @@ const init = async () => {
 
   // Initialize Shortcuts System
   ShortcutsManager.init();
+
+  // Initialize Signature Library Modal
+  initSignatureLibraryModal();
+
+  // Initialize Profile Modal
+  initAuthModal();
+
+  // Log profile changes (for debugging)
+  onProfileChange((profile) => {
+    console.log('Profile changed:', profile?.email || 'guest');
+  });
 
   // Tab switching for settings modal
   const shortcutsTabBtn = document.getElementById('shortcuts-tab-btn');

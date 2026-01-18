@@ -48,6 +48,12 @@ export const categories = [
         subtitle: 'Draw, type, or upload your signature.',
       },
       {
+        href: import.meta.env.BASE_URL + 'create-signature.html',
+        name: 'Create Signature',
+        icon: 'ph-signature',
+        subtitle: 'Generate handwritten-style signature from your name.',
+      },
+      {
         href: import.meta.env.BASE_URL + 'crop-pdf.html',
         name: 'Crop PDF',
         icon: 'ph-crop',

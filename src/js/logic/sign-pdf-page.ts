@@ -1,312 +1,273 @@
+/**
+ * Sign PDF Page - DocuSign-like PDF signing experience
+ *
+ * Features:
+ * - Drag-and-drop signature placement
+ * - Add signatures, dates, text, checkboxes
+ * - Resize and reposition annotations
+ * - Multi-page navigation
+ * - Export signed PDF with embedded annotations
+ */
+
 import { createIcons, icons } from 'lucide';
 import { showAlert, showLoader, hideLoader } from '../ui.js';
-import { readFileAsArrayBuffer, formatBytes, downloadFile, getPDFDocument } from '../utils/helpers.js';
-import { PDFDocument } from 'pdf-lib';
+import { formatBytes } from '../utils/helpers.js';
+import { PDFSigner } from '../components/pdf-signer/index.js';
 
-interface SignState {
-    file: File | null;
-    pdfDoc: any;
-    viewerIframe: HTMLIFrameElement | null;
-    viewerReady: boolean;
-    blobUrl: string | null;
-}
-
-const signState: SignState = {
-    file: null,
-    pdfDoc: null,
-    viewerIframe: null,
-    viewerReady: false,
-    blobUrl: null,
-};
+let signer: PDFSigner | null = null;
+let currentFile: File | null = null;
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializePage);
+  document.addEventListener('DOMContentLoaded', initializePage);
 } else {
-    initializePage();
+  initializePage();
 }
 
 function initializePage() {
-    createIcons({ icons });
+  createIcons({ icons });
 
-    const fileInput = document.getElementById('file-input') as HTMLInputElement;
-    const dropZone = document.getElementById('drop-zone');
-    const processBtn = document.getElementById('process-btn');
+  const fileInput = document.getElementById('file-input') as HTMLInputElement;
+  const dropZone = document.getElementById('drop-zone');
 
-    if (fileInput) {
-        fileInput.addEventListener('change', handleFileUpload);
-    }
+  // File input handler
+  fileInput?.addEventListener('change', handleFileUpload);
 
-    if (dropZone) {
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('bg-gray-700');
-        });
+  // Clear value on click to allow re-selecting the same file
+  fileInput?.addEventListener('click', () => {
+    if (fileInput) fileInput.value = '';
+  });
 
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('bg-gray-700');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('bg-gray-700');
-            const droppedFiles = e.dataTransfer?.files;
-            if (droppedFiles && droppedFiles.length > 0) {
-                handleFile(droppedFiles[0]);
-            }
-        });
-
-        // Clear value on click to allow re-selecting the same file
-        fileInput?.addEventListener('click', () => {
-            if (fileInput) fileInput.value = '';
-        });
-    }
-
-    if (processBtn) {
-        processBtn.addEventListener('click', applyAndSaveSignatures);
-    }
-
-    document.getElementById('back-to-tools')?.addEventListener('click', () => {
-        cleanup();
-        window.location.href = import.meta.env.BASE_URL;
+  // Drop zone handlers
+  if (dropZone) {
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('bg-gray-700');
     });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('bg-gray-700');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('bg-gray-700');
+      const files = e.dataTransfer?.files;
+      if (files?.[0]) handleFile(files[0]);
+    });
+  }
+
+  // Page navigation
+  document.getElementById('prev-page')?.addEventListener('click', async () => {
+    await signer?.prevPage();
+  });
+
+  document.getElementById('next-page')?.addEventListener('click', async () => {
+    await signer?.nextPage();
+  });
+
+  // Zoom controls
+  document.getElementById('zoom-in')?.addEventListener('click', async () => {
+    await signer?.zoomIn();
+    updateZoomDisplay();
+  });
+
+  document.getElementById('zoom-out')?.addEventListener('click', async () => {
+    await signer?.zoomOut();
+    updateZoomDisplay();
+  });
+
+  document.getElementById('zoom-fit')?.addEventListener('click', async () => {
+    const scrollContainer = document.getElementById('pdf-scroll-container');
+    if (scrollContainer && signer) {
+      await signer.fitToWidth(scrollContainer.clientWidth);
+      updateZoomDisplay();
+    }
+  });
+
+  // Save button
+  document
+    .getElementById('save-signed-pdf')
+    ?.addEventListener('click', handleSave);
+
+  // Back button
+  document
+    .getElementById('back-to-upload')
+    ?.addEventListener('click', resetToUpload);
+
+  // Back to tools button
+  document.getElementById('back-to-tools')?.addEventListener('click', () => {
+    cleanup();
+    window.location.href = import.meta.env.BASE_URL;
+  });
 }
 
 function handleFileUpload(e: Event) {
-    const input = e.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-        handleFile(input.files[0]);
-    }
+  const input = e.target as HTMLInputElement;
+  if (input.files?.[0]) handleFile(input.files[0]);
 }
 
-function handleFile(file: File) {
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-        showAlert('Invalid File', 'Please select a PDF file.');
-        return;
+async function handleFile(file: File) {
+  if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
+    showAlert('Invalid File', 'Please select a PDF file.');
+    return;
+  }
+
+  currentFile = file;
+  updateFileDisplay(file);
+  showLoader('Loading PDF...');
+
+  try {
+    const canvasContainer = document.getElementById('pdf-canvas-container');
+    const annotationOverlay = document.getElementById('annotation-overlay');
+    const toolbarContainer = document.getElementById('signer-toolbar');
+
+    if (!canvasContainer || !annotationOverlay || !toolbarContainer) {
+      throw new Error('Required containers not found');
     }
 
-    signState.file = file;
-    updateFileDisplay();
-    setupSignTool();
-}
+    // Clear any existing content
+    canvasContainer.innerHTML = '';
+    annotationOverlay.innerHTML = '';
+    toolbarContainer.innerHTML = '';
 
-async function updateFileDisplay() {
-    const fileDisplayArea = document.getElementById('file-display-area');
+    // Initialize the signer with callbacks
+    signer = new PDFSigner(
+      canvasContainer,
+      annotationOverlay,
+      toolbarContainer,
+      {
+        onPageChange: updatePageIndicator,
+        onZoomChange: updateZoomDisplay,
+      }
+    );
 
-    if (!fileDisplayArea || !signState.file) return;
+    await signer.loadPDF(file);
 
-    fileDisplayArea.innerHTML = '';
+    // Show editor, hide upload
+    document.getElementById('signature-editor')?.classList.remove('hidden');
+    document.getElementById('tool-uploader')?.classList.add('hidden');
 
-    const fileDiv = document.createElement('div');
-    fileDiv.className = 'flex items-center justify-between bg-gray-700 p-3 rounded-lg';
+    // Update zoom display after load
+    updateZoomDisplay();
 
-    const infoContainer = document.createElement('div');
-    infoContainer.className = 'flex flex-col flex-1 min-w-0';
-
-    const nameSpan = document.createElement('div');
-    nameSpan.className = 'truncate font-medium text-gray-200 text-sm mb-1';
-    nameSpan.textContent = signState.file.name;
-
-    const metaSpan = document.createElement('div');
-    metaSpan.className = 'text-xs text-gray-400';
-    metaSpan.textContent = `${formatBytes(signState.file.size)} • Loading pages...`;
-
-    infoContainer.append(nameSpan, metaSpan);
-
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'ml-4 text-red-400 hover:text-red-300 flex-shrink-0';
-    removeBtn.innerHTML = '<i data-lucide=\"trash-2\" class=\"w-4 h-4\"></i>';
-    removeBtn.onclick = () => {
-        signState.file = null;
-        signState.pdfDoc = null;
-        fileDisplayArea.innerHTML = '';
-        document.getElementById('signature-editor')?.classList.add('hidden');
-    };
-
-    fileDiv.append(infoContainer, removeBtn);
-    fileDisplayArea.appendChild(fileDiv);
+    hideLoader();
     createIcons({ icons });
-
-    // Load page count
-    try {
-        const arrayBuffer = await readFileAsArrayBuffer(signState.file);
-        const pdfDoc = await getPDFDocument({ data: arrayBuffer }).promise;
-        metaSpan.textContent = `${formatBytes(signState.file.size)} • ${pdfDoc.numPages} pages`;
-    } catch (error) {
-        console.error('Error loading PDF:', error);
-    }
+  } catch (error) {
+    hideLoader();
+    console.error('Failed to load PDF:', error);
+    showAlert('Error', 'Failed to load the PDF. Please try a different file.');
+  }
 }
 
-async function setupSignTool() {
-    const signatureEditor = document.getElementById('signature-editor');
-    if (signatureEditor) {
-        signatureEditor.classList.remove('hidden');
-    }
+function updateFileDisplay(file: File) {
+  const fileDisplayArea = document.getElementById('file-display-area');
+  if (!fileDisplayArea) return;
 
-    showLoader('Loading PDF viewer...');
+  fileDisplayArea.innerHTML = '';
 
-    const container = document.getElementById('canvas-container-sign');
-    if (!container) {
-        console.error('Sign tool canvas container not found');
-        hideLoader();
-        return;
-    }
+  const fileDiv = document.createElement('div');
+  fileDiv.className =
+    'flex items-center justify-between bg-gray-700 p-3 rounded-lg';
 
-    if (!signState.file) {
-        console.error('No file loaded for signing');
-        hideLoader();
-        return;
-    }
+  const infoContainer = document.createElement('div');
+  infoContainer.className = 'flex flex-col flex-1 min-w-0';
 
-    container.textContent = '';
-    const iframe = document.createElement('iframe');
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.style.border = 'none';
-    container.appendChild(iframe);
-    signState.viewerIframe = iframe;
+  const nameSpan = document.createElement('div');
+  nameSpan.className = 'truncate font-medium text-gray-200 text-sm mb-1';
+  nameSpan.textContent = file.name;
 
-    const pdfBytes = await readFileAsArrayBuffer(signState.file);
-    const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
-    signState.blobUrl = URL.createObjectURL(blob);
+  const metaSpan = document.createElement('div');
+  metaSpan.className = 'text-xs text-gray-400';
+  metaSpan.textContent = formatBytes(file.size);
 
-    try {
-        const existingPrefsRaw = localStorage.getItem('pdfjs.preferences');
-        const existingPrefs = existingPrefsRaw ? JSON.parse(existingPrefsRaw) : {};
-        delete (existingPrefs as any).annotationEditorMode;
-        const newPrefs = {
-            ...existingPrefs,
-            enableSignatureEditor: true,
-            enablePermissions: false,
-        };
-        localStorage.setItem('pdfjs.preferences', JSON.stringify(newPrefs));
-    } catch { }
+  infoContainer.append(nameSpan, metaSpan);
 
-    const viewerUrl = new URL(`${import.meta.env.BASE_URL}pdfjs-viewer/viewer.html`, window.location.origin);
-    const query = new URLSearchParams({ file: signState.blobUrl });
-    iframe.src = `${viewerUrl.toString()}?${query.toString()}`;
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'ml-4 text-red-400 hover:text-red-300 flex-shrink-0';
+  removeBtn.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i>';
+  removeBtn.onclick = () => {
+    resetToUpload();
+  };
 
-    iframe.onload = () => {
-        hideLoader();
-        signState.viewerReady = true;
-        try {
-            const viewerWindow: any = iframe.contentWindow;
-            if (viewerWindow && viewerWindow.PDFViewerApplication) {
-                const app = viewerWindow.PDFViewerApplication;
-                const doc = viewerWindow.document;
-                const eventBus = app.eventBus;
-                eventBus?._on('annotationeditoruimanager', () => {
-                    const editorModeButtons = doc.getElementById('editorModeButtons');
-                    editorModeButtons?.classList.remove('hidden');
-                    const editorSignature = doc.getElementById('editorSignature');
-                    editorSignature?.removeAttribute('hidden');
-                    const editorSignatureButton = doc.getElementById('editorSignatureButton') as HTMLButtonElement | null;
-                    if (editorSignatureButton) {
-                        editorSignatureButton.disabled = false;
-                    }
-                    const editorStamp = doc.getElementById('editorStamp');
-                    editorStamp?.removeAttribute('hidden');
-                    const editorStampButton = doc.getElementById('editorStampButton') as HTMLButtonElement | null;
-                    if (editorStampButton) {
-                        editorStampButton.disabled = false;
-                    }
-                    try {
-                        const highlightBtn = doc.getElementById('editorHighlightButton') as HTMLButtonElement | null;
-                        highlightBtn?.click();
-                    } catch { }
-                });
-            }
-        } catch (e) {
-            console.error('Could not initialize PDF.js viewer for signing:', e);
-        }
-
-        const saveBtn = document.getElementById('process-btn') as HTMLButtonElement | null;
-        if (saveBtn) {
-            saveBtn.style.display = '';
-        }
-    };
+  fileDiv.append(infoContainer, removeBtn);
+  fileDisplayArea.appendChild(fileDiv);
+  createIcons({ icons });
 }
 
-async function applyAndSaveSignatures() {
-    if (!signState.viewerReady || !signState.viewerIframe) {
-        showAlert('Viewer not ready', 'Please wait for the PDF viewer to load.');
-        return;
-    }
+function updatePageIndicator(current: number, total: number) {
+  const indicator = document.getElementById('page-indicator');
+  if (indicator) {
+    indicator.textContent = `Page ${current} of ${total}`;
+  }
 
-    try {
-        const viewerWindow: any = signState.viewerIframe.contentWindow;
-        if (!viewerWindow || !viewerWindow.PDFViewerApplication) {
-            showAlert('Viewer not ready', 'The PDF viewer is still initializing.');
-            return;
-        }
+  // Update button states
+  const prevBtn = document.getElementById('prev-page') as HTMLButtonElement;
+  const nextBtn = document.getElementById('next-page') as HTMLButtonElement;
 
-        const app = viewerWindow.PDFViewerApplication;
-        const flattenCheckbox = document.getElementById('flatten-signature-toggle') as HTMLInputElement | null;
-        const shouldFlatten = flattenCheckbox?.checked;
-
-        if (shouldFlatten) {
-            showLoader('Flattening and saving PDF...');
-
-            const rawPdfBytes = await app.pdfDocument.saveDocument(app.pdfDocument.annotationStorage);
-            const pdfBytes = new Uint8Array(rawPdfBytes);
-            const pdfDoc = await PDFDocument.load(pdfBytes);
-            pdfDoc.getForm().flatten();
-            const flattenedPdfBytes = await pdfDoc.save();
-
-            const blob = new Blob([flattenedPdfBytes as BlobPart], { type: 'application/pdf' });
-            downloadFile(blob, `signed_flattened_${signState.file?.name || 'document.pdf'}`);
-
-            hideLoader();
-            showAlert('Success', 'Signed PDF saved successfully!', 'success', () => {
-                resetState();
-            });
-        } else {
-            app.eventBus?.dispatch('download', { source: app });
-            showAlert('Success', 'Signed PDF downloaded successfully!', 'success', () => {
-                resetState();
-            });
-        }
-    } catch (error) {
-        console.error('Failed to export the signed PDF:', error);
-        hideLoader();
-        showAlert('Export failed', 'Could not export the signed PDF. Please try again.');
-    }
+  if (prevBtn) prevBtn.disabled = current <= 1;
+  if (nextBtn) nextBtn.disabled = current >= total;
 }
 
-function resetState() {
-    cleanup();
-    signState.file = null;
-    signState.viewerIframe = null;
-    signState.viewerReady = false;
+function updateZoomDisplay() {
+  const zoomLevel = document.getElementById('zoom-level');
+  if (zoomLevel && signer) {
+    zoomLevel.textContent = `${Math.round(signer.getZoom() * 100)}%`;
+  }
+}
 
-    const signatureEditor = document.getElementById('signature-editor');
-    if (signatureEditor) {
-        signatureEditor.classList.add('hidden');
-    }
+async function handleSave() {
+  if (!signer) {
+    showAlert('Error', 'No PDF loaded.');
+    return;
+  }
 
-    const container = document.getElementById('canvas-container-sign');
-    if (container) {
-        container.textContent = '';
-    }
+  showLoader('Saving signed PDF...');
 
-    const fileDisplayArea = document.getElementById('file-display-area');
-    if (fileDisplayArea) {
-        fileDisplayArea.innerHTML = '';
-    }
+  try {
+    await signer.savePDF();
+    hideLoader();
+    showAlert('Success!', 'Your signed PDF has been saved.', 'success', () => {
+      // Optionally reset after successful save
+    });
+  } catch (error) {
+    hideLoader();
+    console.error('Failed to save PDF:', error);
+    showAlert('Error', 'Failed to save the PDF. Please try again.');
+  }
+}
 
-    const processBtn = document.getElementById('process-btn') as HTMLButtonElement | null;
-    if (processBtn) {
-        processBtn.style.display = 'none';
-    }
+function resetToUpload() {
+  cleanup();
 
-    const flattenCheckbox = document.getElementById('flatten-signature-toggle') as HTMLInputElement | null;
-    if (flattenCheckbox) {
-        flattenCheckbox.checked = false;
-    }
+  // Reset state
+  signer = null;
+  currentFile = null;
+
+  // Hide editor, show upload
+  document.getElementById('signature-editor')?.classList.add('hidden');
+  document.getElementById('tool-uploader')?.classList.remove('hidden');
+
+  // Clear containers
+  const canvasContainer = document.getElementById('pdf-canvas-container');
+  const annotationOverlay = document.getElementById('annotation-overlay');
+  const toolbarContainer = document.getElementById('signer-toolbar');
+  const fileDisplayArea = document.getElementById('file-display-area');
+
+  if (canvasContainer) canvasContainer.innerHTML = '';
+  if (annotationOverlay) annotationOverlay.innerHTML = '';
+  if (toolbarContainer) toolbarContainer.innerHTML = '';
+  if (fileDisplayArea) fileDisplayArea.innerHTML = '';
+
+  // Reset page indicator
+  const indicator = document.getElementById('page-indicator');
+  if (indicator) indicator.textContent = 'Page 1 of 1';
+
+  // Clear file input
+  const fileInput = document.getElementById('file-input') as HTMLInputElement;
+  if (fileInput) fileInput.value = '';
 }
 
 function cleanup() {
-    if (signState.blobUrl) {
-        URL.revokeObjectURL(signState.blobUrl);
-        signState.blobUrl = null;
-    }
+  // Any cleanup needed (e.g., revoking object URLs)
+  signer = null;
 }

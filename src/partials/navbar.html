@@ -32,6 +32,56 @@
           data-i18n="nav.allTools"
           >All Tools</a
         >
+        <button
+          id="open-signatures-btn"
+          class="nav-link flex items-center gap-1.5"
+          title="My Signatures"
+        >
+          <i data-lucide="pen-tool" class="w-4 h-4"></i>
+          <span class="hidden lg:inline">Signatures</span>
+        </button>
+
+        <!-- User Account Area -->
+        <div id="user-account-area" class="flex items-center">
+          <!-- Logged out: Show login button -->
+          <button
+            id="login-btn"
+            class="nav-link flex items-center gap-1.5"
+            title="Sign In"
+          >
+            <i data-lucide="log-in" class="w-4 h-4"></i>
+            <span class="hidden lg:inline">Sign In</span>
+          </button>
+
+          <!-- Logged in: Show avatar + dropdown (hidden by default) -->
+          <div id="user-menu" class="hidden relative">
+            <button
+              id="user-menu-btn"
+              class="flex items-center gap-2 p-1 rounded-full hover:bg-gray-700 transition-colors"
+            >
+              <div
+                class="w-8 h-8 rounded-full bg-orange-600 flex items-center justify-center text-white text-sm font-medium"
+              >
+                <span id="user-initial">?</span>
+              </div>
+            </button>
+            <div
+              id="user-dropdown"
+              class="hidden absolute right-0 mt-2 w-48 bg-gray-700 rounded-lg shadow-xl py-2 border border-gray-600 z-50"
+            >
+              <p
+                class="px-4 py-2 text-sm text-gray-300 border-b border-gray-600 truncate"
+                id="user-email"
+              ></p>
+              <button
+                id="logout-btn"
+                class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-600 transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Mobile Hamburger Button -->
@@ -107,6 +157,46 @@
         data-i18n="nav.allTools"
         >All Tools</a
       >
+      <button
+        id="open-signatures-btn-mobile"
+        class="mobile-nav-link w-full flex items-center justify-center gap-2"
+      >
+        <i data-lucide="pen-tool" class="w-4 h-4"></i>
+        Signatures
+      </button>
+
+      <!-- Mobile User Account Area -->
+      <div
+        id="user-account-area-mobile"
+        class="mt-2 pt-2 border-t border-gray-700"
+      >
+        <!-- Logged out: Show login button -->
+        <button
+          id="login-btn-mobile"
+          class="mobile-nav-link w-full flex items-center justify-center gap-2"
+        >
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          Sign In
+        </button>
+
+        <!-- Logged in: Show user info (hidden by default) -->
+        <div id="user-menu-mobile" class="hidden">
+          <div class="flex items-center justify-center gap-2 py-2">
+            <div
+              class="w-8 h-8 rounded-full bg-orange-600 flex items-center justify-center text-white text-sm font-medium"
+            >
+              <span id="user-initial-mobile">?</span>
+            </div>
+          </div>
+          <button
+            id="logout-btn-mobile"
+            class="mobile-nav-link w-full flex items-center justify-center gap-2 text-red-400"
+          >
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+            Sign Out
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </nav>

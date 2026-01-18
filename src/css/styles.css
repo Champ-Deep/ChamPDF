@@ -78,7 +78,7 @@ body {
   box-shadow:
     0 10px 15px -3px rgba(0, 0, 0, 0.2),
     0 4px 6px -2px rgba(0, 0, 0, 0.1);
-  border-color: #C8232C;
+  border-color: #c8232c;
 }
 
 .btn {
@@ -106,22 +106,22 @@ input[type='file']::file-selector-button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #C8232C;
+  background: #c8232c;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #A01D24;
+  background: #a01d24;
   /* Champions dark red */
 }
 
 /* Style for drag-and-drop placeholder */
 .sortable-ghost {
   opacity: 0.4;
-  border: 2px dashed #C8232C;
+  border: 2px dashed #c8232c;
 }
 
-#embed-pdf-container>div {
+#embed-pdf-container > div {
   width: 100%;
   height: 100%;
 }
@@ -131,7 +131,7 @@ input[type='file']::file-selector-button {
 }
 
 .page-thumbnail,
-#file-list>li {
+#file-list > li {
   cursor: grab;
 }
 
@@ -215,7 +215,7 @@ footer a {
 }
 
 .cta-button {
-  background-color: #C8232C;
+  background-color: #c8232c;
   /* Champions red */
   color: white;
   font-weight: 600;
@@ -226,7 +226,7 @@ footer a {
 }
 
 .cta-button:hover {
-  background-color: #A01D24;
+  background-color: #a01d24;
   /* Champions dark red */
 }
 
@@ -265,15 +265,13 @@ footer a {
   right: 0;
   bottom: 0;
   height: 6px;
-  background: linear-gradient(120deg, #D65A36, #E88B2D);
+  background: linear-gradient(120deg, #d65a36, #e88b2d);
   z-index: -1;
 }
 
-
-
 .section-divider {
   height: 1px;
-  background: linear-gradient(to right, transparent, #C8232C, transparent);
+  background: linear-gradient(to right, transparent, #c8232c, transparent);
   /* Fades from transparent to Champions red and back */
   margin: 2rem auto;
   /* my-16 */
@@ -288,7 +286,7 @@ footer a {
   /* py-3 px-8 */
   border-radius: 0.5rem;
   /* rounded-lg */
-  background-image: linear-gradient(to bottom, #D65A36, #C8232C);
+  background-image: linear-gradient(to bottom, #d65a36, #c8232c);
   /* Champions red-orange gradient */
   color: #ffffff;
   /* text-white */
@@ -310,7 +308,7 @@ footer a {
   outline-offset: 2px;
   box-shadow:
     0 0 0 2px #111827,
-    0 0 0 4px #E88B2D;
+    0 0 0 4px #e88b2d;
   /* focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-orange-400 */
 }
 
@@ -328,7 +326,7 @@ footer a {
   /* h-16 */
   border: 5px solid #374151;
   /* border-gray-700 */
-  border-bottom-color: #C8232C;
+  border-bottom-color: #c8232c;
   /* Champions red */
   border-radius: 50%;
   display: inline-block;
@@ -358,7 +356,7 @@ footer a {
 
 /* Highlight for selected signature in the saved list */
 .saved-signature.selected {
-  border-color: #C8232C;
+  border-color: #c8232c;
   /* Champions red */
   box-shadow: 0 0 10px rgba(200, 35, 44, 0.5);
 }
@@ -385,7 +383,7 @@ footer a {
 }
 
 .faq-item.open .faq-question {
-  color: #E88B2D;
+  color: #e88b2d;
   /* Champions orange */
 }
 
@@ -506,19 +504,19 @@ footer a {
   color: rgb(245 184 112);
 }
 
-details>summary {
+details > summary {
   list-style: none;
 }
 
-details>summary::-webkit-details-marker {
+details > summary::-webkit-details-marker {
   display: none;
 }
 
-details>summary .icon {
+details > summary .icon {
   transition: transform 0.2s ease-in-out;
 }
 
-details[open]>summary .icon {
+details[open] > summary .icon {
   transform: rotate(45deg);
 }
 
@@ -542,7 +540,9 @@ button:disabled,
   height: 1.5rem;
   padding: 0 0.25rem;
   font-size: 0.75rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
   line-height: 1;
   color: #e5e7eb;
   background-color: #374151;
@@ -552,13 +552,15 @@ button:disabled,
 }
 
 .shortcut-input {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
   letter-spacing: 0.05em;
 }
 
 .shortcut-input:focus {
   outline: none;
-  border-color: #D65A36;
+  border-color: #d65a36;
   box-shadow: 0 0 0 2px rgba(214, 90, 54, 0.2);
 }
 
@@ -596,18 +598,78 @@ button:disabled,
     linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(
+    ellipse at center,
+    black 40%,
+    transparent 80%
+  );
   pointer-events: none;
 }
 
 /* Hide spin buttons for number inputs */
-input[type="number"] {
+input[type='number'] {
   appearance: none;
   -moz-appearance: textfield; /* Firefox */
 }
 
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
   -webkit-appearance: none; /* Chrome, Safari, Edge */
   margin: 0;
+}
+
+/* ============================================
+   PDF Signer Annotation Styles
+   ============================================ */
+
+.annotation-box {
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+  z-index: 10;
+}
+
+.annotation-box:hover {
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.5);
+}
+
+.annotation-box.selected {
+  box-shadow: 0 0 0 2px rgb(249, 115, 22);
+}
+
+.resize-handle {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 20;
+}
+
+.annotation-box:hover .resize-handle,
+.annotation-box.selected .resize-handle {
+  opacity: 1;
+}
+
+.signature-drag-item {
+  cursor: grab;
+  user-select: none;
+}
+
+.signature-drag-item:active {
+  cursor: grabbing;
+}
+
+/* PDF Canvas styling */
+.pdf-canvas {
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* Annotation overlay positioning */
+#annotation-overlay {
+  pointer-events: auto;
+}
+
+/* Drag-over highlight for PDF drop zone */
+#annotation-overlay.ring-inset {
+  box-shadow: inset 0 0 0 3px rgb(249, 115, 22);
 }

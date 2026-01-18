@@ -1,4 +1,9 @@
 import { createIcons, icons } from 'lucide';
+import {
+  saveSignature,
+  getSignatures,
+  type SavedSignature,
+} from '../utils/signature-storage.js';
 
 // Import signature fonts
 import '@fontsource/dancing-script';
@@ -236,7 +241,13 @@ function setupEventListeners() {
     downloadBtn.addEventListener('click', downloadSignature);
   }
 
-  // Use in Sign PDF button
+  // Save to Library button
+  const saveToLibraryBtn = document.getElementById('save-to-library-btn');
+  if (saveToLibraryBtn) {
+    saveToLibraryBtn.addEventListener('click', saveToLibrary);
+  }
+
+  // Use in Sign PDF button (saves to library and navigates)
   const useInSignBtn = document.getElementById('use-in-sign-pdf-btn');
   if (useInSignBtn) {
     useInSignBtn.addEventListener('click', useInSignPdf);
@@ -267,12 +278,18 @@ function updateButtonStates() {
   const downloadBtn = document.getElementById(
     'download-btn'
   ) as HTMLButtonElement;
+  const saveToLibraryBtn = document.getElementById(
+    'save-to-library-btn'
+  ) as HTMLButtonElement;
   const useInSignBtn = document.getElementById(
     'use-in-sign-pdf-btn'
   ) as HTMLButtonElement;
 
   if (downloadBtn) {
     downloadBtn.disabled = !hasName;
+  }
+  if (saveToLibraryBtn) {
+    saveToLibraryBtn.disabled = !hasName;
   }
   if (useInSignBtn) {
     useInSignBtn.disabled = !hasName;
@@ -341,12 +358,49 @@ async function downloadSignature() {
   }
 }
 
+async function saveToLibrary() {
+  try {
+    const blob = await generateSignatureBlob();
+
+    const signatures = getSignatures();
+    const signature: SavedSignature = {
+      id: crypto.randomUUID(),
+      name: state.name,
+      style: state.selectedStyle,
+      color: state.color,
+      createdAt: Date.now(),
+      isDefault: signatures.length === 0, // First signature is default
+    };
+
+    await saveSignature(signature, blob);
+
+    alert('Signature saved to your library!');
+  } catch (error) {
+    console.error('Failed to save signature to library:', error);
+    alert('Failed to save signature. Please try again.');
+  }
+}
+
 async function useInSignPdf() {
   try {
     const blob = await generateSignatureBlob();
+
+    // Save to library first
+    const signatures = getSignatures();
+    const signature: SavedSignature = {
+      id: crypto.randomUUID(),
+      name: state.name,
+      style: state.selectedStyle,
+      color: state.color,
+      createdAt: Date.now(),
+      isDefault: signatures.length === 0,
+    };
+
+    await saveSignature(signature, blob);
+
+    // Also store in sessionStorage for immediate use
     const reader = new FileReader();
     reader.onload = () => {
-      // Store signature data in sessionStorage for sign-pdf page
       sessionStorage.setItem(
         'champdf-generated-signature',
         reader.result as string
