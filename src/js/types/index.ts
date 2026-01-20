@@ -45,5 +45,6 @@ export * from './page-numbers-type.ts';
 export * from './pdf-to-zip-type.ts';
 export * from './sign-pdf-type.ts';
 export * from './add-watermark-type.ts';
+export * from './remove-watermark-type.ts';
 export * from './email-to-pdf-type.ts';
 export * from './bookmark-pdf-type.ts';

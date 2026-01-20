@@ -60,6 +60,12 @@ export const categories = [
         subtitle: 'Trim the margins of every page in your PDF.',
       },
       {
+        href: import.meta.env.BASE_URL + 'remove-watermark.html',
+        name: 'Remove Watermark',
+        icon: 'ph-eraser',
+        subtitle: 'Remove watermarks with AI-powered smooth inpainting.',
+      },
+      {
         href: import.meta.env.BASE_URL + 'extract-pages.html',
         name: 'Extract Pages',
         icon: 'ph-squares-four',
@@ -112,6 +118,12 @@ export const categories = [
         name: 'Add Watermark',
         icon: 'ph-drop',
         subtitle: 'Stamp text or an image over your PDF pages.',
+      },
+      {
+        href: import.meta.env.BASE_URL + 'remove-watermark.html',
+        name: 'Remove Watermark',
+        icon: 'ph-eraser',
+        subtitle: 'Remove watermarks with AI-powered smooth inpainting.',
       },
       {
         href: import.meta.env.BASE_URL + 'header-footer.html',
