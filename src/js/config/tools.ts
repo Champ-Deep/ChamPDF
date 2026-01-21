@@ -80,6 +80,23 @@ export const categories = [
     ],
   },
   {
+    name: 'Media Tools',
+    tools: [
+      {
+        href: import.meta.env.BASE_URL + 'video-rebrander.html',
+        name: 'Video Logo Remover',
+        icon: 'ph-video',
+        subtitle: 'Remove AI watermarks and rebrand videos with your logo.',
+      },
+      {
+        href: import.meta.env.BASE_URL + 'remove-watermark.html',
+        name: 'PDF Watermark Remover',
+        icon: 'ph-file-x',
+        subtitle: 'Remove watermarks from PDFs and optionally rebrand.',
+      },
+    ],
+  },
+  {
     name: 'Edit & Annotate',
     tools: [
       {

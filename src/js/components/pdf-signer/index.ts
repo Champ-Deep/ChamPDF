@@ -402,16 +402,8 @@ export class PDFSigner {
     }
 
     const pdfBytes = await pdfDoc.save();
-    // Convert Uint8Array to Blob - use slice to handle any byte offset
-    const blob = new Blob(
-      [
-        pdfBytes.buffer.slice(
-          pdfBytes.byteOffset,
-          pdfBytes.byteOffset + pdfBytes.byteLength
-        ),
-      ],
-      { type: 'application/pdf' }
-    );
+    // Cast to BlobPart to satisfy TypeScript strict mode
+    const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
     downloadFile(blob, `signed_${this.file.name}`);
   }
 
