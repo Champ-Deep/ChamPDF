@@ -66,6 +66,12 @@ export const categories = [
         subtitle: 'Remove watermarks with AI-powered smooth inpainting.',
       },
       {
+        href: import.meta.env.BASE_URL + 'replace-logo.html',
+        name: 'Replace Logo',
+        icon: 'ph-repeat',
+        subtitle: 'Replace NotebookLM logo with Lake B2B or custom logo.',
+      },
+      {
         href: import.meta.env.BASE_URL + 'extract-pages.html',
         name: 'Extract Pages',
         icon: 'ph-squares-four',
@@ -124,6 +130,12 @@ export const categories = [
         name: 'Remove Watermark',
         icon: 'ph-eraser',
         subtitle: 'Remove watermarks with AI-powered smooth inpainting.',
+      },
+      {
+        href: import.meta.env.BASE_URL + 'replace-logo.html',
+        name: 'Replace Logo',
+        icon: 'ph-repeat',
+        subtitle: 'Replace NotebookLM logo with Lake B2B or custom logo.',
       },
       {
         href: import.meta.env.BASE_URL + 'header-footer.html',
