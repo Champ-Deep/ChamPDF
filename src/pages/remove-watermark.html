@@ -25,15 +25,18 @@
     />
 
     <!-- Canonical URL -->
-    <link rel="canonical" href="https://www.champdf.com/remove-watermark.html" />
+    <link
+      rel="canonical"
+      href="https://www.champdf.com/remove-watermark.html"
+    />
 
     <!-- Open Graph / Facebook / LinkedIn -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.champdf.com/remove-watermark" />
     <meta
-      property="og:title"
-      content="PDF Watermark Remover | ChamPDF"
+      property="og:url"
+      content="https://www.champdf.com/remove-watermark"
     />
+    <meta property="og:title" content="PDF Watermark Remover | ChamPDF" />
     <meta
       property="og:description"
       content="Remove watermarks from PDFs and optionally replace with your logo. Free, in-browser processing."
@@ -42,7 +45,10 @@
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://www.champdf.com/remove-watermark" />
+    <meta
+      name="twitter:url"
+      content="https://www.champdf.com/remove-watermark"
+    />
     <meta name="twitter:title" content="PDF Watermark Remover" />
     <meta
       name="twitter:description"
@@ -105,7 +111,9 @@
           PDF Watermark Remover
         </h1>
         <p class="text-gray-400 mb-6">
-          Remove watermarks from PDFs (NotebookLM, AI tools, etc.) and optionally replace with your company logo. Runs entirely in your browser.
+          Remove watermarks from PDFs (NotebookLM, AI tools, etc.) and
+          optionally replace with your company logo. Runs entirely in your
+          browser.
         </p>
 
         <!-- Drop Zone -->
@@ -114,10 +122,7 @@
           class="relative flex flex-col items-center justify-center w-full h-48 md:h-64 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer bg-gray-900 hover:bg-gray-700 transition-colors duration-300"
         >
           <div class="flex flex-col items-center justify-center pt-5 pb-6">
-            <i
-              data-lucide="file-x"
-              class="w-10 h-10 mb-3 text-gray-400"
-            ></i>
+            <i data-lucide="file-x" class="w-10 h-10 mb-3 text-gray-400"></i>
             <p class="mb-2 text-sm text-gray-400">
               <span class="font-semibold">Click to select a PDF</span>
               or drag and drop
@@ -147,60 +152,60 @@
             </label>
             <div class="grid grid-cols-2 gap-3">
               <label class="relative">
-                <input type="radio" name="watermark-position" value="bottom-right" class="peer sr-only" checked />
-                <div class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="bottom-right"
+                  class="peer sr-only"
+                  checked
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
                   <i data-lucide="corner-down-right" class="w-4 h-4"></i>
                   <span class="text-sm">Bottom Right</span>
                 </div>
               </label>
               <label class="relative">
-                <input type="radio" name="watermark-position" value="bottom-left" class="peer sr-only" />
-                <div class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="bottom-left"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
                   <i data-lucide="corner-down-left" class="w-4 h-4"></i>
                   <span class="text-sm">Bottom Left</span>
                 </div>
               </label>
               <label class="relative">
-                <input type="radio" name="watermark-position" value="top-right" class="peer sr-only" />
-                <div class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="top-right"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
                   <i data-lucide="corner-up-right" class="w-4 h-4"></i>
                   <span class="text-sm">Top Right</span>
                 </div>
               </label>
               <label class="relative">
-                <input type="radio" name="watermark-position" value="top-left" class="peer sr-only" />
-                <div class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="top-left"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
                   <i data-lucide="corner-up-left" class="w-4 h-4"></i>
                   <span class="text-sm">Top Left</span>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Removal Method -->
-          <div>
-            <label class="block text-sm font-medium text-gray-300 mb-3">
-              Removal Method
-            </label>
-            <div class="space-y-3">
-              <label class="relative block">
-                <input type="radio" name="removal-method" value="quick" class="peer sr-only" />
-                <div class="p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700">
-                  <div class="flex items-center gap-2">
-                    <i data-lucide="zap" class="w-4 h-4 text-yellow-400"></i>
-                    <span class="text-sm font-medium">Quick (Annotations Only)</span>
-                  </div>
-                  <p class="text-xs text-gray-400 mt-1 ml-6">Fast, removes annotation-based watermarks and forms</p>
-                </div>
-              </label>
-              <label class="relative block">
-                <input type="radio" name="removal-method" value="deep" class="peer sr-only" checked />
-                <div class="p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700">
-                  <div class="flex items-center gap-2">
-                    <i data-lucide="scan" class="w-4 h-4 text-blue-400"></i>
-                    <span class="text-sm font-medium">Deep (Content Redaction)</span>
-                  </div>
-                  <p class="text-xs text-gray-400 mt-1 ml-6">Thorough, redacts content in the specified corner region</p>
                 </div>
               </label>
             </div>
@@ -213,36 +218,76 @@
             </label>
             <div class="grid grid-cols-2 gap-3">
               <label class="relative">
-                <input type="radio" name="logo-preset" value="none" class="peer sr-only" checked />
-                <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700">
-                  <div class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center">
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="none"
+                  class="peer sr-only"
+                  checked
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
                     <i data-lucide="x-circle" class="w-4 h-4 text-gray-400"></i>
                   </div>
                   <span class="text-sm font-medium">None</span>
                 </div>
               </label>
               <label class="relative">
-                <input type="radio" name="logo-preset" value="lakeb2b" class="peer sr-only" />
-                <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700">
-                  <div class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center">
-                    <i data-lucide="building-2" class="w-4 h-4 text-orange-400"></i>
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="lakeb2b"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
+                    <i
+                      data-lucide="building-2"
+                      class="w-4 h-4 text-orange-400"
+                    ></i>
                   </div>
                   <span class="text-sm font-medium">LakeB2B</span>
                 </div>
               </label>
               <label class="relative">
-                <input type="radio" name="logo-preset" value="champions" class="peer sr-only" />
-                <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700">
-                  <div class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center">
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="champions"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
                     <i data-lucide="trophy" class="w-4 h-4 text-yellow-400"></i>
                   </div>
                   <span class="text-sm font-medium">Champions</span>
                 </div>
               </label>
               <label class="relative">
-                <input type="radio" name="logo-preset" value="ampliz" class="peer sr-only" />
-                <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700">
-                  <div class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center">
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="ampliz"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
                     <i data-lucide="zap" class="w-4 h-4 text-purple-400"></i>
                   </div>
                   <span class="text-sm font-medium">Ampliz</span>
@@ -267,12 +312,20 @@
             <div class="flex items-center gap-4 mb-4">
               <div class="solid-spinner"></div>
               <div>
-                <p id="status-text" class="text-white font-medium">Processing PDF...</p>
-                <p id="status-detail" class="text-gray-400 text-sm">Removing watermarks</p>
+                <p id="status-text" class="text-white font-medium">
+                  Processing PDF...
+                </p>
+                <p id="status-detail" class="text-gray-400 text-sm">
+                  Removing watermarks
+                </p>
               </div>
             </div>
             <div class="w-full bg-gray-700 rounded-full h-2">
-              <div id="progress-bar" class="bg-orange-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+              <div
+                id="progress-bar"
+                class="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                style="width: 0%"
+              ></div>
             </div>
           </div>
         </div>
@@ -284,7 +337,9 @@
               <i data-lucide="check-circle" class="w-8 h-8 text-green-400"></i>
               <div>
                 <p class="text-green-300 font-medium">Watermark Removed!</p>
-                <p class="text-green-400/80 text-sm">Your PDF is ready for download</p>
+                <p class="text-green-400/80 text-sm">
+                  Your PDF is ready for download
+                </p>
               </div>
             </div>
             <button
@@ -310,7 +365,9 @@
               <i data-lucide="alert-circle" class="w-8 h-8 text-red-400"></i>
               <div>
                 <p class="text-red-300 font-medium">Processing Failed</p>
-                <p id="error-message" class="text-red-400/80 text-sm">An error occurred while processing your PDF.</p>
+                <p id="error-message" class="text-red-400/80 text-sm">
+                  An error occurred while processing your PDF.
+                </p>
               </div>
             </div>
             <button
@@ -347,10 +404,7 @@
       <div
         class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full border border-gray-700"
       >
-        <h3
-          id="alert-title"
-          class="text-xl font-bold text-white mb-2"
-        >
+        <h3 id="alert-title" class="text-xl font-bold text-white mb-2">
           Alert
         </h3>
         <p id="alert-message" class="text-gray-300 mb-6"></p>
@@ -389,9 +443,12 @@
             2
           </div>
           <div class="flex-1">
-            <h3 class="text-lg font-semibold text-white mb-1">Choose Options</h3>
+            <h3 class="text-lg font-semibold text-white mb-1">
+              Choose Options
+            </h3>
             <p class="text-gray-400">
-              Select watermark location, removal method, and optional logo replacement
+              Select watermark location, removal method, and optional logo
+              replacement
             </p>
           </div>
         </div>
@@ -404,7 +461,8 @@
           <div class="flex-1">
             <h3 class="text-lg font-semibold text-white mb-1">Download</h3>
             <p class="text-gray-400">
-              Get your watermark-free PDF instantly - processed entirely in your browser
+              Get your watermark-free PDF instantly - processed entirely in your
+              browser
             </p>
           </div>
         </div>
@@ -425,8 +483,10 @@
             <i data-lucide="chevron-down" class="w-5 h-5"></i>
           </summary>
           <p class="mt-3 text-gray-400">
-            This tool is optimized for corner watermarks like those from NotebookLM and similar AI tools.
-            Quick mode removes annotation-based overlays, while Deep mode redacts content in the specified corner region.
+            This tool is optimized for corner watermarks like those from
+            NotebookLM and similar AI tools. Quick mode removes annotation-based
+            overlays, while Deep mode redacts content in the specified corner
+            region.
           </p>
         </details>
         <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
@@ -437,8 +497,9 @@
             <i data-lucide="chevron-down" class="w-5 h-5"></i>
           </summary>
           <p class="mt-3 text-gray-400">
-            No! All processing happens directly in your browser using WebAssembly.
-            Your PDF never leaves your device, ensuring complete privacy.
+            No! All processing happens directly in your browser using
+            WebAssembly. Your PDF never leaves your device, ensuring complete
+            privacy.
           </p>
         </details>
         <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
@@ -449,9 +510,10 @@
             <i data-lucide="chevron-down" class="w-5 h-5"></i>
           </summary>
           <p class="mt-3 text-gray-400">
-            Quick mode removes annotations, form fields, and overlay-type watermarks. It's fast and safe.
-            Deep mode uses content redaction to remove graphic watermarks embedded in the PDF content stream,
-            which is more thorough but takes longer.
+            Quick mode removes annotations, form fields, and overlay-type
+            watermarks. It's fast and safe. Deep mode uses content redaction to
+            remove graphic watermarks embedded in the PDF content stream, which
+            is more thorough but takes longer.
           </p>
         </details>
         <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
@@ -462,8 +524,9 @@
             <i data-lucide="chevron-down" class="w-5 h-5"></i>
           </summary>
           <p class="mt-3 text-gray-400">
-            Yes! You can optionally replace the removed watermark with a company logo (LakeB2B, Champions, or Ampliz).
-            The logo will be placed in the same corner where the watermark was removed.
+            Yes! You can optionally replace the removed watermark with a company
+            logo (LakeB2B, Champions, or Ampliz). The logo will be placed in the
+            same corner where the watermark was removed.
           </p>
         </details>
       </div>

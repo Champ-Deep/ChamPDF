@@ -115,6 +115,7 @@
     "pdfjs-dist": "^5.4.296",
     "pdfkit": "^0.17.2",
     "postal-mime": "^2.7.1",
+    "pptxgenjs": "^4.0.1",
     "sortablejs": "^1.15.6",
     "tailwindcss": "^4.1.14",
     "terser": "^5.44.0",

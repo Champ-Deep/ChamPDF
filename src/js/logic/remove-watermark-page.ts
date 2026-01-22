@@ -9,7 +9,7 @@
 
 import { showAlert } from '../ui.js';
 import { downloadFile, formatBytes, getPDFDocument } from '../utils/helpers.js';
-import { PDFDocument, PDFName } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
 import { createIcons, icons } from 'lucide';
 import * as pdfjsLib from 'pdfjs-dist';
 
@@ -21,7 +21,6 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 interface WatermarkRemoverState {
   file: File | null;
   position: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
-  method: 'quick' | 'deep';
   logoPreset: 'none' | 'lakeb2b' | 'champions' | 'ampliz';
   isProcessing: boolean;
   resultBlob: Blob | null;
@@ -30,17 +29,16 @@ interface WatermarkRemoverState {
 const state: WatermarkRemoverState = {
   file: null,
   position: 'bottom-right',
-  method: 'deep',
   logoPreset: 'none',
   isProcessing: false,
   resultBlob: null,
 };
 
-// Logo images as base64 (will be loaded dynamically)
+// Logo images served from public folder (with BASE_URL for Vite)
 const LOGO_URLS: Record<string, string> = {
-  lakeb2b: '/Images & Logos/lakeb2b.png',
-  champions: '/Images & Logos/champions.png',
-  ampliz: '/Images & Logos/ampliz.png',
+  lakeb2b: `${import.meta.env.BASE_URL}logos/lakeb2b.png`,
+  champions: `${import.meta.env.BASE_URL}logos/champions.png`,
+  ampliz: `${import.meta.env.BASE_URL}logos/ampliz.png`,
 };
 
 if (document.readyState === 'loading') {
@@ -81,37 +79,42 @@ function initializePage() {
   }
 
   // Position radio buttons
-  document.querySelectorAll('input[name="watermark-position"]').forEach((radio) => {
-    radio.addEventListener('change', (e) => {
-      state.position = (e.target as HTMLInputElement).value as typeof state.position;
+  document
+    .querySelectorAll('input[name="watermark-position"]')
+    .forEach((radio) => {
+      radio.addEventListener('change', (e) => {
+        state.position = (e.target as HTMLInputElement)
+          .value as typeof state.position;
+      });
     });
-  });
-
-  // Method radio buttons
-  document.querySelectorAll('input[name="removal-method"]').forEach((radio) => {
-    radio.addEventListener('change', (e) => {
-      state.method = (e.target as HTMLInputElement).value as typeof state.method;
-    });
-  });
 
   // Logo preset radio buttons
   document.querySelectorAll('input[name="logo-preset"]').forEach((radio) => {
     radio.addEventListener('change', (e) => {
-      state.logoPreset = (e.target as HTMLInputElement).value as typeof state.logoPreset;
+      state.logoPreset = (e.target as HTMLInputElement)
+        .value as typeof state.logoPreset;
     });
   });
 
   // Process button
-  document.getElementById('process-btn')?.addEventListener('click', handleProcess);
+  document
+    .getElementById('process-btn')
+    ?.addEventListener('click', handleProcess);
 
   // Download button
-  document.getElementById('download-btn')?.addEventListener('click', handleDownload);
+  document
+    .getElementById('download-btn')
+    ?.addEventListener('click', handleDownload);
 
   // Process another button
-  document.getElementById('process-another-btn')?.addEventListener('click', resetToUpload);
+  document
+    .getElementById('process-another-btn')
+    ?.addEventListener('click', resetToUpload);
 
   // Try again button
-  document.getElementById('try-again-btn')?.addEventListener('click', resetToUpload);
+  document
+    .getElementById('try-again-btn')
+    ?.addEventListener('click', resetToUpload);
 
   // Back to tools button
   document.getElementById('back-to-tools')?.addEventListener('click', () => {
@@ -125,7 +128,10 @@ function handleFileSelect(e: Event) {
 }
 
 function handleFile(file: File) {
-  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+  if (
+    file.type !== 'application/pdf' &&
+    !file.name.toLowerCase().endsWith('.pdf')
+  ) {
     showAlert('Invalid File', 'Please select a PDF file.');
     return;
   }
@@ -142,7 +148,8 @@ function updateFileDisplay(file: File) {
   fileDisplayArea.innerHTML = '';
 
   const fileDiv = document.createElement('div');
-  fileDiv.className = 'flex items-center justify-between bg-gray-700 p-3 rounded-lg';
+  fileDiv.className =
+    'flex items-center justify-between bg-gray-700 p-3 rounded-lg';
 
   const infoContainer = document.createElement('div');
   infoContainer.className = 'flex flex-col flex-1 min-w-0';
@@ -188,7 +195,9 @@ async function handleProcess() {
   document.getElementById('options-section')?.classList.add('hidden');
   document.getElementById('processing-status')?.classList.remove('hidden');
 
-  const processBtn = document.getElementById('process-btn') as HTMLButtonElement;
+  const processBtn = document.getElementById(
+    'process-btn'
+  ) as HTMLButtonElement;
   if (processBtn) processBtn.disabled = true;
 
   const progressBar = document.getElementById('progress-bar') as HTMLElement;
@@ -199,35 +208,32 @@ async function handleProcess() {
 
     const arrayBuffer = await state.file.arrayBuffer();
 
-    let resultBytes: Uint8Array;
-
-    if (state.method === 'quick') {
-      updateStatus('Removing annotations...', 'Quick mode processing');
-      if (progressBar) progressBar.style.width = '30%';
-      resultBytes = await quickRemoval(arrayBuffer);
-    } else {
-      updateStatus('Redacting watermark region...', 'Deep mode processing');
-      if (progressBar) progressBar.style.width = '30%';
-      resultBytes = await deepRemoval(arrayBuffer, state.position);
-    }
+    updateStatus('Removing watermark...', 'Processing pages');
+    if (progressBar) progressBar.style.width = '30%';
+    let resultBytes = await deepRemoval(arrayBuffer, state.position);
 
     // Add replacement logo if selected
     if (state.logoPreset !== 'none') {
       updateStatus('Adding logo...', `Placing ${state.logoPreset} logo`);
       if (progressBar) progressBar.style.width = '70%';
-      resultBytes = await addReplacementLogo(resultBytes, state.logoPreset, state.position);
+      resultBytes = await addReplacementLogo(
+        resultBytes,
+        state.logoPreset,
+        state.position
+      );
     }
 
     if (progressBar) progressBar.style.width = '100%';
 
-    state.resultBlob = new Blob([resultBytes as BlobPart], { type: 'application/pdf' });
+    state.resultBlob = new Blob([resultBytes as BlobPart], {
+      type: 'application/pdf',
+    });
 
     updateStatus('Complete!', 'Watermark removed successfully');
 
     setTimeout(() => {
       showDownloadSection();
     }, 500);
-
   } catch (error) {
     console.error('Processing error:', error);
     showErrorSection((error as Error).message || 'Failed to process PDF');
@@ -245,45 +251,13 @@ function updateStatus(text: string, detail: string) {
 }
 
 /**
- * Quick removal using pdf-lib - removes annotations, forms, links
- */
-async function quickRemoval(arrayBuffer: ArrayBuffer): Promise<Uint8Array> {
-  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-  const pages = pdfDoc.getPages();
-
-  // Remove annotations from all pages
-  for (const page of pages) {
-    try {
-      page.node.delete(PDFName.of('Annots'));
-    } catch (e) {
-      console.warn('Could not remove annotations from page:', e);
-    }
-  }
-
-  // Flatten forms
-  try {
-    const form = pdfDoc.getForm();
-    form.flatten();
-  } catch (e) {
-    console.warn('Could not flatten forms:', e);
-  }
-
-  // Remove AcroForm
-  try {
-    const catalog = pdfDoc.catalog;
-    (catalog as any).delete(PDFName.of('AcroForm'));
-  } catch (e) {
-    console.warn('Could not remove AcroForm:', e);
-  }
-
-  return await pdfDoc.save();
-}
-
-/**
  * Deep removal - uses canvas-based column-by-column color sampling
  * Renders PDF to canvas, samples colors above watermark, fills with sampled colors
  */
-async function deepRemoval(arrayBuffer: ArrayBuffer, position: string): Promise<Uint8Array> {
+async function deepRemoval(
+  arrayBuffer: ArrayBuffer,
+  position: string
+): Promise<Uint8Array> {
   const pdfJsDoc = await getPDFDocument({ data: arrayBuffer }).promise;
   const newPdfDoc = await PDFDocument.create();
 
@@ -299,10 +273,15 @@ async function deepRemoval(arrayBuffer: ArrayBuffer, position: string): Promise<
     const ctx = canvas.getContext('2d')!;
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    await page.render({ canvasContext: ctx, viewport, canvas }).promise;
 
     // Get watermark region (in canvas coordinates, scaled)
-    const wm = getWatermarkRect(position, viewport.width, viewport.height, scale);
+    const wm = getWatermarkRect(
+      position,
+      viewport.width,
+      viewport.height,
+      scale
+    );
 
     // Sample colors from a strip above the watermark (5 pixels above in PDF coords)
     const sampleY = Math.max(0, wm.y - 10); // 10 canvas pixels above (5 PDF points * 2x scale)
@@ -332,7 +311,10 @@ async function deepRemoval(arrayBuffer: ArrayBuffer, position: string): Promise<
 
     // Add page with original dimensions (unscaled)
     const originalViewport = page.getViewport({ scale: 1.0 });
-    const newPage = newPdfDoc.addPage([originalViewport.width, originalViewport.height]);
+    const newPage = newPdfDoc.addPage([
+      originalViewport.width,
+      originalViewport.height,
+    ]);
     newPage.drawImage(jpegImage, {
       x: 0,
       y: 0,
@@ -371,35 +353,35 @@ function getWatermarkRect(
         x: canvasWidth - offset_right,
         y: canvasHeight - offset_bottom,
         width: wm_width,
-        height: wm_height
+        height: wm_height,
       };
     case 'bottom-left':
       return {
         x: margin,
         y: canvasHeight - offset_bottom,
         width: wm_width,
-        height: wm_height
+        height: wm_height,
       };
     case 'top-right':
       return {
         x: canvasWidth - offset_right,
         y: margin + wm_height, // Canvas Y is top-down
         width: wm_width,
-        height: wm_height
+        height: wm_height,
       };
     case 'top-left':
       return {
         x: margin,
         y: margin + wm_height,
         width: wm_width,
-        height: wm_height
+        height: wm_height,
       };
     default:
       return {
         x: canvasWidth - offset_right,
         y: canvasHeight - offset_bottom,
         width: wm_width,
-        height: wm_height
+        height: wm_height,
       };
   }
 }
@@ -419,11 +401,15 @@ async function addReplacementLogo(
   if (!logoUrl) return pdfBytes;
 
   try {
+    console.log(`[Logo] Fetching logo from: ${logoUrl}`);
     const logoResponse = await fetch(logoUrl);
     if (!logoResponse.ok) {
-      console.warn(`Could not load logo: ${logoPreset}`);
+      console.error(
+        `[Logo] Failed to load logo: ${logoPreset}, status: ${logoResponse.status}`
+      );
       return pdfBytes;
     }
+    console.log(`[Logo] Successfully loaded ${logoPreset}`);
 
     const logoArrayBuffer = await logoResponse.arrayBuffer();
     const logoImage = await pdfDoc.embedPng(new Uint8Array(logoArrayBuffer));
@@ -471,11 +457,15 @@ async function addReplacementLogo(
         width: logoWidth,
         height: logoHeight,
       });
+      console.log(
+        `[Logo] Added ${logoPreset} to page at (${x.toFixed(0)}, ${y.toFixed(0)}), size: ${logoWidth.toFixed(0)}x${logoHeight.toFixed(0)}`
+      );
     }
 
+    console.log(`[Logo] Successfully added logo to all ${pages.length} pages`);
     return await pdfDoc.save();
   } catch (e) {
-    console.warn('Could not add logo:', e);
+    console.error('[Logo] Error adding logo:', e);
     return pdfBytes;
   }
 }
@@ -527,15 +517,15 @@ function resetToUpload() {
   if (fileInput) fileInput.value = '';
 
   // Reset radio buttons to defaults
-  const defaultPosition = document.querySelector('input[name="watermark-position"][value="bottom-right"]') as HTMLInputElement;
+  const defaultPosition = document.querySelector(
+    'input[name="watermark-position"][value="bottom-right"]'
+  ) as HTMLInputElement;
   if (defaultPosition) defaultPosition.checked = true;
   state.position = 'bottom-right';
 
-  const defaultMethod = document.querySelector('input[name="removal-method"][value="deep"]') as HTMLInputElement;
-  if (defaultMethod) defaultMethod.checked = true;
-  state.method = 'deep';
-
-  const defaultLogo = document.querySelector('input[name="logo-preset"][value="none"]') as HTMLInputElement;
+  const defaultLogo = document.querySelector(
+    'input[name="logo-preset"][value="none"]'
+  ) as HTMLInputElement;
   if (defaultLogo) defaultLogo.checked = true;
   state.logoPreset = 'none';
 }

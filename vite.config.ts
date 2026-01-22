@@ -106,7 +106,10 @@ function createLanguageMiddleware(isDev: boolean): Connect.NextHandleFunction {
       if (rest === '' || rest === '/') {
         if (isDev) {
           // Use simple-index.html by default in dev mode (Simple Mode)
-          const indexFile = process.env.SIMPLE_MODE !== 'false' ? '/simple-index.html' : '/index.html';
+          const indexFile =
+            process.env.SIMPLE_MODE !== 'false'
+              ? '/simple-index.html'
+              : '/index.html';
           req.url = indexFile + (queryString ? `?${queryString}` : '');
         } else {
           const langIndexPath = resolve(__dirname, 'dist', lang, 'index.html');
@@ -325,7 +328,17 @@ export default defineConfig(() => {
       rewriteHtmlPathsPlugin(),
       tailwindcss(),
       nodePolyfills({
-        include: ['buffer', 'stream', 'util', 'zlib', 'process'],
+        include: [
+          'buffer',
+          'stream',
+          'util',
+          'zlib',
+          'process',
+          'https',
+          'http',
+          'url',
+          'path',
+        ],
         globals: {
           Buffer: true,
           global: true,

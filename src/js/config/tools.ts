@@ -481,6 +481,12 @@ export const categories = [
         subtitle: 'Convert PDF files to editable Word documents.',
       },
       {
+        href: import.meta.env.BASE_URL + 'pdf-to-pptx.html',
+        name: 'PDF to PowerPoint',
+        icon: 'ph-microsoft-powerpoint-logo',
+        subtitle: 'Convert PDF pages to PowerPoint slides.',
+      },
+      {
         href: import.meta.env.BASE_URL + 'extract-images.html',
         name: 'Extract Images',
         icon: 'ph-download-simple',
