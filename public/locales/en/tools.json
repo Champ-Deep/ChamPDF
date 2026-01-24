@@ -1,12 +1,23 @@
 {
   "categories": {
-    "popularTools": "Popular Tools",
-    "editAnnotate": "Edit & Annotate",
-    "convertToPdf": "Convert to PDF",
-    "convertFromPdf": "Convert from PDF",
+    "pdfEssentials": "PDF Essentials",
+    "imageMedia": "Image & Media Tools",
     "organizeManage": "Organize & Manage",
-    "optimizeRepair": "Optimize & Repair",
-    "securePdf": "Secure PDF"
+    "securityPrivacy": "Security & Privacy",
+    "documentConverters": "Document Converters",
+    "optimizeRepair": "Optimize & Repair"
+  },
+  "removeBg": {
+    "name": "Remove Background",
+    "subtitle": "Instantly remove backgrounds from images using AI."
+  },
+  "videoRebrander": {
+    "name": "Video Logo Remover",
+    "subtitle": "Remove watermarks and rebrand videos."
+  },
+  "removeWatermark": {
+    "name": "PDF Watermark Remover",
+    "subtitle": "Remove watermarks from PDFs (Optimized for Notebook LM)."
   },
   "pdfMultiTool": {
     "name": "PDF Multi Tool",

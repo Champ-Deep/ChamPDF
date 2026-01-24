@@ -115,6 +115,25 @@ input[type='file']::file-selector-button {
   /* Champions dark red */
 }
 
+/* Category navigation scrollbar */
+#category-nav .flex::-webkit-scrollbar {
+  height: 6px;
+}
+
+#category-nav .flex::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 3px;
+}
+
+#category-nav .flex::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 3px;
+}
+
+#category-nav .flex::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
 /* Style for drag-and-drop placeholder */
 .sortable-ghost {
   opacity: 0.4;

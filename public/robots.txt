@@ -1,12 +1,12 @@
-# BentoPDF Robots.txt
-# https://www.bentopdf.com
+# ChamPDF Robots.txt
+# https://www.champdf.com
 
 # Allow all crawlers
 User-agent: *
 Allow: /
 
 # Sitemap location
-Sitemap: https://www.bentopdf.com/sitemap.xml
+Sitemap: https://www.champdf.com/sitemap.xml
 
 # Disallow internal/system paths
 Disallow: /api/

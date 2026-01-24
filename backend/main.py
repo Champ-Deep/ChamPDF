@@ -6,6 +6,7 @@ FastAPI backend for processing videos with FFmpeg
 import os
 import uuid
 import asyncio
+import io
 from pathlib import Path
 from typing import Optional
 
@@ -13,8 +14,12 @@ from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 import aiofiles
+import logging
 
 from video_processor import VideoProcessor
+from image_processor import ImageProcessor
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Video Logo Remover API",
@@ -23,11 +28,15 @@ app = FastAPI(
 )
 
 # CORS for frontend
+# Environment-based configuration for security
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:8080").split(",")
+allowed_origins = [origin.strip() for origin in allowed_origins]  # Clean whitespace
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allowed_origins,  # Configured via ALLOWED_ORIGINS env var
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -41,8 +50,9 @@ ALLOWED_EXTENSIONS = {".mp4", ".mov", ".webm", ".avi"}
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Initialize processor
+# Initialize processors
 processor = VideoProcessor()
+image_processor = ImageProcessor()
 
 
 @app.get("/health")
@@ -62,6 +72,62 @@ async def get_presets():
             {"id": "none", "name": "Remove Only (No Logo)", "available": True},
         ]
     }
+
+
+@app.post("/api/remove-background")
+async def remove_background(
+    file: UploadFile = File(...),
+    output_format: str = Form("png")
+):
+    """
+    Remove background from uploaded image using ML.
+
+    Args:
+        file: Image file (PNG, JPG, WebP, etc.)
+        output_format: Output format (png, jpg, webp)
+
+    Returns:
+        Processed image with transparent background
+    """
+    # Validate file type
+    allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(allowed_types)}"
+        )
+
+    # Read and validate file size (max 10MB)
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail="File too large. Maximum size is 10MB."
+        )
+
+    try:
+        # Process image
+        logger.info(f"Removing background from {file.filename}")
+        output_bytes = await image_processor.remove_background(
+            contents,
+            output_format=output_format
+        )
+
+        # Return processed image
+        return StreamingResponse(
+            io.BytesIO(output_bytes),
+            media_type=f"image/{output_format}",
+            headers={
+                "Content-Disposition": f"attachment; filename={file.filename.rsplit('.', 1)[0]}_no_bg.{output_format}"
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Background removal error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Processing failed: {str(e)}"
+        )
 
 
 @app.post("/api/process-video")

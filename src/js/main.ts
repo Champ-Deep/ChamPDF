@@ -29,86 +29,6 @@ const init = async () => {
     'pdfjs-dist/build/pdf.worker.min.mjs',
     import.meta.url
   ).toString();
-  if (__SIMPLE_MODE__) {
-    const hideBrandingSections = () => {
-      const heroSection = document.getElementById('hero-section');
-      if (heroSection) {
-        heroSection.style.display = 'none';
-      }
-
-      const githubLink = document.querySelector(
-        'a[href*="github.com/Champ-Deep/ChamPDF"]'
-      );
-      if (githubLink) {
-        (githubLink as HTMLElement).style.display = 'none';
-      }
-
-      const featuresSection = document.getElementById('features-section');
-      if (featuresSection) {
-        featuresSection.style.display = 'none';
-      }
-
-      const securitySection = document.getElementById(
-        'security-compliance-section'
-      );
-      if (securitySection) {
-        securitySection.style.display = 'none';
-      }
-
-      const faqSection = document.getElementById('faq-accordion');
-      if (faqSection) {
-        faqSection.style.display = 'none';
-      }
-
-      const testimonialsSection = document.getElementById(
-        'testimonials-section'
-      );
-      if (testimonialsSection) {
-        testimonialsSection.style.display = 'none';
-      }
-
-      const supportSection = document.getElementById('support-section');
-      if (supportSection) {
-        supportSection.style.display = 'none';
-      }
-
-      // Hide "Used by companies" section
-      const usedBySection = document.querySelector(
-        '.hide-section'
-      ) as HTMLElement;
-      if (usedBySection) {
-        usedBySection.style.display = 'none';
-      }
-
-      const sectionDividers = document.querySelectorAll('.section-divider');
-      sectionDividers.forEach((divider) => {
-        (divider as HTMLElement).style.display = 'none';
-      });
-
-      document.title = 'ChamPDF - PDF Tools';
-
-      const toolsHeader = document.getElementById('tools-header');
-      if (toolsHeader) {
-        const title = toolsHeader.querySelector('h2');
-        const subtitle = toolsHeader.querySelector('p');
-        if (title) {
-          title.textContent = 'PDF Tools';
-          title.className = 'text-4xl md:text-5xl font-bold text-white mb-3';
-        }
-        if (subtitle) {
-          subtitle.textContent = 'Select a tool to get started';
-          subtitle.className = 'text-lg text-gray-400';
-        }
-      }
-
-      const app = document.getElementById('app');
-      if (app) {
-        app.style.paddingTop = '1rem';
-      }
-    };
-
-    hideBrandingSections();
-  }
 
   // Hide shortcuts buttons on mobile devices (Android/iOS)
   // exclude iPad -> users can connect keyboard and use shortcuts
@@ -130,16 +50,16 @@ const init = async () => {
   }
 
   const categoryTranslationKeys: Record<string, string> = {
-    'Popular Tools': 'tools:categories.popularTools',
-    'Edit & Annotate': 'tools:categories.editAnnotate',
-    'Convert to PDF': 'tools:categories.convertToPdf',
-    'Convert from PDF': 'tools:categories.convertFromPdf',
+    'PDF Essentials': 'tools:categories.pdfEssentials',
+    'Image & Media Tools': 'tools:categories.imageMedia',
     'Organize & Manage': 'tools:categories.organizeManage',
+    'Security & Privacy': 'tools:categories.securityPrivacy',
+    'Document Converters': 'tools:categories.documentConverters',
     'Optimize & Repair': 'tools:categories.optimizeRepair',
-    'Secure PDF': 'tools:categories.securePdf',
   };
 
   const toolTranslationKeys: Record<string, string> = {
+    'Remove Background': 'tools:removeBg',
     'PDF Multi Tool': 'tools:pdfMultiTool',
     'Merge PDF': 'tools:mergePdf',
     'Split PDF': 'tools:splitPdf',
@@ -150,79 +70,79 @@ const init = async () => {
     'Crop PDF': 'tools:cropPdf',
     'Extract Pages': 'tools:extractPages',
     'Duplicate & Organize': 'tools:duplicateOrganize',
+    'Organize PDF': 'tools:duplicateOrganize',
     'Delete Pages': 'tools:deletePages',
-    'Edit Bookmarks': 'tools:editBookmarks',
-    'Table of Contents': 'tools:tableOfContents',
-    'Page Numbers': 'tools:pageNumbers',
-    'Add Watermark': 'tools:addWatermark',
-    'Header & Footer': 'tools:headerFooter',
-    'Invert Colors': 'tools:invertColors',
-    'Background Color': 'tools:backgroundColor',
-    'Change Text Color': 'tools:changeTextColor',
-    'Add Stamps': 'tools:addStamps',
-    'Remove Annotations': 'tools:removeAnnotations',
-    'PDF Form Filler': 'tools:pdfFormFiller',
-    'Create PDF Form': 'tools:createPdfForm',
-    'Remove Blank Pages': 'tools:removeBlankPages',
     'Images to PDF': 'tools:imageToPdf',
     'PNG to PDF': 'tools:pngToPdf',
-    'WebP to PDF': 'tools:webpToPdf',
-    'SVG to PDF': 'tools:svgToPdf',
-    'BMP to PDF': 'tools:bmpToPdf',
-    'HEIC to PDF': 'tools:heicToPdf',
-    'TIFF to PDF': 'tools:tiffToPdf',
-    'Text to PDF': 'tools:textToPdf',
-    'JSON to PDF': 'tools:jsonToPdf',
     'PDF to JPG': 'tools:pdfToJpg',
     'PDF to PNG': 'tools:pdfToPng',
-    'PDF to WebP': 'tools:pdfToWebp',
-    'PDF to BMP': 'tools:pdfToBmp',
-    'PDF to TIFF': 'tools:pdfToTiff',
-    'PDF to Greyscale': 'tools:pdfToGreyscale',
-    'PDF to JSON': 'tools:pdfToJson',
     'OCR PDF': 'tools:ocrPdf',
-    'Alternate & Mix Pages': 'tools:alternateMix',
-    'Organize & Duplicate': 'tools:duplicateOrganize',
-    'Add Attachments': 'tools:addAttachments',
-    'Extract Attachments': 'tools:extractAttachments',
-    'Edit Attachments': 'tools:editAttachments',
-    'Divide Pages': 'tools:dividePages',
-    'Add Blank Page': 'tools:addBlankPage',
-    'Reverse Pages': 'tools:reversePages',
     'Rotate PDF': 'tools:rotatePdf',
-    'Rotate by Custom Degrees': 'tools:rotateCustom',
-    'N-Up PDF': 'tools:nUpPdf',
-    'Combine to Single Page': 'tools:combineToSinglePage',
-    'View Metadata': 'tools:viewMetadata',
-    'Edit Metadata': 'tools:editMetadata',
-    'PDFs to ZIP': 'tools:pdfsToZip',
-    'Compare PDFs': 'tools:comparePdfs',
-    'Posterize PDF': 'tools:posterizePdf',
-    'Fix Page Size': 'tools:fixPageSize',
-    'Linearize PDF': 'tools:linearizePdf',
-    'Page Dimensions': 'tools:pageDimensions',
-    'Remove Restrictions': 'tools:removeRestrictions',
-    'Repair PDF': 'tools:repairPdf',
     'Encrypt PDF': 'tools:encryptPdf',
     'Sanitize PDF': 'tools:sanitizePdf',
     'Decrypt PDF': 'tools:decryptPdf',
-    'Flatten PDF': 'tools:flattenPdf',
     'Remove Metadata': 'tools:removeMetadata',
-    'Change Permissions': 'tools:changePermissions',
-    'Email to PDF': 'tools:emailToPdf',
-    'Font to Outline': 'tools:fontToOutline',
-    'Deskew PDF': 'tools:deskewPdf',
-    'Digital Signature': 'tools:digitalSignPdf',
-    'Validate Signature': 'tools:validateSignaturePdf',
+    'Word to PDF': 'tools:wordToPdf',
+    'Excel to PDF': 'tools:excelToPdf',
+    'PowerPoint to PDF': 'tools:powerpointToPdf',
+    'PDF to Word': 'tools:pdfToDocx',
+    'PDF to PowerPoint': 'tools:pdfToPptx',
+    'Video Logo Remover': 'tools:videoRebrander',
+    'PDF Watermark Remover': 'tools:removeWatermark',
   };
 
   // Homepage-only tool grid rendering (not used on individual tool pages)
   if (dom.toolGrid) {
     dom.toolGrid.textContent = '';
 
+    // Create category navigation
+    const categoryNav = document.getElementById('category-nav');
+    if (categoryNav) {
+      const navContainer = categoryNav.querySelector('div');
+      if (navContainer) {
+        navContainer.innerHTML = '';
+
+        // Add "All Tools" button
+        const allBtn = document.createElement('button');
+        allBtn.className =
+          'px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium whitespace-nowrap transition-colors';
+        allBtn.textContent = 'All Tools';
+        allBtn.onclick = () => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          updateActiveCategory('all');
+        };
+        navContainer.appendChild(allBtn);
+
+        categories.forEach((category) => {
+          const categoryId = category.name.toLowerCase().replace(/\s+/g, '-');
+          const btn = document.createElement('button');
+          btn.className =
+            'px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium whitespace-nowrap transition-colors';
+          const categoryKey = categoryTranslationKeys[category.name];
+          btn.textContent = categoryKey ? t(categoryKey) : category.name;
+          btn.onclick = () => {
+            const element = document.getElementById(categoryId);
+            if (element) {
+              const offset = 120; // Account for sticky header
+              const elementPosition =
+                element.getBoundingClientRect().top + window.pageYOffset;
+              window.scrollTo({
+                top: elementPosition - offset,
+                behavior: 'smooth',
+              });
+              updateActiveCategory(categoryId);
+            }
+          };
+          navContainer.appendChild(btn);
+        });
+      }
+    }
+
     categories.forEach((category) => {
+      const categoryId = category.name.toLowerCase().replace(/\s+/g, '-');
       const categoryGroup = document.createElement('div');
       categoryGroup.className = 'category-group col-span-full';
+      categoryGroup.id = categoryId;
 
       const title = document.createElement('h2');
       title.className =
@@ -367,6 +287,56 @@ const init = async () => {
 
     dom.toolGrid.addEventListener('click', (e) => {
       // All tools now use href and navigate directly - no modal handling needed
+    });
+
+    // Category navigation active state function
+    function updateActiveCategory(categoryId: string) {
+      const categoryNav = document.getElementById('category-nav');
+      if (categoryNav) {
+        const buttons = categoryNav.querySelectorAll('button');
+        buttons.forEach((btn, index) => {
+          if (
+            (index === 0 && categoryId === 'all') ||
+            btn.textContent?.toLowerCase().replace(/\s+/g, '-') === categoryId
+          ) {
+            btn.className =
+              'px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium whitespace-nowrap transition-colors';
+          } else {
+            btn.className =
+              'px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium whitespace-nowrap transition-colors';
+          }
+        });
+      }
+    }
+
+    // Scroll spy to update active category on scroll
+    const categoryElements = Array.from(
+      document.querySelectorAll('.category-group')
+    );
+    let ticking = false;
+
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollPosition = window.pageYOffset + 150;
+
+          for (let i = categoryElements.length - 1; i >= 0; i--) {
+            const element = categoryElements[i] as HTMLElement;
+            if (element.offsetTop <= scrollPosition) {
+              updateActiveCategory(element.id);
+              break;
+            }
+          }
+
+          // If we're at the top, highlight "All Tools"
+          if (window.pageYOffset < 100) {
+            updateActiveCategory('all');
+          }
+
+          ticking = false;
+        });
+        ticking = true;
+      }
     });
   }
 

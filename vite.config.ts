@@ -40,21 +40,7 @@ function loadPages(): Set<string> {
     }
   }
 
-  const rootPages = [
-    'index',
-    'about',
-    'contact',
-    'faq',
-    'privacy',
-    'terms',
-    'licensing',
-    'tools',
-    '404',
-    'pdf-converter',
-    'pdf-editor',
-    'pdf-security',
-    'pdf-merge-split',
-  ];
+  const rootPages = ['index', '404'];
   rootPages.forEach((p) => pages.add(p));
 
   return pages;
@@ -104,22 +90,7 @@ function createLanguageMiddleware(isDev: boolean): Connect.NextHandleFunction {
       }
 
       if (rest === '' || rest === '/') {
-        if (isDev) {
-          // Use simple-index.html by default in dev mode (Simple Mode)
-          const indexFile =
-            process.env.SIMPLE_MODE !== 'false'
-              ? '/simple-index.html'
-              : '/index.html';
-          req.url = indexFile + (queryString ? `?${queryString}` : '');
-        } else {
-          const langIndexPath = resolve(__dirname, 'dist', lang, 'index.html');
-          if (fs.existsSync(langIndexPath)) {
-            req.url =
-              `/${lang}/index.html` + (queryString ? `?${queryString}` : '');
-          } else {
-            req.url = '/index.html' + (queryString ? `?${queryString}` : '');
-          }
-        }
+        req.url = '/index.html' + (queryString ? `?${queryString}` : '');
         return next();
       }
 
@@ -151,26 +122,6 @@ function createLanguageMiddleware(isDev: boolean): Connect.NextHandleFunction {
           } else {
             req.url =
               `/${pageName}.html` + (queryString ? `?${queryString}` : '');
-          }
-        }
-      } else if (!cleanPath.includes('.')) {
-        if (isDev) {
-          req.url =
-            `/${cleanPath}.html` + (queryString ? `?${queryString}` : '');
-        } else {
-          const langPagePath = resolve(
-            __dirname,
-            'dist',
-            lang,
-            `${cleanPath}.html`
-          );
-          if (fs.existsSync(langPagePath)) {
-            req.url =
-              `/${lang}/${cleanPath}.html` +
-              (queryString ? `?${queryString}` : '');
-          } else {
-            req.url =
-              `/${cleanPath}.html` + (queryString ? `?${queryString}` : '');
           }
         }
       }
@@ -220,11 +171,6 @@ function flattenPagesPlugin(): Plugin {
           delete bundle[fileName];
         }
       }
-      if (process.env.SIMPLE_MODE !== 'false' && bundle['simple-index.html']) {
-        bundle['index.html'] = bundle['simple-index.html'];
-        bundle['index.html'].fileName = 'index.html';
-        delete bundle['simple-index.html'];
-      }
     },
   };
 }
@@ -271,24 +217,8 @@ function rewriteHtmlPathsPlugin(): Plugin {
 
 function getRollupInputs(): Record<string, string> {
   const inputs: Record<string, string> = {
-    // Simple Mode is enabled by default; set SIMPLE_MODE=false to use full index.html
-    main:
-      process.env.SIMPLE_MODE !== 'false'
-        ? resolve(__dirname, 'simple-index.html')
-        : resolve(__dirname, 'index.html'),
-    about: resolve(__dirname, 'about.html'),
-    contact: resolve(__dirname, 'contact.html'),
-    faq: resolve(__dirname, 'faq.html'),
-    privacy: resolve(__dirname, 'privacy.html'),
-    terms: resolve(__dirname, 'terms.html'),
-    licensing: resolve(__dirname, 'licensing.html'),
-    tools: resolve(__dirname, 'tools.html'),
+    main: resolve(__dirname, 'index.html'),
     '404': resolve(__dirname, '404.html'),
-    // Category Hub Pages
-    'pdf-converter': resolve(__dirname, 'pdf-converter.html'),
-    'pdf-editor': resolve(__dirname, 'pdf-editor.html'),
-    'pdf-security': resolve(__dirname, 'pdf-security.html'),
-    'pdf-merge-split': resolve(__dirname, 'pdf-merge-split.html'),
   };
 
   const pagesDir = resolve(__dirname, 'src/pages');
@@ -307,12 +237,6 @@ function getRollupInputs(): Record<string, string> {
 
 export default defineConfig(() => {
   const USE_CDN = process.env.VITE_USE_CDN === 'true';
-
-  if (USE_CDN) {
-    console.log('[Vite] Using CDN for WASM files (with local fallback)');
-  } else {
-    console.log('[Vite] Using local WASM files only');
-  }
 
   const staticCopyTargets = [
     {
@@ -356,7 +280,7 @@ export default defineConfig(() => {
         partialDirectory: resolve(__dirname, 'src/partials'),
         context: {
           baseUrl: (process.env.BASE_URL || '/').replace(/\/?$/, '/'),
-          simpleMode: process.env.SIMPLE_MODE !== 'false',
+          simpleMode: true,
         },
       }),
       languageRouterPlugin(),
@@ -407,8 +331,7 @@ export default defineConfig(() => {
       }),
     ],
     define: {
-      // Simple Mode is enabled by default; set SIMPLE_MODE=false to disable
-      __SIMPLE_MODE__: JSON.stringify(process.env.SIMPLE_MODE !== 'false'),
+      __SIMPLE_MODE__: JSON.stringify(true),
     },
     resolve: {
       alias: {

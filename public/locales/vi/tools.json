@@ -1,6 +1,7 @@
 {
   "categories": {
-    "popularTools": "Công cụ phổ biến",
+    "pdfEssentials": "PDF Essentials",
+    "imageMedia": "Image & Media Tools",
     "editAnnotate": "Chỉnh sửa & Ghi chú",
     "convertToPdf": "Chuyển đổi sang PDF",
     "convertFromPdf": "Chuyển đổi từ PDF",

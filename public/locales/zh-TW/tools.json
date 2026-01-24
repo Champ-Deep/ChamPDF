@@ -1,6 +1,7 @@
 {
   "categories": {
-    "popularTools": "熱門工具",
+    "pdfEssentials": "PDF Essentials",
+    "imageMedia": "Image & Media Tools",
     "editAnnotate": "編輯與註解",
     "convertToPdf": "轉換為 PDF",
     "convertFromPdf": "從 PDF 轉換",

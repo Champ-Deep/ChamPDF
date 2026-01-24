@@ -1,6 +1,7 @@
 {
   "categories": {
-    "popularTools": "Outils populaires",
+    "pdfEssentials": "PDF Essentials",
+    "imageMedia": "Image & Media Tools",
     "editAnnotate": "Éditer et annoter",
     "convertToPdf": "Convertir en PDF",
     "convertFromPdf": "Convertir depuis le PDF",

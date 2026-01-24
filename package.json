@@ -73,6 +73,7 @@
     "@fontsource/kalam": "^5.2.8",
     "@fontsource/lato": "^5.2.7",
     "@fontsource/merriweather": "^5.2.11",
+    "@imgly/background-removal": "^1.7.0",
     "@kenjiuno/msgreader": "^1.27.1-alpha.1",
     "@matbee/libreoffice-converter": "^2.3.1",
     "@neslinesli93/qpdf-wasm": "^0.3.0",

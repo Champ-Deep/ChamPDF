@@ -173,6 +173,23 @@ ChamPDF offers a comprehensive suite of tools to handle all your PDF needs.
 | **Page Dimensions**     | Analyze page size, orientation, and units.                                                                 |
 | **Remove Restrictions** | Remove password protection and security restrictions associated with digitally signed PDF files.           |
 
+### 🚀 Advanced Features (Backend-Powered)
+
+ChamPDF includes optional backend services for advanced image and video processing:
+
+| Tool Name                  | Description                                                                          | Requirements     |
+| :------------------------- | :----------------------------------------------------------------------------------- | :--------------- |
+| **Remove Background (AI)** | AI-powered background removal using ML models (rembg + U2Net). Privacy-first.        | Backend (Python) |
+| **Video Logo Remover**     | Remove watermarks from videos and optionally rebrand with custom logos using FFmpeg. | Backend (Python) |
+
+**Privacy Note:** Even with backend processing, your files are processed on **your own server** - never sent to third parties.
+
+**Deployment Options:**
+
+- **Local**: Run backend with Docker (`docker-compose up`)
+- **Cloud**: Deploy to Railway, Render, or any Python hosting ([See Railway Deployment Guide](RAILWAY_DEPLOYMENT.md))
+- **Optional**: Most PDF tools work 100% client-side without backend
+
 ---
 
 ## 🌍 Translations
@@ -609,6 +626,71 @@ For detailed release instructions, see [RELEASE.md](RELEASE.md).
    ```
 
    This ensures your latest changes are applied inside the container.
+
+### 🖥️ Backend Setup (Optional - For AI Features)
+
+The backend powers AI-based background removal and video processing features.
+
+#### Quick Start with Docker
+
+```bash
+# Start backend service
+cd backend
+docker build -t champdf-backend .
+docker run -p 8000:8000 champdf-backend
+
+# Or use docker-compose
+docker-compose -f docker-compose.railway.yml up
+```
+
+The backend will be available at `http://localhost:8000`
+
+#### Local Development
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+#### Production Deployment
+
+**Deploy to Railway (Recommended - $0-5/month):**
+
+See our comprehensive [Railway Deployment Guide](RAILWAY_DEPLOYMENT.md) for:
+
+- ✅ One-click deployment to Railway
+- ✅ Automatic CI/CD with GitHub
+- ✅ Frontend on Cloudflare Pages (FREE)
+- ✅ Backend on Railway ($5/month free tier)
+- ✅ Complete optimization guide
+
+**Quick Deploy:**
+
+```bash
+# Install Railway CLI
+npm i -g @railway/cli
+
+# Deploy
+railway login
+railway init
+railway up
+```
+
+**Alternative Platforms:**
+
+- **Render**: Similar to Railway, free tier available
+- **Fly.io**: Global edge deployment
+- **Google Cloud Run**: Serverless container deployment
+- **AWS Fargate**: Enterprise-grade container orchestration
+
+For detailed instructions, see:
+
+- [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md) - Complete deployment guide
+- [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) - Step-by-step checklist
+- [OPTIMIZATION_RECOMMENDATIONS.md](OPTIMIZATION_RECOMMENDATIONS.md) - Performance tuning
 
 ---
 

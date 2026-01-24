@@ -1,0 +1,59 @@
+# Docker Compose for Local Testing (Railway-equivalent environment)
+# This mimics the Railway deployment environment for local testing
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.railway
+    container_name: champdf-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - LOG_LEVEL=info
+      - WEB_CONCURRENCY=2
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080
+      - MAX_VIDEO_SIZE_MB=100
+      - MAX_IMAGE_SIZE_MB=10
+    volumes:
+      # Mount local logos directory (optional)
+      - ./backend/logos:/app/logos:ro
+      # Persistent model cache (optional - simulates Railway volume)
+      - model-cache:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G  # Simulates Railway Developer plan
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+
+  # Optional: Redis for caching (simulates Railway add-on)
+  redis:
+    image: redis:7-alpine
+    container_name: champdf-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+volumes:
+  model-cache:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  default:
+    name: champdf-network
