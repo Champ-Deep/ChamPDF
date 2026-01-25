@@ -13,7 +13,7 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy and install Python dependencies
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
@@ -36,8 +36,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 
 # Copy application code
-COPY main.py image_processor.py video_processor.py ./
-COPY logos/ ./logos/
+COPY backend/main.py backend/image_processor.py backend/video_processor.py ./
+COPY backend/logos/ ./logos/
 
 # Create temp directories with proper permissions
 RUN mkdir -p /tmp/video-rebrander/uploads /tmp/video-rebrander/outputs && \
