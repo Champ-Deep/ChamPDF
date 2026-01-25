@@ -2,6 +2,11 @@ import { createIcons, icons } from 'lucide';
 import { showAlert } from '../ui.js';
 import { formatBytes, downloadFile } from '../utils/helpers.js';
 import JSZip from 'jszip';
+import {
+  initDropZoneAnimation,
+  animateFileRemoved,
+} from '../animations/tool-page-animations.js';
+import { celebrateSuccess } from '../animations/modal-animations.js';
 
 interface ProcessedFile {
   originalFile: File;
@@ -34,6 +39,9 @@ if (document.readyState === 'loading') {
 function initializePage() {
   createIcons({ icons });
 
+  // Initialize drop zone animation (includes drag-over effects)
+  initDropZoneAnimation('drop-zone');
+
   const fileInput = document.getElementById('file-input') as HTMLInputElement;
   const dropZone = document.getElementById('drop-zone');
 
@@ -42,19 +50,11 @@ function initializePage() {
     if (input.files) handleFiles(Array.from(input.files));
   });
 
+  // Note: Drag-over animations are now handled by initDropZoneAnimation
+  // Keep the drop handler for file processing
   if (dropZone) {
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('bg-gray-700');
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('bg-gray-700');
-    });
-
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
-      dropZone.classList.remove('bg-gray-700');
       const files = e.dataTransfer?.files;
       if (files) handleFiles(Array.from(files));
     });
@@ -143,8 +143,18 @@ function updateFileList() {
       const index = parseInt(
         (e.currentTarget as HTMLElement).dataset.index || '0'
       );
-      state.files.splice(index, 1);
-      updateFileList();
+      const fileEl = (e.currentTarget as HTMLElement).closest('.bg-gray-700');
+
+      if (fileEl) {
+        // Animate file removal before updating state
+        animateFileRemoved(fileEl as HTMLElement, () => {
+          state.files.splice(index, 1);
+          updateFileList();
+        });
+      } else {
+        state.files.splice(index, 1);
+        updateFileList();
+      }
     });
   });
 

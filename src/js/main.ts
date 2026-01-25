@@ -19,6 +19,19 @@ import { startBackgroundPreload } from './utils/wasm-preloader.js';
 import { initSignatureLibraryModal } from './utils/signature-library-init.js';
 import { initAuthModal, onProfileChange } from './components/auth-modal.js';
 import { getCurrentProfile } from './utils/profile-manager.js';
+import {
+  initToolCardsAnimation,
+  initScrollReveals,
+  initScrollToTopButton,
+  updateActiveCategory as updateActiveCategoryAnimated,
+} from './animations/homepage-animations.js';
+import { initAllMicroInteractions } from './animations/micro-interactions.js';
+import {
+  init3DCardFlip,
+  initMagneticCursor,
+  initRippleEffect,
+  initParallaxEffect,
+} from './animations/advanced-effects.js';
 
 const init = async () => {
   await initI18n();
@@ -201,6 +214,19 @@ const init = async () => {
       dom.toolGrid.appendChild(categoryGroup);
     });
 
+    // Initialize Lucide icons first
+    createIcons({ icons });
+
+    // Initialize animations after tool grid is rendered
+    initToolCardsAnimation();
+    initScrollReveals();
+    initScrollToTopButton();
+
+    // Initialize advanced effects
+    init3DCardFlip('.tool-card');
+    initMagneticCursor('.btn-gradient');
+    initRippleEffect('.tool-card');
+
     const searchBar = document.getElementById('search-bar');
     const categoryGroups = dom.toolGrid.querySelectorAll('.category-group');
 
@@ -289,24 +315,9 @@ const init = async () => {
       // All tools now use href and navigate directly - no modal handling needed
     });
 
-    // Category navigation active state function
+    // Category navigation active state function (with animation)
     function updateActiveCategory(categoryId: string) {
-      const categoryNav = document.getElementById('category-nav');
-      if (categoryNav) {
-        const buttons = categoryNav.querySelectorAll('button');
-        buttons.forEach((btn, index) => {
-          if (
-            (index === 0 && categoryId === 'all') ||
-            btn.textContent?.toLowerCase().replace(/\s+/g, '-') === categoryId
-          ) {
-            btn.className =
-              'px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium whitespace-nowrap transition-colors';
-          } else {
-            btn.className =
-              'px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium whitespace-nowrap transition-colors';
-          }
-        });
-      }
+      updateActiveCategoryAnimated(categoryId);
     }
 
     // Scroll spy to update active category on scroll
@@ -942,30 +953,11 @@ const init = async () => {
     createIcons({ icons });
   }
 
-  const scrollToTopBtn = document.getElementById('scroll-to-top-btn');
+  // Note: Scroll to top button animation is now handled by initScrollToTopButton()
+  // in the homepage animations section above
 
-  if (scrollToTopBtn) {
-    let lastScrollY = window.scrollY;
-
-    window.addEventListener('scroll', () => {
-      const currentScrollY = window.scrollY;
-
-      if (currentScrollY < lastScrollY && currentScrollY > 300) {
-        scrollToTopBtn.classList.add('visible');
-      } else {
-        scrollToTopBtn.classList.remove('visible');
-      }
-
-      lastScrollY = currentScrollY;
-    });
-
-    scrollToTopBtn.addEventListener('click', () => {
-      window.scrollTo({
-        top: 0,
-        behavior: 'instant',
-      });
-    });
-  }
+  // Initialize micro-interactions (button press, icon hover, etc.)
+  initAllMicroInteractions();
 
   // Rewrite links after all dynamic content is fully loaded
   rewriteLinks();

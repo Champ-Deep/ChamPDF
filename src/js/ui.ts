@@ -13,6 +13,13 @@ import {
 } from './utils/rotation-state.js';
 import * as pdfjsLib from 'pdfjs-dist';
 import { t } from './i18n/i18n';
+import {
+  showModalAnimated,
+  hideModalAnimated,
+  celebrateSuccess,
+  shakeError,
+} from './animations/modal-animations.js';
+import { animateProgress } from './animations/tool-page-animations.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -89,9 +96,9 @@ export const showLoader = (text = t('common.loading'), progress?: number) => {
         ) as HTMLElement;
       }
 
-      // Update progress
+      // Update progress with GSAP animation
       if (progressBar) {
-        progressBar.style.width = `${progress}%`;
+        animateProgress(progressBar, progress);
       }
       const progressText = progressContainer.querySelector(
         '.loader-progress-text'
@@ -107,12 +114,15 @@ export const showLoader = (text = t('common.loading'), progress?: number) => {
       }
     }
 
-    loaderModal.classList.remove('hidden');
+    // Show modal with animation
+    showModalAnimated(loaderModal, { animation: 'fade', duration: 0.3 });
   }
 };
 
 export const hideLoader = () => {
-  if (dom.loaderModal) dom.loaderModal.classList.add('hidden');
+  if (dom.loaderModal) {
+    hideModalAnimated(dom.loaderModal, { duration: 0.2 });
+  }
 };
 
 export const showAlert = (
@@ -123,7 +133,22 @@ export const showAlert = (
 ) => {
   if (dom.alertTitle) dom.alertTitle.textContent = title;
   if (dom.alertMessage) dom.alertMessage.textContent = message;
-  if (dom.alertModal) dom.alertModal.classList.remove('hidden');
+
+  if (dom.alertModal) {
+    // Show modal with bounce animation for errors, scale for others
+    const animation = type === 'error' ? 'bounce' : 'scale';
+    showModalAnimated(dom.alertModal, { animation, duration: 0.4 });
+
+    // Add shake animation for errors
+    if (type === 'error') {
+      const modalContent = dom.alertModal.querySelector(
+        '.bg-gray-800'
+      ) as HTMLElement;
+      if (modalContent) {
+        setTimeout(() => shakeError(modalContent), 200);
+      }
+    }
+  }
 
   if (dom.alertOkBtn) {
     const newOkBtn = dom.alertOkBtn.cloneNode(true) as HTMLElement;
@@ -138,7 +163,9 @@ export const showAlert = (
 };
 
 export const hideAlert = () => {
-  if (dom.alertModal) dom.alertModal.classList.add('hidden');
+  if (dom.alertModal) {
+    hideModalAnimated(dom.alertModal, { duration: 0.3 });
+  }
 };
 
 export const switchView = (view: any) => {

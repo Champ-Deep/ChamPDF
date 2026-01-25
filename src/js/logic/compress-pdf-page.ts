@@ -11,6 +11,7 @@ import { PDFDocument } from 'pdf-lib';
 import { PyMuPDF } from '@bentopdf/pymupdf-wasm';
 import { getWasmBaseUrl } from '../config/wasm-cdn-config.js';
 import * as pdfjsLib from 'pdfjs-dist';
+import { initDropZoneAnimation } from '../animations/tool-page-animations.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -187,6 +188,11 @@ document.addEventListener('DOMContentLoaded', () => {
   );
 
   let useCustomSettings = false;
+
+  // Initialize drop zone animation
+  if (dropZone) {
+    initDropZoneAnimation('drop-zone');
+  }
 
   if (backBtn) {
     backBtn.addEventListener('click', () => {

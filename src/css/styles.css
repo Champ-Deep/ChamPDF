@@ -49,6 +49,12 @@
   --font-cedarville: 'Cedarville Cursive', cursive;
 }
 
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -71,6 +77,8 @@ body {
   flex-direction: column;
   align-items: center;
   text-align: center;
+  will-change: transform, opacity;
+  transform: translateZ(0); /* Force GPU rendering */
 }
 
 .tool-card:hover {
@@ -81,14 +89,347 @@ body {
   border-color: #c8232c;
 }
 
-.btn {
+.btn,
+.btn-gradient {
   transition:
     background-color 0.2s ease-in-out,
     transform 0.1s ease-in-out;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
-.btn:active {
+.btn:active,
+.btn-gradient:active {
   transform: scale(0.98);
+}
+
+/* GPU acceleration for animated elements */
+#drop-zone {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* Animation-ready utility classes */
+.animate-in {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.animate-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+  transition: all 0.6s var(--ease-out-expo);
+}
+
+/* Stagger delay utilities */
+.stagger-1 {
+  transition-delay: 0.05s;
+}
+.stagger-2 {
+  transition-delay: 0.1s;
+}
+.stagger-3 {
+  transition-delay: 0.15s;
+}
+.stagger-4 {
+  transition-delay: 0.2s;
+}
+.stagger-5 {
+  transition-delay: 0.25s;
+}
+
+/* Fade animations */
+.fade-in {
+  animation: fadeIn 0.6s var(--ease-out-expo) forwards;
+}
+
+.fade-out {
+  animation: fadeOut 0.3s var(--ease-in-out-circ) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Scale animations */
+.scale-in {
+  animation: scaleIn 0.4s var(--ease-bounce) forwards;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Slide animations */
+.slide-up {
+  animation: slideUp 0.5s var(--ease-out-expo) forwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pulse animation for attention */
+.pulse-attention {
+  animation: pulseAttention 1s ease-in-out 3;
+}
+
+@keyframes pulseAttention {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* ===== Advanced Animation Effects ===== */
+
+/* Ripple effect */
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  transform: scale(0);
+}
+
+/* 3D Card container */
+.tool-card-3d {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+/* Parallax layers */
+.parallax-slow,
+.parallax-medium,
+.parallax-fast {
+  will-change: transform;
+}
+
+/* Floating animation */
+.floating-element {
+  animation: floating 3s ease-in-out infinite;
+}
+
+@keyframes floating {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+/* Magnetic button effect */
+.btn-magnetic {
+  position: relative;
+  transition: transform 0.3s ease-out;
+}
+
+/* Shimmer loading effect */
+.shimmer {
+  background: linear-gradient(90deg, #1f2937 0%, #374151 50%, #1f2937 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%);
+  background-size: 200% 100%;
+  animation: skeleton 1.2s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes skeleton {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Glow effect */
+.glow {
+  box-shadow: 0 0 20px rgba(200, 35, 44, 0.5);
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 10px rgba(200, 35, 44, 0.3);
+  }
+  to {
+    box-shadow: 0 0 30px rgba(200, 35, 44, 0.7);
+  }
+}
+
+/* Bounce in animation */
+.bounce-in {
+  animation: bounceIn 0.6s var(--ease-bounce) forwards;
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Rotate in animation */
+.rotate-in {
+  animation: rotateIn 0.6s var(--ease-out-expo) forwards;
+}
+
+@keyframes rotateIn {
+  from {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+  }
+}
+
+/* Zoom in animation */
+.zoom-in {
+  animation: zoomIn 0.4s var(--ease-out-expo) forwards;
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Slide in from left */
+.slide-in-left {
+  animation: slideInLeft 0.5s var(--ease-out-expo) forwards;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Slide in from right */
+.slide-in-right {
+  animation: slideInRight 0.5s var(--ease-out-expo) forwards;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Flip animation */
+.flip {
+  animation: flip 0.6s var(--ease-in-out-circ) forwards;
+}
+
+@keyframes flip {
+  0% {
+    transform: perspective(400px) rotateY(0);
+  }
+  100% {
+    transform: perspective(400px) rotateY(180deg);
+  }
+}
+
+/* Wobble animation */
+.wobble {
+  animation: wobble 0.8s ease-in-out;
+}
+
+@keyframes wobble {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-10px) rotate(-5deg);
+  }
+  30% {
+    transform: translateX(8px) rotate(3deg);
+  }
+  45% {
+    transform: translateX(-6px) rotate(-3deg);
+  }
+  60% {
+    transform: translateX(4px) rotate(2deg);
+  }
+  75% {
+    transform: translateX(-2px) rotate(-1deg);
+  }
 }
 
 /* Custom file input */
