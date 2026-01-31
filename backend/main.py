@@ -6,6 +6,7 @@ FastAPI backend for processing videos with FFmpeg
 import uuid
 import io
 import asyncio
+import os
 from pathlib import Path
 from typing import Optional
 from contextlib import asynccontextmanager
@@ -35,19 +36,26 @@ async def lifespan(app: FastAPI):
     # Startup
     global process_semaphore
     process_semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_JOBS)
-    
-    logger.info(f"Starting up... Concurrency limit set to {settings.MAX_CONCURRENT_JOBS}")
-    
-    # Pre-load/Check ML model connectivity
-    try:
-        # We can optionally trigger a dummy removal here to load model into memory
-        # but rembg loads it lazily. We just log readiness.
-        logger.info("Ready to accept connections.")
-    except Exception as e:
-        logger.warning(f"Startup warning: {e}")
+
+    logger.info(f"Starting chamPDF backend...")
+    logger.info(f"Concurrency limit: {settings.MAX_CONCURRENT_JOBS} jobs")
+    logger.info(f"CORS origins: {settings.ALLOWED_ORIGINS}")
+
+    # Verify U2Net model is cached
+    model_cache = Path(os.getenv("U2NET_HOME", Path.home() / ".u2net"))
+    model_file = model_cache / "u2net.onnx"
+
+    if model_file.exists():
+        size_mb = model_file.stat().st_size / (1024**2)
+        logger.info(f"✅ U2Net model ready: {model_file} ({size_mb:.1f}MB)")
+    else:
+        logger.warning(f"⚠️  U2Net model not cached at: {model_file}")
+        logger.warning("Model will download on first /api/remove-background request (~176MB)")
+
+    logger.info("Backend startup complete - ready to accept connections")
 
     yield
-    
+
     # Shutdown
     logger.info("Shutting down...")
     # Clean up temp directory on full shutdown (optional, careful in prod)

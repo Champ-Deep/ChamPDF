@@ -48,17 +48,50 @@ COPY ["Images & Logos/", "./assets/logos/"]
 RUN mkdir -p /tmp/video-rebrander/uploads /tmp/video-rebrander/outputs && \
     chmod -R 777 /tmp/video-rebrander
 
-# Pre-download rembg U2Net model (~176MB) at build time - REQUIRED
-# This prevents cold start delays on Railway
-# Build will fail if model download fails (ensures production readiness)
-RUN echo "Downloading U2Net model (~176MB)..." && \
-    python -c "from rembg import remove; from PIL import Image; import io; \
-    img = Image.new('RGB', (100, 100), color='red'); \
-    img_bytes = io.BytesIO(); \
-    img.save(img_bytes, format='PNG'); \
-    img_bytes.seek(0); \
-    remove(Image.open(img_bytes)); \
-    print('Model download complete!')"
+# Set model cache location for rembg
+# This ensures all rembg sessions use the pre-downloaded model
+ENV U2NET_HOME=/app/.u2net
+
+# Create model cache directory with proper permissions
+RUN mkdir -p ${U2NET_HOME} && chmod 755 ${U2NET_HOME}
+
+# Pre-download rembg U2Net model (~176MB) directly at build time
+# Using Pooch for reliability, hash verification, and retry logic
+# Model is permanently cached in Docker image - no repeated downloads
+RUN python -c "\
+import pooch; \
+import os; \
+import time; \
+cache_dir = '/app/.u2net'; \
+os.makedirs(cache_dir, exist_ok=True); \
+max_retries = 3; \
+retry_delay = 10; \
+success = False; \
+for attempt in range(1, max_retries + 1): \
+    try: \
+        print(f'Downloading U2Net model (~176MB) - Attempt {attempt}/{max_retries}...'); \
+        model_path = pooch.retrieve( \
+            url='https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx', \
+            known_hash='md5:60024c5c889badc19c04ad937298a77b', \
+            fname='u2net.onnx', \
+            path=cache_dir, \
+            progressbar=True \
+        ); \
+        file_size_mb = os.path.getsize(model_path) / (1024 * 1024); \
+        print(f'✅ Model downloaded successfully!'); \
+        print(f'   Location: {model_path}'); \
+        print(f'   Size: {file_size_mb:.1f}MB'); \
+        success = True; \
+        break; \
+    except Exception as e: \
+        print(f'❌ Download failed: {e}'); \
+        if attempt < max_retries: \
+            print(f'   Retrying in {retry_delay} seconds...'); \
+            time.sleep(retry_delay); \
+        else: \
+            print(f'   Failed after {max_retries} attempts'); \
+            raise; \
+"
 
 # Non-root user for security
 RUN useradd -m -u 1000 appuser && \
