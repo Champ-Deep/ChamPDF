@@ -187,8 +187,26 @@ ChamPDF includes optional backend services for advanced image and video processi
 **Deployment Options:**
 
 - **Local**: Run backend with Docker (`docker-compose up`)
-- **Cloud**: Deploy to Railway, Render, or any Python hosting ([See Railway Deployment Guide](RAILWAY_DEPLOYMENT.md))
+- **Railway**: One-click deployment to Railway ([See Deployment Guide](.railway/README.md))
+- **Cloud**: Deploy to Render, Fly.io, or any Python hosting
 - **Optional**: Most PDF tools work 100% client-side without backend
+
+#### 🚄 Quick Deploy Backend to Railway
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template)
+
+**Environment Variables (Required for Production):**
+```bash
+# Set in Railway Dashboard > Variables
+ALLOWED_ORIGINS=https://your-domain.com,https://www.your-domain.com
+LOG_LEVEL=WARNING
+MAX_CONCURRENT_JOBS=2
+```
+
+For complete backend setup instructions, see:
+- [Backend README](backend/README.md) - API documentation and configuration
+- [Railway Deployment Guide](.railway/README.md) - Railway-specific setup
+- [Environment Variables Reference](backend/.env.example) - All configuration options
 
 ---
 
