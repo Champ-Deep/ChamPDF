@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Primary Meta Tags -->
+    <title>
+      Image Watermark Remover - Remove Watermarks from Images | ChamPDF
+    </title>
+    <meta
+      name="title"
+      content="Image Watermark Remover - Remove Watermarks from Images | ChamPDF"
+    />
+    <meta
+      name="description"
+      content="Remove watermarks from images (JPG, PNG) and optionally replace with your logo. Works with NotebookLM infographics. Free, in-browser processing."
+    />
+    <meta
+      name="keywords"
+      content="remove watermark image, image watermark remover, notebookLM watermark remover, jpg watermark remover"
+    />
+    <meta name="author" content="ChamPDF" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+
+    <!-- Canonical URL -->
+    <link
+      rel="canonical"
+      href="https://www.champdf.com/remove-image-watermark.html"
+    />
+
+    <!-- Open Graph / Facebook / LinkedIn -->
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://www.champdf.com/remove-image-watermark"
+    />
+    <meta property="og:title" content="Image Watermark Remover | ChamPDF" />
+    <meta
+      property="og:description"
+      content="Remove watermarks from images and optionally replace with your logo. Free, in-browser processing."
+    />
+    <meta property="og:site_name" content="ChamPDF" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:url"
+      content="https://www.champdf.com/remove-image-watermark"
+    />
+    <meta name="twitter:title" content="Image Watermark Remover" />
+    <meta
+      name="twitter:description"
+      content="Remove watermarks from images and optionally replace with your logo."
+    />
+    <meta name="twitter:site" content="@ChamPDF" />
+
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Remove Image Watermark" />
+
+    <link href="/src/css/styles.css" rel="stylesheet" />
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="/images/favicon-192x192.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="512x512"
+      href="/images/favicon-512x512.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/images/apple-touch-icon.png"
+    />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  </head>
+
+  <body class="antialiased bg-gray-900">
+    {{> navbar }}
+
+    <div
+      id="uploader"
+      class="min-h-screen flex flex-col items-center justify-start py-12 p-4 bg-gray-900"
+    >
+      <div
+        id="tool-uploader"
+        class="bg-gray-800 rounded-xl shadow-xl px-4 py-8 md:p-8 max-w-2xl w-full text-gray-200 border border-gray-700"
+      >
+        <button
+          id="back-to-tools"
+          class="flex items-center gap-2 text-orange-400 hover:text-orange-300 mb-6 font-semibold"
+        >
+          <i data-lucide="arrow-left" class="cursor-pointer"></i>
+          <span class="cursor-pointer">Back to Tools</span>
+        </button>
+
+        <h1 class="text-2xl font-bold text-white mb-2">
+          Image Watermark Remover
+        </h1>
+        <p class="text-gray-400 mb-6">
+          Remove watermarks from images (NotebookLM infographics, AI art, etc.)
+          and optionally replace with your company logo.
+        </p>
+
+        <!-- Drop Zone -->
+        <div
+          id="drop-zone"
+          class="relative flex flex-col items-center justify-center w-full h-48 md:h-64 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer bg-gray-900 hover:bg-gray-700 transition-colors duration-300"
+        >
+          <div class="flex flex-col items-center justify-center pt-5 pb-6">
+            <i data-lucide="image-off" class="w-10 h-10 mb-3 text-gray-400"></i>
+            <p class="mb-2 text-sm text-gray-400">
+              <span class="font-semibold">Click to select an image</span>
+              or drag and drop
+            </p>
+            <p class="text-xs text-gray-500">JPG, PNG, WebP Images</p>
+            <p class="text-xs text-gray-500">
+              Your files never leave your device.
+            </p>
+          </div>
+          <input
+            id="file-input"
+            type="file"
+            class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+            accept="image/png, image/jpeg, image/webp"
+          />
+        </div>
+
+        <!-- File Display -->
+        <div id="file-display-area" class="mt-4 space-y-2"></div>
+
+        <!-- Options Section (shown after file selection) -->
+        <div id="options-section" class="hidden mt-6 space-y-6">
+          <!-- Watermark Position -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-3">
+              Watermark Location
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="bottom-right"
+                  class="peer sr-only"
+                  checked
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <i data-lucide="corner-down-right" class="w-4 h-4"></i>
+                  <span class="text-sm">Bottom Right</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="bottom-left"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <i data-lucide="corner-down-left" class="w-4 h-4"></i>
+                  <span class="text-sm">Bottom Left</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="top-right"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <i data-lucide="corner-up-right" class="w-4 h-4"></i>
+                  <span class="text-sm">Top Right</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="top-left"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <i data-lucide="corner-up-left" class="w-4 h-4"></i>
+                  <span class="text-sm">Top Left</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Logo Replacement -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-3">
+              Replace With Logo (Optional)
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="none"
+                  class="peer sr-only"
+                  checked
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
+                    <i data-lucide="x-circle" class="w-4 h-4 text-gray-400"></i>
+                  </div>
+                  <span class="text-sm font-medium">None</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="lakeb2b"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
+                    <i
+                      data-lucide="building-2"
+                      class="w-4 h-4 text-orange-400"
+                    ></i>
+                  </div>
+                  <span class="text-sm font-medium">LakeB2B</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="champions"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
+                    <i data-lucide="trophy" class="w-4 h-4 text-yellow-400"></i>
+                  </div>
+                  <span class="text-sm font-medium">Champions</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="ampliz"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
+                    <i data-lucide="zap" class="w-4 h-4 text-purple-400"></i>
+                  </div>
+                  <span class="text-sm font-medium">Ampliz</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Process Button -->
+          <button
+            id="process-btn"
+            class="w-full bg-orange-600 hover:bg-orange-500 text-white px-6 py-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i data-lucide="eraser" class="w-5 h-5"></i>
+            Remove Watermark
+          </button>
+        </div>
+
+        <!-- Processing Status -->
+        <div id="processing-status" class="hidden mt-6">
+          <div class="bg-gray-900 rounded-lg p-6 border border-gray-700">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="solid-spinner"></div>
+              <div>
+                <p id="status-text" class="text-white font-medium">
+                  Processing Image...
+                </p>
+                <p id="status-detail" class="text-gray-400 text-sm">
+                  Removing watermarks
+                </p>
+              </div>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-2">
+              <div
+                id="progress-bar"
+                class="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                style="width: 0%"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download Section -->
+        <div id="download-section" class="hidden mt-6">
+          <div class="bg-green-900/30 border border-green-700 rounded-lg p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <i data-lucide="check-circle" class="w-8 h-8 text-green-400"></i>
+              <div>
+                <p class="text-green-300 font-medium">Watermark Removed!</p>
+                <p class="text-green-400/80 text-sm">
+                  Your image is ready for download
+                </p>
+              </div>
+            </div>
+            <button
+              id="download-btn"
+              class="w-full bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <i data-lucide="download" class="w-5 h-5"></i>
+              Download Image
+            </button>
+            <button
+              id="process-another-btn"
+              class="w-full mt-3 text-gray-400 hover:text-white transition-colors text-sm"
+            >
+              Process Another Image
+            </button>
+          </div>
+        </div>
+
+        <!-- Error Section -->
+        <div id="error-section" class="hidden mt-6">
+          <div class="bg-red-900/30 border border-red-700 rounded-lg p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <i data-lucide="alert-circle" class="w-8 h-8 text-red-400"></i>
+              <div>
+                <p class="text-red-300 font-medium">Processing Failed</p>
+                <p id="error-message" class="text-red-400/80 text-sm">
+                  An error occurred while processing your image.
+                </p>
+              </div>
+            </div>
+            <button
+              id="try-again-btn"
+              class="w-full bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div
+      id="alert-modal"
+      class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 hidden"
+    >
+      <div
+        class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full border border-gray-700"
+      >
+        <h3 id="alert-title" class="text-xl font-bold text-white mb-2">
+          Alert
+        </h3>
+        <p id="alert-message" class="text-gray-300 mb-6"></p>
+        <button
+          id="alert-ok"
+          class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+
+    <!-- How It Works Section -->
+    <section class="max-w-4xl mx-auto px-4 py-12">
+      <h2 class="text-2xl md:text-3xl font-bold text-white mb-8 text-center">
+        How It Works
+      </h2>
+      <div class="space-y-6">
+        <div class="flex items-start gap-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold"
+          >
+            1
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-white mb-1">Upload Image</h3>
+            <p class="text-gray-400">
+              Select or drag and drop your JPG/PNG with watermarks
+            </p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold"
+          >
+            2
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-white mb-1">
+              Choose Options
+            </h3>
+            <p class="text-gray-400">
+              Select watermark location and optional logo replacement
+            </p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold"
+          >
+            3
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-white mb-1">Download</h3>
+            <p class="text-gray-400">
+              Get your watermark-free image instantly
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="max-w-4xl mx-auto px-4 py-12">
+      <h2 class="text-2xl md:text-3xl font-bold text-white mb-6 text-center">
+        Frequently Asked Questions
+      </h2>
+      <div class="space-y-4">
+        <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
+          <summary
+            class="cursor-pointer font-semibold text-white flex items-center justify-between"
+          >
+            What formats are supported?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            We support JPG, JPEG, PNG, and WebP images.
+          </p>
+        </details>
+        <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
+          <summary
+            class="cursor-pointer font-semibold text-white flex items-center justify-between"
+          >
+            Is my image uploaded to a server?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            No! All processing happens directly in your browser. Your image
+            never leaves your device.
+          </p>
+        </details>
+        <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
+          <summary
+            class="cursor-pointer font-semibold text-white flex items-center justify-between"
+          >
+            How does it work?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            We use a content-aware filling technique that samples colors from
+            around the watermark to seamlessly cover it up.
+          </p>
+        </details>
+      </div>
+    </section>
+
+    {{> footer }}
+    <script type="module" src="/src/js/utils/lucide-init.ts"></script>
+    <script type="module" src="/src/js/utils/full-width.ts"></script>
+    <script type="module" src="/src/js/utils/simple-mode-footer.ts"></script>
+    <script type="module" src="/src/version.ts"></script>
+    <script
+      type="module"
+      src="/src/js/logic/remove-image-watermark-page.ts"
+    ></script>
+    <script type="module" src="/src/js/mobileMenu.ts"></script>
+    <script type="module" src="/src/js/main.ts"></script>
+  </body>
+</html>

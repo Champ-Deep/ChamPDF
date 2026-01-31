@@ -22,14 +22,17 @@ class VideoProcessor:
         "4k": {"x": 3600, "y": 2080, "w": 400, "h": 160},
     }
 
-    def __init__(self):
+    def __init__(self, logo_dir: Optional[Path] = None):
         # Check multiple possible logo locations
-        # 1. Environment variable (highest priority)
-        # 2. Docker mount location (/app/assets/logos)
-        # 3. Local dev: "Images & Logos" folder in project root
-        # 4. Fallback: backend/assets/logos
+        # 1. Passed argument (highest priority)
+        # 2. Environment variable
+        # 3. Docker mount location (/app/assets/logos)
+        # 4. Local dev: "Images & Logos" folder in project root
+        # 5. Fallback: backend/assets/logos
+        
         logo_dir_env = os.environ.get("LOGO_DIR", "")
         logo_paths = [
+            logo_dir,
             Path(logo_dir_env) if logo_dir_env else None,
             Path("/app/assets/logos"),
             Path(__file__).parent.parent / "Images & Logos",
@@ -249,7 +252,18 @@ class VideoProcessor:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            stdout, stderr = await proc.communicate()
+            
+            from config import settings
+            try:
+                # Wait for process to complete with timeout
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(),
+                    timeout=settings.PROCESS_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.communicate()
+                return False, f"Processing timed out after {settings.PROCESS_TIMEOUT} seconds"
 
             if proc.returncode != 0:
                 error_msg = stderr.decode()[-500:] if stderr else "Unknown error"

@@ -58,6 +58,12 @@ export const categories = [
         subtitle: 'Remove watermarks and rebrand videos.',
       },
       {
+        href: import.meta.env.BASE_URL + 'remove-image-watermark.html',
+        name: 'Image Watermark Remover',
+        icon: 'ph-image',
+        subtitle: 'Remove watermarks from images (JPG, PNG).',
+      },
+      {
         href: import.meta.env.BASE_URL + 'remove-watermark.html',
         name: 'PDF Watermark Remover',
         icon: 'ph-file-x',

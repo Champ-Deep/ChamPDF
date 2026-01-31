@@ -5,3 +5,4 @@ aiofiles==23.2.1
 rembg==2.0.59
 pillow==10.2.0
 numpy<2.0
+pydantic-settings>=2.0.0

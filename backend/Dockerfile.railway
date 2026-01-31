@@ -36,13 +36,13 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 
 # Copy application code
-COPY backend/main.py backend/image_processor.py backend/video_processor.py ./
+COPY backend/main.py backend/image_processor.py backend/video_processor.py backend/config.py ./
 
 # Create directory structure for logos
 RUN mkdir -p ./assets
 
 # Copy logos from Images & Logos directory to /app/assets/logos/
-COPY "Images & Logos/" ./assets/logos/
+COPY ["Images & Logos/", "./assets/logos/"]
 
 # Create temp directories with proper permissions
 RUN mkdir -p /tmp/video-rebrander/uploads /tmp/video-rebrander/outputs && \

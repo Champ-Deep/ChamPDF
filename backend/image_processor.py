@@ -1,5 +1,6 @@
 """Background removal service using rembg ML model."""
 import io
+import asyncio
 from pathlib import Path
 from PIL import Image
 from rembg import remove
@@ -37,7 +38,8 @@ class ImageProcessor:
 
             # Remove background using rembg
             # This uses the U2Net model (automatic download ~176MB first run)
-            output_image = remove(input_image)
+            # Run blocking CPU-bound task in a separate thread
+            output_image = await asyncio.to_thread(remove, input_image)
 
             # Convert to bytes
             output_buffer = io.BytesIO()
