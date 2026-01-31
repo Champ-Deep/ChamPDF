@@ -52,9 +52,12 @@ RUN mkdir -p /tmp/video-rebrander/uploads /tmp/video-rebrander/outputs && \
 # This prevents cold start delays on Railway
 # Build will fail if model download fails (ensures production readiness)
 RUN echo "Downloading U2Net model (~176MB)..." && \
-    python -c "from rembg import remove; import requests; from PIL import Image; import io; \
-    r = requests.get('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/240px-Cat03.jpg', timeout=30); \
-    remove(Image.open(io.BytesIO(r.content))); \
+    python -c "from rembg import remove; from PIL import Image; import io; \
+    img = Image.new('RGB', (100, 100), color='red'); \
+    img_bytes = io.BytesIO(); \
+    img.save(img_bytes, format='PNG'); \
+    img_bytes.seek(0); \
+    remove(Image.open(img_bytes)); \
     print('Model download complete!')"
 
 # Non-root user for security
