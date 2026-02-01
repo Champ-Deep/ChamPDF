@@ -1,0 +1,53 @@
+# Multi-stage build for ChamPDF Frontend
+# Stage 1: Build React application with Vite
+# Stage 2: Serve with Nginx and reverse proxy API calls to backend
+
+# =============================================================================
+# STAGE 1: Build React App
+# =============================================================================
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Copy vendor dependencies (required for build)
+COPY vendor ./vendor
+
+# Disable Husky hooks in Docker (not needed for build)
+ENV HUSKY=0
+
+# Install dependencies
+RUN npm ci --only=production=false
+
+# Copy source files
+COPY . .
+
+# Build production bundle
+# Uses VITE_USE_CDN=true and builds with docs
+RUN npm run build:production
+
+# =============================================================================
+# STAGE 2: Production Nginx Server
+# =============================================================================
+FROM nginxinc/nginx-unprivileged:stable-alpine-slim
+
+# Copy built files from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy Nginx configuration template
+COPY nginx.railway.conf.template /etc/nginx/templates/default.conf.template
+
+# Expose port (Railway will override with $PORT)
+EXPOSE 8080
+
+# Set default environment variables
+# Railway will override PORT and BACKEND_URL
+ENV PORT=8080
+ENV BACKEND_URL=http://localhost:8000
+
+# Start Nginx
+# The nginx:alpine image automatically processes templates in /etc/nginx/templates/
+# and substitutes environment variables (${PORT}, ${BACKEND_URL})
+CMD ["nginx", "-g", "daemon off;"]

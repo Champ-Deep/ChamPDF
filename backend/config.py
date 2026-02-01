@@ -11,8 +11,19 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # CORS - Support both list and comma-separated string from environment
+    # Note: When using Nginx reverse proxy (Railway frontend service), CORS is
+    # handled at the proxy level, so the backend only sees internal requests.
+    # These defaults allow:
+    #   - Local development (localhost)
+    #   - Direct backend access from Railway frontend
     ALLOWED_ORIGINS: list[str] | str = Field(
-        default=["http://localhost:5173", "http://localhost:8080"],
+        default=[
+            "http://localhost:5173",
+            "http://localhost:8080",
+            "http://localhost:8000",
+            # Railway domains - update via ALLOWED_ORIGINS env var in Railway dashboard
+            # Format: "https://champdf-production.up.railway.app,https://www.yourdomaincom"
+        ],
         description="Allowed CORS origins (comma-separated string or list)"
     )
     

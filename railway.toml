@@ -1,12 +1,40 @@
-[build]
-builder = "DOCKERFILE"
-dockerfilePath = "backend/Dockerfile.railway"
+# ChamPDF Multi-Service Railway Configuration
+#
+# This configuration deploys both frontend (React + Nginx) and backend (FastAPI)
+# as separate Railway services within a single project.
+#
+# Services:
+#   1. champdf-frontend - Nginx serving React app with API reverse proxy
+#   2. champdf-backend - FastAPI API for video/image processing
 
-[deploy]
-healthcheckPath = "/health"
-healthcheckTimeout = 120  # Increased from 100 to align with backend process timeout
+# =============================================================================
+# FRONTEND SERVICE - React App + Nginx
+# =============================================================================
+[[services]]
+name = "champdf-frontend"
+
+[services.build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.frontend"
+
+[services.deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
+# =============================================================================
+# BACKEND SERVICE - FastAPI
+# =============================================================================
 [[services]]
 name = "champdf-backend"
+
+[services.build]
+builder = "DOCKERFILE"
+dockerfilePath = "backend/Dockerfile.railway"
+
+[services.deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 120  # Longer timeout for ML model initialization
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
