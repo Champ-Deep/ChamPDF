@@ -530,5 +530,33 @@
   "deskewPdf": {
     "name": "Enderezar PDF",
     "subtitle": "Endereza automáticamente páginas escaneadas inclinadas usando OpenCV."
+  },
+  "extractImages": {
+    "name": "Extraer Imágenes",
+    "subtitle": "Extrae todas las imágenes incrustadas de tu PDF."
+  },
+  "imageWatermarkRemover": {
+    "name": "Eliminar Marca de Agua de Imagen",
+    "subtitle": "Elimina marcas de agua de imágenes (JPG, PNG). Optimizado para NotebookLM."
+  },
+  "removeBg": {
+    "name": "Eliminar Fondo",
+    "subtitle": "Elimina instantáneamente fondos de imágenes usando IA."
+  },
+  "removeWatermark": {
+    "name": "Eliminar Marca de Agua de PDF",
+    "subtitle": "Elimina marcas de agua de PDFs (Optimizado para Notebook LM)."
+  },
+  "videoRebrander": {
+    "name": "Eliminar Logo de Video",
+    "subtitle": "Elimina marcas de agua y rebranding de videos."
+  },
+  "pdfToDocx": {
+    "name": "PDF a Word",
+    "subtitle": "Convierte PDF a documento Word editable."
+  },
+  "pdfToPptx": {
+    "name": "PDF a PowerPoint",
+    "subtitle": "Convierte PDF a diapositivas de PowerPoint."
   }
 }

@@ -508,5 +508,33 @@
     "name": "Validar Assinatura PDF",
     "pageTitle": "Validar Assinatura PDF - Verificar Assinaturas Digitais | ChamPDF",
     "subtitle": "Verifique assinaturas digitais em seus arquivos PDF. Verifique a validade do certificado e a integridade do documento."
+  },
+  "extractImages": {
+    "name": "Extrair Imagens",
+    "subtitle": "Extrair todas as imagens incorporadas do seu PDF."
+  },
+  "imageWatermarkRemover": {
+    "name": "Removedor de Marca d'Água de Imagem",
+    "subtitle": "Remover marcas d'água de imagens (JPG, PNG). Otimizado para NotebookLM."
+  },
+  "removeBg": {
+    "name": "Remover Fundo",
+    "subtitle": "Remover instantaneamente fundos de imagens usando IA."
+  },
+  "removeWatermark": {
+    "name": "Removedor de Marca d'Água PDF",
+    "subtitle": "Remover marcas d'água de PDFs (Otimizado para Notebook LM)."
+  },
+  "videoRebrander": {
+    "name": "Removedor de Logo de Vídeo",
+    "subtitle": "Remover marcas d'água e rebrandir vídeos."
+  },
+  "pdfToDocx": {
+    "name": "PDF para Word",
+    "subtitle": "Converter PDF para documento Word editável."
+  },
+  "pdfToPptx": {
+    "name": "PDF para PowerPoint",
+    "subtitle": "Converter PDF para slides do PowerPoint."
   }
 }

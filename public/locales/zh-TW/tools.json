@@ -508,5 +508,33 @@
     "name": "Validate PDF Signature",
     "pageTitle": "Validate PDF Signature - Verify Digital Signatures | ChamPDF",
     "subtitle": "Verify digital signatures in your PDF files. Check certificate validity, view signer details, and confirm document integrity. All processing happens in your browser."
+  },
+  "extractImages": {
+    "name": "提取圖片",
+    "subtitle": "從您的 PDF 中提取所有嵌入的圖片。"
+  },
+  "imageWatermarkRemover": {
+    "name": "圖片浮水印移除器",
+    "subtitle": "移除圖片中的浮水印 (JPG, PNG)。為 NotebookLM 優化。"
+  },
+  "removeBg": {
+    "name": "移除背景",
+    "subtitle": "使用 AI 即刻移除圖片背景。"
+  },
+  "removeWatermark": {
+    "name": "PDF 浮水印移除器",
+    "subtitle": "移除 PDF 中的浮水印（為 Notebook LM 優化）。"
+  },
+  "videoRebrander": {
+    "name": "影片 Logo 移除器",
+    "subtitle": "移除浮水印並重新品牌化影片。"
+  },
+  "pdfToDocx": {
+    "name": "PDF 轉 Word",
+    "subtitle": "將 PDF 轉換為可編輯的 Word 文件。"
+  },
+  "pdfToPptx": {
+    "name": "PDF 轉 PowerPoint",
+    "subtitle": "將 PDF 轉換為 PowerPoint 投影片。"
   }
 }

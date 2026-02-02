@@ -530,5 +530,33 @@
   "deskewPdf": {
     "name": "Luruskan PDF",
     "subtitle": "Otomatis meluruskan halaman hasil pindai yang miring menggunakan OpenCV."
+  },
+  "extractImages": {
+    "name": "Ekstrak Gambar",
+    "subtitle": "Ekstrak semua gambar yang tertanam dari PDF Anda."
+  },
+  "imageWatermarkRemover": {
+    "name": "Penghapus Watermark Gambar",
+    "subtitle": "Hapus watermark dari gambar (JPG, PNG). Dioptimalkan untuk NotebookLM."
+  },
+  "removeBg": {
+    "name": "Hapus Latar Belakang",
+    "subtitle": "Hapus latar belakang dari gambar secara instan menggunakan AI."
+  },
+  "removeWatermark": {
+    "name": "Penghapus Watermark PDF",
+    "subtitle": "Hapus watermark dari PDF (Dioptimalkan untuk Notebook LM)."
+  },
+  "videoRebrander": {
+    "name": "Penghapus Logo Video",
+    "subtitle": "Hapus watermark dan rebrand video."
+  },
+  "pdfToDocx": {
+    "name": "PDF ke Word",
+    "subtitle": "Konversi PDF ke dokumen Word yang dapat diedit."
+  },
+  "pdfToPptx": {
+    "name": "PDF ke PowerPoint",
+    "subtitle": "Konversi PDF ke slide PowerPoint."
   }
 }

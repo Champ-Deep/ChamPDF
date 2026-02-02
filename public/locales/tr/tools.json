@@ -508,5 +508,33 @@
     "name": "Validate PDF Signature",
     "pageTitle": "Validate PDF Signature - Verify Digital Signatures | ChamPDF",
     "subtitle": "Verify digital signatures in your PDF files. Check certificate validity, view signer details, and confirm document integrity. All processing happens in your browser."
+  },
+  "extractImages": {
+    "name": "Görselleri Çıkar",
+    "subtitle": "PDF'nizdeki tüm gömülü görselleri çıkarın."
+  },
+  "imageWatermarkRemover": {
+    "name": "Görsel Filigran Temizleyici",
+    "subtitle": "Görsellerden filigranları kaldırın (JPG, PNG). NotebookLM için optimize edilmiştir."
+  },
+  "removeBg": {
+    "name": "Arka Planı Kaldır",
+    "subtitle": "AI kullanarak görsellerden arka planı anında kaldırın."
+  },
+  "removeWatermark": {
+    "name": "PDF Filigran Temizleyici",
+    "subtitle": "PDF'lerden filigranları kaldırın (Notebook LM için optimize edilmiştir)."
+  },
+  "videoRebrander": {
+    "name": "Video Logo Temizleyici",
+    "subtitle": "Filigranları kaldırın ve videoları yeniden markalaştırın."
+  },
+  "pdfToDocx": {
+    "name": "PDF'den Word'e",
+    "subtitle": "PDF'yi düzenlenebilir Word belgesine dönüştürün."
+  },
+  "pdfToPptx": {
+    "name": "PDF'den PowerPoint'e",
+    "subtitle": "PDF'yi PowerPoint slaytlarına dönüştürün."
   }
 }

@@ -280,7 +280,7 @@ export default defineConfig(() => {
         partialDirectory: resolve(__dirname, 'src/partials'),
         context: {
           baseUrl: (process.env.BASE_URL || '/').replace(/\/?$/, '/'),
-          simpleMode: true,
+          simpleMode: false,
         },
       }),
       languageRouterPlugin(),

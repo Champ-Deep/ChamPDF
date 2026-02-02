@@ -527,5 +527,33 @@
   "deskewPdf": {
     "name": "校正 PDF",
     "subtitle": "使用 OpenCV 自动校正倾斜的扫描页面。"
+  },
+  "extractImages": {
+    "name": "提取图片",
+    "subtitle": "从您的 PDF 中提取所有嵌入的图片。"
+  },
+  "imageWatermarkRemover": {
+    "name": "图片水印去除器",
+    "subtitle": "从图片中去除水印 (JPG, PNG)。为 NotebookLM 优化。"
+  },
+  "removeBg": {
+    "name": "去除背景",
+    "subtitle": "使用 AI 即刻去除图片背景。"
+  },
+  "removeWatermark": {
+    "name": "PDF 水印去除器",
+    "subtitle": "从 PDF 中去除水印（为 Notebook LM 优化）。"
+  },
+  "videoRebrander": {
+    "name": "视频 Logo 去除器",
+    "subtitle": "去除水印并重新品牌化视频。"
+  },
+  "pdfToDocx": {
+    "name": "PDF 转 Word",
+    "subtitle": "将 PDF 转换为可编辑的 Word 文档。"
+  },
+  "pdfToPptx": {
+    "name": "PDF 转 PowerPoint",
+    "subtitle": "将 PDF 转换为 PowerPoint 幻灯片。"
   }
 }

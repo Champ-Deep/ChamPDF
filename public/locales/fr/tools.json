@@ -529,6 +529,34 @@
   },
   "deskewPdf": {
     "name": "Redresser un PDF",
-    "subtitle": "Redresser automatiquement les pages scannées inclinées à l’aide d’OpenCV."
+    "subtitle": "Redresser automatiquement les pages scannées inclinées à l'aide d'OpenCV."
+  },
+  "extractImages": {
+    "name": "Extraire les images",
+    "subtitle": "Extraire toutes les images intégrées de votre PDF."
+  },
+  "imageWatermarkRemover": {
+    "name": "Supprimer le filigrane d'image",
+    "subtitle": "Supprimer les filigranes des images (JPG, PNG). Optimisé pour NotebookLM."
+  },
+  "removeBg": {
+    "name": "Supprimer l'arrière-plan",
+    "subtitle": "Supprimer instantanément les arrière-plans des images grâce à l'IA."
+  },
+  "removeWatermark": {
+    "name": "Supprimer le filigrane PDF",
+    "subtitle": "Supprimer les filigranes des PDF (Optimisé pour Notebook LM)."
+  },
+  "videoRebrander": {
+    "name": "Supprimer le logo vidéo",
+    "subtitle": "Supprimer les filigranes et rebrandir les vidéos."
+  },
+  "pdfToDocx": {
+    "name": "PDF vers Word",
+    "subtitle": "Convertir PDF en document Word éditable."
+  },
+  "pdfToPptx": {
+    "name": "PDF vers PowerPoint",
+    "subtitle": "Convertir PDF en diapositives PowerPoint."
   }
 }

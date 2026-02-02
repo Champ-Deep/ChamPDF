@@ -530,5 +530,33 @@
   "deskewPdf": {
     "name": "Chỉnh nghiêng PDF",
     "subtitle": "Tự động làm thẳng các trang quét bị nghiêng bằng OpenCV."
+  },
+  "extractImages": {
+    "name": "Trích xuất hình ảnh",
+    "subtitle": "Trích xuất tất cả hình ảnh được nhúng từ PDF của bạn."
+  },
+  "imageWatermarkRemover": {
+    "name": "Xóa Watermark Hình Ảnh",
+    "subtitle": "Xóa watermark khỏi hình ảnh (JPG, PNG). Tối ưu hóa cho NotebookLM."
+  },
+  "removeBg": {
+    "name": "Xóa Nền",
+    "subtitle": "Xóa nền khỏi hình ảnh ngay lập tức bằng AI."
+  },
+  "removeWatermark": {
+    "name": "Xóa Watermark PDF",
+    "subtitle": "Xóa watermark khỏi PDF (Tối ưu hóa cho Notebook LM)."
+  },
+  "videoRebrander": {
+    "name": "Xóa Logo Video",
+    "subtitle": "Xóa watermark và rebrand video."
+  },
+  "pdfToDocx": {
+    "name": "PDF sang Word",
+    "subtitle": "Chuyển đổi PDF sang tài liệu Word có thể chỉnh sửa."
+  },
+  "pdfToPptx": {
+    "name": "PDF sang PowerPoint",
+    "subtitle": "Chuyển đổi PDF sang slide PowerPoint."
   }
 }

@@ -530,5 +530,33 @@
   "deskewPdf": {
     "name": "Raddrizza PDF",
     "subtitle": "Raddrizza automaticamente le pagine scansionate inclinate usando OpenCV."
+  },
+  "extractImages": {
+    "name": "Estrai Immagini",
+    "subtitle": "Estrai tutte le immagini incorporate dal tuo PDF."
+  },
+  "imageWatermarkRemover": {
+    "name": "Rimuovi Filigrana Immagine",
+    "subtitle": "Rimuovi filigrane dalle immagini (JPG, PNG). Ottimizzato per NotebookLM."
+  },
+  "removeBg": {
+    "name": "Rimuovi Sfondo",
+    "subtitle": "Rimuovi istantaneamente gli sfondi dalle immagini usando l'IA."
+  },
+  "removeWatermark": {
+    "name": "Rimuovi Filigrana PDF",
+    "subtitle": "Rimuovi filigrane dai PDF (Ottimizzato per Notebook LM)."
+  },
+  "videoRebrander": {
+    "name": "Rimuovi Logo Video",
+    "subtitle": "Rimuovi filigrane e rebrand dei video."
+  },
+  "pdfToDocx": {
+    "name": "PDF a Word",
+    "subtitle": "Converti PDF in documento Word modificabile."
+  },
+  "pdfToPptx": {
+    "name": "PDF a PowerPoint",
+    "subtitle": "Converti PDF in slide PowerPoint."
   }
 }

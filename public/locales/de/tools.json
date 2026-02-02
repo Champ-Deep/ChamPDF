@@ -530,5 +530,33 @@
   "deskewPdf": {
     "name": "PDF entzerren",
     "subtitle": "Automatisch schiefe gescannte Seiten mit OpenCV begradigen."
+  },
+  "extractImages": {
+    "name": "Bilder extrahieren",
+    "subtitle": "Alle eingebetteten Bilder aus Ihrer PDF extrahieren."
+  },
+  "imageWatermarkRemover": {
+    "name": "Bild-Wasserzeichen entfernen",
+    "subtitle": "Wasserzeichen aus Bildern entfernen (JPG, PNG). Optimiert für NotebookLM."
+  },
+  "removeBg": {
+    "name": "Hintergrund entfernen",
+    "subtitle": "Hintergründe sofort mit KI aus Bildern entfernen."
+  },
+  "removeWatermark": {
+    "name": "PDF-Wasserzeichen entfernen",
+    "subtitle": "Wasserzeichen aus PDFs entfernen (Optimiert für Notebook LM)."
+  },
+  "videoRebrander": {
+    "name": "Video-Logo entfernen",
+    "subtitle": "Wasserzeichen entfernen und Videos rebrand en."
+  },
+  "pdfToDocx": {
+    "name": "PDF zu Word",
+    "subtitle": "PDF in bearbeitbares Word-Dokument konvertieren."
+  },
+  "pdfToPptx": {
+    "name": "PDF zu PowerPoint",
+    "subtitle": "PDF in PowerPoint-Folien konvertieren."
   }
 }
