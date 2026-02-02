@@ -19,6 +19,14 @@
     "name": "PDF Watermark Remover",
     "subtitle": "Remove watermarks from PDFs (Optimized for Notebook LM)."
   },
+  "imageWatermarkRemover": {
+    "name": "Image Watermark Remover",
+    "subtitle": "Remove watermarks from images (JPG, PNG). Optimized for NotebookLM."
+  },
+  "extractImages": {
+    "name": "Extract Images",
+    "subtitle": "Extract all embedded images from your PDF."
+  },
   "pdfMultiTool": {
     "name": "PDF Multi Tool",
     "subtitle": "Merge, Split, Organize, Delete, Rotate, Add Blank Pages, Extract and Duplicate in an unified interface."
@@ -556,5 +564,13 @@
   "deskewPdf": {
     "name": "Deskew PDF",
     "subtitle": "Automatically straighten tilted scanned pages using OpenCV."
+  },
+  "pdfToDocx": {
+    "name": "PDF to Word",
+    "subtitle": "Convert PDF to editable Word doc."
+  },
+  "pdfToPptx": {
+    "name": "PDF to PowerPoint",
+    "subtitle": "Convert PDF to PowerPoint slides."
   }
 }

@@ -14,7 +14,8 @@ import { showAlert } from '../ui.js';
 import { formatBytes } from '../utils/helpers.js';
 
 // API endpoint - configure based on environment
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Use empty string to make relative URLs work with Nginx reverse proxy in production
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 interface VideoRebraderState {
   file: File | null;
@@ -35,7 +36,12 @@ const state: VideoRebraderState = {
 };
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo'];
+const ALLOWED_TYPES = [
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+  'video/x-msvideo',
+];
 const ALLOWED_EXTENSIONS = ['.mp4', '.mov', '.webm', '.avi'];
 
 if (document.readyState === 'loading') {
@@ -80,28 +86,40 @@ function initializePage() {
   // Logo preset radio buttons
   document.querySelectorAll('input[name="logo-preset"]').forEach((radio) => {
     radio.addEventListener('change', (e) => {
-      state.logoPreset = (e.target as HTMLInputElement).value as typeof state.logoPreset;
+      state.logoPreset = (e.target as HTMLInputElement)
+        .value as typeof state.logoPreset;
     });
   });
 
   // Watermark position radio buttons
-  document.querySelectorAll('input[name="watermark-position"]').forEach((radio) => {
-    radio.addEventListener('change', (e) => {
-      state.watermarkPosition = (e.target as HTMLInputElement).value as typeof state.watermarkPosition;
+  document
+    .querySelectorAll('input[name="watermark-position"]')
+    .forEach((radio) => {
+      radio.addEventListener('change', (e) => {
+        state.watermarkPosition = (e.target as HTMLInputElement)
+          .value as typeof state.watermarkPosition;
+      });
     });
-  });
 
   // Process button
-  document.getElementById('process-btn')?.addEventListener('click', handleProcess);
+  document
+    .getElementById('process-btn')
+    ?.addEventListener('click', handleProcess);
 
   // Download button
-  document.getElementById('download-btn')?.addEventListener('click', handleDownload);
+  document
+    .getElementById('download-btn')
+    ?.addEventListener('click', handleDownload);
 
   // Process another button
-  document.getElementById('process-another-btn')?.addEventListener('click', resetToUpload);
+  document
+    .getElementById('process-another-btn')
+    ?.addEventListener('click', resetToUpload);
 
   // Try again button
-  document.getElementById('try-again-btn')?.addEventListener('click', resetToUpload);
+  document
+    .getElementById('try-again-btn')
+    ?.addEventListener('click', resetToUpload);
 
   // Back to tools button
   document.getElementById('back-to-tools')?.addEventListener('click', () => {
@@ -118,16 +136,23 @@ function handleFileUpload(e: Event) {
 function handleFile(file: File) {
   // Validate file type
   const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
-  const isValidType = ALLOWED_TYPES.includes(file.type) || ALLOWED_EXTENSIONS.includes(fileExt);
+  const isValidType =
+    ALLOWED_TYPES.includes(file.type) || ALLOWED_EXTENSIONS.includes(fileExt);
 
   if (!isValidType) {
-    showAlert('Invalid File', 'Please select a video file (MP4, MOV, WebM, or AVI).');
+    showAlert(
+      'Invalid File',
+      'Please select a video file (MP4, MOV, WebM, or AVI).'
+    );
     return;
   }
 
   // Validate file size
   if (file.size > MAX_FILE_SIZE) {
-    showAlert('File Too Large', `Maximum file size is ${formatBytes(MAX_FILE_SIZE)}. Your file is ${formatBytes(file.size)}.`);
+    showAlert(
+      'File Too Large',
+      `Maximum file size is ${formatBytes(MAX_FILE_SIZE)}. Your file is ${formatBytes(file.size)}.`
+    );
     return;
   }
 
@@ -143,7 +168,8 @@ function updateFileDisplay(file: File) {
   fileDisplayArea.innerHTML = '';
 
   const fileDiv = document.createElement('div');
-  fileDiv.className = 'flex items-center justify-between bg-gray-700 p-3 rounded-lg';
+  fileDiv.className =
+    'flex items-center justify-between bg-gray-700 p-3 rounded-lg';
 
   const infoContainer = document.createElement('div');
   infoContainer.className = 'flex flex-col flex-1 min-w-0';
@@ -191,7 +217,9 @@ async function handleProcess() {
   document.getElementById('options-section')?.classList.add('hidden');
   document.getElementById('processing-status')?.classList.remove('hidden');
 
-  const processBtn = document.getElementById('process-btn') as HTMLButtonElement;
+  const processBtn = document.getElementById(
+    'process-btn'
+  ) as HTMLButtonElement;
   if (processBtn) processBtn.disabled = true;
 
   // Animate progress bar (indeterminate style)
@@ -222,7 +250,9 @@ async function handleProcess() {
     clearInterval(progressInterval);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      const errorData = await response
+        .json()
+        .catch(() => ({ detail: 'Unknown error' }));
       throw new Error(errorData.detail || `Server error: ${response.status}`);
     }
 
@@ -254,7 +284,6 @@ async function handleProcess() {
     setTimeout(() => {
       showDownloadSection();
     }, 500);
-
   } catch (error) {
     clearInterval(progressInterval);
     console.error('Processing error:', error);
@@ -323,11 +352,15 @@ function resetToUpload() {
   if (fileInput) fileInput.value = '';
 
   // Reset radio buttons to defaults
-  const defaultLogo = document.querySelector('input[name="logo-preset"][value="lakeb2b"]') as HTMLInputElement;
+  const defaultLogo = document.querySelector(
+    'input[name="logo-preset"][value="lakeb2b"]'
+  ) as HTMLInputElement;
   if (defaultLogo) defaultLogo.checked = true;
   state.logoPreset = 'lakeb2b';
 
-  const defaultPosition = document.querySelector('input[name="watermark-position"][value="bottom-right"]') as HTMLInputElement;
+  const defaultPosition = document.querySelector(
+    'input[name="watermark-position"][value="bottom-right"]'
+  ) as HTMLInputElement;
   if (defaultPosition) defaultPosition.checked = true;
   state.watermarkPosition = 'bottom-right';
 }

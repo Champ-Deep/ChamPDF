@@ -144,69 +144,96 @@
         <!-- File Display -->
         <div id="file-display-area" class="mt-4 space-y-2"></div>
 
+        <!-- Canvas Preview Section -->
+        <div id="preview-section" class="hidden mt-6">
+          <h3 class="text-xl font-semibold text-white mb-4">
+            Step 2: Select Watermark Area
+          </h3>
+
+          <div class="relative inline-block">
+            <!-- Main canvas showing image -->
+            <canvas
+              id="preview-canvas"
+              class="border-2 border-gray-700 rounded-lg"
+            ></canvas>
+
+            <!-- Overlay canvas for selection drawing -->
+            <canvas
+              id="selection-overlay"
+              class="absolute top-0 left-0 border-2 border-transparent"
+              style="cursor: crosshair"
+            ></canvas>
+          </div>
+
+          <p class="text-sm text-gray-400 mt-3">
+            <i data-lucide="info" class="w-4 h-4 inline"></i>
+            Drag to select the watermark area you want to remove
+          </p>
+
+          <!-- Clear Selection Button -->
+          <button
+            id="clear-selection-btn"
+            class="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+          >
+            <i data-lucide="x" class="w-4 h-4"></i>
+            Clear Selection
+          </button>
+        </div>
+
         <!-- Options Section (shown after file selection) -->
         <div id="options-section" class="hidden mt-6 space-y-6">
-          <!-- Watermark Position -->
+          <!-- Blur Intensity -->
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-3">
-              Watermark Location
-            </label>
-            <div class="grid grid-cols-2 gap-3">
-              <label class="relative">
+            <h3 class="text-lg font-semibold text-white mb-3">
+              Step 3: Blur Intensity
+            </h3>
+            <div class="grid grid-cols-3 gap-3">
+              <label class="relative cursor-pointer">
                 <input
                   type="radio"
-                  name="watermark-position"
-                  value="bottom-right"
+                  name="blur-intensity"
+                  value="5"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-700 hover:border-orange-500/50 transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10"
+                >
+                  <i data-lucide="feather" class="w-6 h-6 text-orange-400"></i>
+                  <span class="text-white font-medium">Light</span>
+                  <span class="text-xs text-gray-400">Subtle blur</span>
+                </div>
+              </label>
+
+              <label class="relative cursor-pointer">
+                <input
+                  type="radio"
+                  name="blur-intensity"
+                  value="10"
                   class="peer sr-only"
                   checked
                 />
                 <div
-                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                  class="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-700 hover:border-orange-500/50 transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10"
                 >
-                  <i data-lucide="corner-down-right" class="w-4 h-4"></i>
-                  <span class="text-sm">Bottom Right</span>
+                  <i data-lucide="droplets" class="w-6 h-6 text-orange-400"></i>
+                  <span class="text-white font-medium">Medium</span>
+                  <span class="text-xs text-gray-400">Balanced</span>
                 </div>
               </label>
-              <label class="relative">
+
+              <label class="relative cursor-pointer">
                 <input
                   type="radio"
-                  name="watermark-position"
-                  value="bottom-left"
+                  name="blur-intensity"
+                  value="15"
                   class="peer sr-only"
                 />
                 <div
-                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                  class="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-700 hover:border-orange-500/50 transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10"
                 >
-                  <i data-lucide="corner-down-left" class="w-4 h-4"></i>
-                  <span class="text-sm">Bottom Left</span>
-                </div>
-              </label>
-              <label class="relative">
-                <input
-                  type="radio"
-                  name="watermark-position"
-                  value="top-right"
-                  class="peer sr-only"
-                />
-                <div
-                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
-                >
-                  <i data-lucide="corner-up-right" class="w-4 h-4"></i>
-                  <span class="text-sm">Top Right</span>
-                </div>
-              </label>
-              <label class="relative">
-                <input
-                  type="radio"
-                  name="watermark-position"
-                  value="top-left"
-                  class="peer sr-only"
-                />
-                <div
-                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
-                >
-                  <i data-lucide="corner-up-left" class="w-4 h-4"></i>
-                  <span class="text-sm">Top Left</span>
+                  <i data-lucide="waves" class="w-6 h-6 text-orange-400"></i>
+                  <span class="text-white font-medium">Heavy</span>
+                  <span class="text-xs text-gray-400">Strong blur</span>
                 </div>
               </label>
             </div>
@@ -214,9 +241,9 @@
 
           <!-- Logo Replacement -->
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-3">
-              Replace With Logo (Optional)
-            </label>
+            <h3 class="text-lg font-semibold text-white mb-3">
+              Step 4: Logo Replacement (Optional)
+            </h3>
             <div class="grid grid-cols-2 gap-3">
               <label class="relative">
                 <input
@@ -445,9 +472,7 @@
           </div>
           <div class="flex-1">
             <h3 class="text-lg font-semibold text-white mb-1">Download</h3>
-            <p class="text-gray-400">
-              Get your watermark-free image instantly
-            </p>
+            <p class="text-gray-400">Get your watermark-free image instantly</p>
           </div>
         </div>
       </div>

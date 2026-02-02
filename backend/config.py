@@ -3,6 +3,7 @@ from pydantic import Field, model_validator
 from pathlib import Path
 import tempfile
 import os
+from typing import Union, List
 
 class Settings(BaseSettings):
     # App Config
@@ -16,9 +17,11 @@ class Settings(BaseSettings):
     # These defaults allow:
     #   - Local development (localhost)
     #   - Direct backend access from Railway frontend
-    ALLOWED_ORIGINS: list[str] | str = Field(
+    ALLOWED_ORIGINS: Union[List[str], str] = Field(
         default=[
             "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
             "http://localhost:8080",
             "http://localhost:8000",
             # Railway domains - update via ALLOWED_ORIGINS env var in Railway dashboard

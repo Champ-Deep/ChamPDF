@@ -292,10 +292,12 @@ function initCreatePanel() {
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-2">Signature Color</label>
         <div class="flex gap-3">
-          <button class="sig-color-btn w-10 h-10 rounded-full border-2 border-gray-600" data-color="#1a365d" style="background-color: #1a365d" title="Navy Blue"></button>
           <button class="sig-color-btn w-10 h-10 rounded-full border-2 border-gray-600" data-color="#000000" style="background-color: #000000" title="Black"></button>
-          <button class="sig-color-btn w-10 h-10 rounded-full border-2 border-gray-600" data-color="#1e3a5f" style="background-color: #1e3a5f" title="Dark Blue"></button>
+          <button class="sig-color-btn w-10 h-10 rounded-full border-2 border-gray-600" data-color="#1a365d" style="background-color: #1a365d" title="Navy Blue"></button>
+          <button class="sig-color-btn w-10 h-10 rounded-full border-2 border-gray-600" data-color="#dc2626" style="background-color: #dc2626" title="Red"></button>
+          <button class="sig-color-btn w-10 h-10 rounded-full border-2 border-gray-600" data-color="#16a34a" style="background-color: #16a34a" title="Green"></button>
           <button class="sig-color-btn w-10 h-10 rounded-full border-2 border-gray-600" data-color="#7c2d12" style="background-color: #7c2d12" title="Brown"></button>
+          <button class="sig-color-btn w-10 h-10 rounded-full border-2 border-gray-600" data-color="#7c3aed" style="background-color: #7c3aed" title="Purple"></button>
         </div>
       </div>
 

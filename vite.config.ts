@@ -350,6 +350,9 @@ export default defineConfig(() => {
         'Cross-Origin-Opener-Policy': 'same-origin',
         'Cross-Origin-Embedder-Policy': 'require-corp',
       },
+      watch: {
+        ignored: ['**/backend/**', '**/venv/**', '**/node_modules/**'],
+      },
     },
     preview: {
       headers: {
