@@ -102,6 +102,24 @@ document.addEventListener('DOMContentLoaded', () => {
     pptx.title = file.name.replace(/\.pdf$/i, '');
     pptx.subject = 'Converted from PDF';
 
+    // Derive slide dimensions from the first PDF page so the PPTX layout
+    // matches the source material exactly. PptxGenJS defaults to LAYOUT_16x9
+    // (10 × 5.625 in) which mismatches PDFs with other aspect ratios and
+    // causes images to be offset on the slide.
+    const firstPage = await pdfDoc.getPage(1);
+    const firstViewport = firstPage.getViewport({ scale: 1.0 });
+    const pdfAspect = firstViewport.width / firstViewport.height;
+
+    const slideWidth = 10; // inches – standard PPTX width
+    const slideHeight = slideWidth / pdfAspect;
+
+    pptx.defineLayout({
+      name: 'PDF_MATCH',
+      width: slideWidth,
+      height: slideHeight,
+    });
+    pptx.layout = 'PDF_MATCH';
+
     // Render each page at high resolution and add as slide
     const scale = 2.0; // 2x resolution for quality
 
@@ -129,24 +147,25 @@ document.addEventListener('DOMContentLoaded', () => {
       // Add slide with the page image
       const slide = pptx.addSlide();
 
-      // Calculate dimensions to fit the slide (default 10" x 7.5")
-      // Maintain aspect ratio
+      // Calculate dimensions to fit the slide while maintaining aspect ratio.
+      // Pages that match the first page's aspect ratio fill the slide exactly;
+      // pages with a different ratio are centered with uniform letterboxing.
       const pageAspect = viewport.width / viewport.height;
-      const slideAspect = 10 / 7.5;
+      const slideAspect = slideWidth / slideHeight;
 
       let imgWidth: number, imgHeight: number, imgX: number, imgY: number;
 
       if (pageAspect > slideAspect) {
-        // Page is wider than slide - fit to width
-        imgWidth = 10;
-        imgHeight = 10 / pageAspect;
+        // Page is wider than slide – fit to width
+        imgWidth = slideWidth;
+        imgHeight = slideWidth / pageAspect;
         imgX = 0;
-        imgY = (7.5 - imgHeight) / 2;
+        imgY = (slideHeight - imgHeight) / 2;
       } else {
-        // Page is taller than slide - fit to height
-        imgHeight = 7.5;
-        imgWidth = 7.5 * pageAspect;
-        imgX = (10 - imgWidth) / 2;
+        // Page is taller than slide – fit to height
+        imgHeight = slideHeight;
+        imgWidth = slideHeight * pageAspect;
+        imgX = (slideWidth - imgWidth) / 2;
         imgY = 0;
       }
 
