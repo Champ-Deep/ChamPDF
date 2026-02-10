@@ -65,6 +65,21 @@ export const categories = [
       },
       {
         href: import.meta.env.BASE_URL + 'remove-watermark.html',
+        name: 'Remove Watermark',
+        icon: 'ph-eraser',
+        subtitle: 'Remove watermarks with AI-powered smooth inpainting.',
+      },
+      {
+        href: import.meta.env.BASE_URL + 'replace-logo.html',
+        name: 'Replace Logo',
+        icon: 'ph-repeat',
+        subtitle: 'Replace NotebookLM logo with Lake B2B or custom logo.',
+      },
+      {
+        href: import.meta.env.BASE_URL + 'extract-pages.html',
+        name: 'Extract Pages',
+        icon: 'ph-squares-four',
+        subtitle: 'Save a selection of pages as new files.',
         name: 'PDF Watermark Remover',
         icon: 'ph-file-x',
         subtitle: 'Remove watermarks from PDFs (Optimized for Notebook LM).',
@@ -133,6 +148,18 @@ export const categories = [
         name: 'Add Watermark',
         icon: 'ph-drop',
         subtitle: 'Stamp text or an image over your PDF.',
+      },
+      {
+        href: import.meta.env.BASE_URL + 'remove-watermark.html',
+        name: 'Remove Watermark',
+        icon: 'ph-eraser',
+        subtitle: 'Remove watermarks with AI-powered smooth inpainting.',
+      },
+      {
+        href: import.meta.env.BASE_URL + 'replace-logo.html',
+        name: 'Replace Logo',
+        icon: 'ph-repeat',
+        subtitle: 'Replace NotebookLM logo with Lake B2B or custom logo.',
       },
       {
         href: import.meta.env.BASE_URL + 'header-footer.html',
