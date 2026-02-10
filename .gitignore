@@ -33,3 +33,27 @@ coverage/
 #backup
 .seo-backup
 libreoffice-wasm-package
+
+# Backend Python
+backend/__pycache__/
+backend/*.pyc
+backend/.pytest_cache/
+backend/.env
+backend/.env.local
+backend/models/
+backend/.venv/
+backend/venv/
+
+# Railway
+.railway/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Backend uploads and outputs (local testing)
+backend/uploads/
+backend/outputs/
+/tmp/video-rebrander/

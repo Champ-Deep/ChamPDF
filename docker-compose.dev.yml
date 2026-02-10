@@ -1,14 +1,41 @@
+# Docker Compose for local development with video processing backend
+# Run: docker compose -f docker-compose.dev.yml up --build
+
 services:
+  # Frontend (ChamPDF)
   champdf:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        SIMPLE_MODE: false # false for default mode, true for simple mode
+        SIMPLE_MODE: false
+        VITE_API_URL: http://localhost:8000
     container_name: champdf
     ports:
       - '8080:8080'
     restart: unless-stopped
+    depends_on:
+      - video-backend
     # For IPv4-only environments
     #environment:
     #  - DISABLE_IPV6=true
+
+  # Video Processing Backend (FastAPI + FFmpeg)
+  video-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: champdf-video-backend
+    ports:
+      - '8000:8000'
+    restart: unless-stopped
+    volumes:
+      - "./Images & Logos:/app/assets/logos:ro"
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

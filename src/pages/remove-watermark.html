@@ -15,6 +15,19 @@
       content="★ Remove watermark from PDF free - Smooth AI-powered watermark removal ★ No signup ★ Unlimited files ★ Privacy-first ★ Works in browser ★ Fast & secure"
     />
     <meta name="keywords" content="remove watermark, watermark remover, pdf watermark removal, online pdf" />
+    <title>PDF Watermark Remover - Remove Watermarks from PDFs | ChamPDF</title>
+    <meta
+      name="title"
+      content="PDF Watermark Remover - Remove Watermarks from PDFs | ChamPDF"
+    />
+    <meta
+      name="description"
+      content="Remove watermarks from PDFs and optionally replace with your logo. Works with NotebookLM slides and other AI-generated content. Free, in-browser processing."
+    />
+    <meta
+      name="keywords"
+      content="remove watermark pdf, pdf watermark remover, notebookLM watermark, slidesweep alternative"
+    />
     <meta name="author" content="ChamPDF" />
     <meta
       name="robots"
@@ -41,6 +54,22 @@
     />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <link
+      rel="canonical"
+      href="https://www.champdf.com/remove-watermark.html"
+    />
+
+    <!-- Open Graph / Facebook / LinkedIn -->
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://www.champdf.com/remove-watermark"
+    />
+    <meta property="og:title" content="PDF Watermark Remover | ChamPDF" />
+    <meta
+      property="og:description"
+      content="Remove watermarks from PDFs and optionally replace with your logo. Free, in-browser processing."
+    />
     <meta property="og:site_name" content="ChamPDF" />
 
     <!-- Twitter Card -->
@@ -54,6 +83,14 @@
     <meta
       name="twitter:image"
       content="https://www.champdf.com/images/twitter-remove-watermark.png"
+    <meta
+      name="twitter:url"
+      content="https://www.champdf.com/remove-watermark"
+    />
+    <meta name="twitter:title" content="PDF Watermark Remover" />
+    <meta
+      name="twitter:description"
+      content="Remove watermarks from PDFs and optionally replace with your logo."
     />
     <meta name="twitter:site" content="@ChamPDF" />
 
@@ -105,6 +142,7 @@
       <div
         id="tool-uploader"
         class="bg-gray-800 rounded-xl shadow-xl px-4 py-8 md:p-8 max-w-5xl w-full text-gray-200 border border-gray-700"
+        class="bg-gray-800 rounded-xl shadow-xl px-4 py-8 md:p-8 max-w-2xl w-full text-gray-200 border border-gray-700"
       >
         <button
           id="back-to-tools"
@@ -114,6 +152,7 @@
           <span class="cursor-pointer" data-i18n="tools.backToTools">
             Back to Tools
           </span>
+          <span class="cursor-pointer">Back to Tools</span>
         </button>
 
         <h1
@@ -126,6 +165,18 @@
           Remove watermarks from your PDF documents using AI-powered smooth inpainting. Select watermark areas and remove them seamlessly.
         </p>
 
+          PDF Watermark Remover
+        </h1>
+        <p
+          class="text-gray-400 mb-6"
+          data-i18n="tools:removeWatermark.subtitle"
+        >
+          Remove watermarks from PDFs (NotebookLM, AI tools, etc.) and
+          optionally replace with your company logo. Runs entirely in your
+          browser.
+        </p>
+
+        <!-- Drop Zone -->
         <div
           id="drop-zone"
           class="relative flex flex-col items-center justify-center w-full h-48 md:h-64 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer bg-gray-900 hover:bg-gray-700 transition-colors duration-300"
@@ -143,6 +194,13 @@
             </p>
             <p class="text-xs text-gray-500">PDF file</p>
             <p class="text-xs text-gray-500" data-i18n="upload.filesNeverLeave">
+            <i data-lucide="file-x" class="w-10 h-10 mb-3 text-gray-400"></i>
+            <p class="mb-2 text-sm text-gray-400">
+              <span class="font-semibold">Click to select a PDF</span>
+              or drag and drop
+            </p>
+            <p class="text-xs text-gray-500">PDF Documents</p>
+            <p class="text-xs text-gray-500">
               Your files never leave your device.
             </p>
           </div>
@@ -255,10 +313,248 @@
             <i data-lucide="eraser" class="w-5 h-5 inline mr-2"></i>
             Remove Watermark
           </button>
+        <!-- File Display -->
+        <div id="file-display-area" class="mt-4 space-y-2"></div>
+
+        <!-- Options Section (shown after file selection) -->
+        <div id="options-section" class="hidden mt-6 space-y-6">
+          <!-- Watermark Position -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-3">
+              Watermark Location
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="bottom-right"
+                  class="peer sr-only"
+                  checked
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <i data-lucide="corner-down-right" class="w-4 h-4"></i>
+                  <span class="text-sm">Bottom Right</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="bottom-left"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <i data-lucide="corner-down-left" class="w-4 h-4"></i>
+                  <span class="text-sm">Bottom Left</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="top-right"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <i data-lucide="corner-up-right" class="w-4 h-4"></i>
+                  <span class="text-sm">Top Right</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="watermark-position"
+                  value="top-left"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <i data-lucide="corner-up-left" class="w-4 h-4"></i>
+                  <span class="text-sm">Top Left</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Logo Replacement -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-3">
+              Replace With Logo (Optional)
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="none"
+                  class="peer sr-only"
+                  checked
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
+                    <i data-lucide="x-circle" class="w-4 h-4 text-gray-400"></i>
+                  </div>
+                  <span class="text-sm font-medium">None</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="lakeb2b"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
+                    <i
+                      data-lucide="building-2"
+                      class="w-4 h-4 text-orange-400"
+                    ></i>
+                  </div>
+                  <span class="text-sm font-medium">LakeB2B</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="champions"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
+                    <i data-lucide="trophy" class="w-4 h-4 text-yellow-400"></i>
+                  </div>
+                  <span class="text-sm font-medium">Champions</span>
+                </div>
+              </label>
+              <label class="relative">
+                <input
+                  type="radio"
+                  name="logo-preset"
+                  value="ampliz"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div
+                    class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                  >
+                    <i data-lucide="zap" class="w-4 h-4 text-purple-400"></i>
+                  </div>
+                  <span class="text-sm font-medium">Ampliz</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Process Button -->
+          <button
+            id="process-btn"
+            class="w-full bg-orange-600 hover:bg-orange-500 text-white px-6 py-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i data-lucide="eraser" class="w-5 h-5"></i>
+            Remove Watermark
+          </button>
+        </div>
+
+        <!-- Processing Status -->
+        <div id="processing-status" class="hidden mt-6">
+          <div class="bg-gray-900 rounded-lg p-6 border border-gray-700">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="solid-spinner"></div>
+              <div>
+                <p id="status-text" class="text-white font-medium">
+                  Processing PDF...
+                </p>
+                <p id="status-detail" class="text-gray-400 text-sm">
+                  Removing watermarks
+                </p>
+              </div>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-2">
+              <div
+                id="progress-bar"
+                class="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                style="width: 0%"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download Section -->
+        <div id="download-section" class="hidden mt-6">
+          <div class="bg-green-900/30 border border-green-700 rounded-lg p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <i data-lucide="check-circle" class="w-8 h-8 text-green-400"></i>
+              <div>
+                <p class="text-green-300 font-medium">Watermark Removed!</p>
+                <p class="text-green-400/80 text-sm">
+                  Your PDF is ready for download
+                </p>
+              </div>
+            </div>
+            <button
+              id="download-btn"
+              class="w-full bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <i data-lucide="download" class="w-5 h-5"></i>
+              Download PDF
+            </button>
+            <button
+              id="process-another-btn"
+              class="w-full mt-3 text-gray-400 hover:text-white transition-colors text-sm"
+            >
+              Process Another PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- Error Section -->
+        <div id="error-section" class="hidden mt-6">
+          <div class="bg-red-900/30 border border-red-700 rounded-lg p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <i data-lucide="alert-circle" class="w-8 h-8 text-red-400"></i>
+              <div>
+                <p class="text-red-300 font-medium">Processing Failed</p>
+                <p id="error-message" class="text-red-400/80 text-sm">
+                  An error occurred while processing your PDF.
+                </p>
+              </div>
+            </div>
+            <button
+              id="try-again-btn"
+              class="w-full bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- Loader Modal -->
     <div
       id="loader-modal"
       class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
@@ -283,6 +579,13 @@
       </div>
     </div>
 
+        <p id="loader-text" class="text-white text-lg font-medium">
+          Processing...
+        </p>
+      </div>
+    </div>
+
+    <!-- Alert Modal -->
     <div
       id="alert-modal"
       class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 hidden"
@@ -295,6 +598,7 @@
           class="text-xl font-bold text-white mb-2"
           data-i18n="alert.title"
         >
+        <h3 id="alert-title" class="text-xl font-bold text-white mb-2">
           Alert
         </h3>
         <p id="alert-message" class="text-gray-300 mb-6"></p>
@@ -316,6 +620,7 @@
         <div class="flex items-start gap-4">
           <div
             class="flex-shrink-0 w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold"
+            class="flex-shrink-0 w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold"
           >
             1
           </div>
@@ -323,29 +628,44 @@
             <h3 class="text-lg font-semibold text-white mb-1">Upload PDF</h3>
             <p class="text-gray-400">
               Click or drag and drop your PDF file to begin
+              Select or drag and drop your PDF with watermarks
             </p>
           </div>
         </div>
         <div class="flex items-start gap-4">
           <div
             class="flex-shrink-0 w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold"
+            class="flex-shrink-0 w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold"
           >
             2
           </div>
           <div class="flex-1">
             <h3 class="text-lg font-semibold text-white mb-1">Select Watermarks</h3>
             <p class="text-gray-400">Drag to draw rectangles around watermark areas on each page</p>
+            <h3 class="text-lg font-semibold text-white mb-1">
+              Choose Options
+            </h3>
+            <p class="text-gray-400">
+              Select watermark location, removal method, and optional logo
+              replacement
+            </p>
           </div>
         </div>
         <div class="flex items-start gap-4">
           <div
             class="flex-shrink-0 w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold"
+            class="flex-shrink-0 w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold"
           >
             3
           </div>
           <div class="flex-1">
             <h3 class="text-lg font-semibold text-white mb-1">Remove & Download</h3>
             <p class="text-gray-400">AI-powered inpainting removes watermarks smoothly, then download your clean PDF</p>
+            <h3 class="text-lg font-semibold text-white mb-1">Download</h3>
+            <p class="text-gray-400">
+              Get your watermark-free PDF instantly - processed entirely in your
+              browser
+            </p>
           </div>
         </div>
       </div>
@@ -418,6 +738,14 @@
           <p class="mt-3 text-gray-400">
             Yes! ChamPDF is 100% free with no hidden fees, no signup required,
             and unlimited file processing.
+            What types of watermarks can this remove?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            This tool is optimized for corner watermarks like those from
+            NotebookLM and similar AI tools. Quick mode removes annotation-based
+            overlays, while Deep mode redacts content in the specified corner
+            region.
           </p>
         </details>
         <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
@@ -429,6 +757,13 @@
           </summary>
           <p class="mt-3 text-gray-400">
             We use AI-powered content-aware inpainting algorithms (Telea and Navier-Stokes) to intelligently fill in the removed watermark areas, creating a seamless result instead of blocky white rectangles.
+            Is my PDF uploaded to a server?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            No! All processing happens directly in your browser using
+            WebAssembly. Your PDF never leaves your device, ensuring complete
+            privacy.
           </p>
         </details>
         <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
@@ -441,6 +776,14 @@
           <p class="mt-3 text-gray-400">
             Absolutely! All processing happens in your browser using OpenCV.js. Your files never
             leave your device, ensuring complete privacy.
+            What's the difference between Quick and Deep mode?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            Quick mode removes annotations, form fields, and overlay-type
+            watermarks. It's fast and safe. Deep mode uses content redaction to
+            remove graphic watermarks embedded in the PDF content stream, which
+            is more thorough but takes longer.
           </p>
         </details>
         <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
@@ -452,10 +795,18 @@
           </summary>
           <p class="mt-3 text-gray-400">
             Yes! Navigate through pages, select watermark regions on each page, and our tool will process all pages with watermark removals.
+            Can I add my own logo after removing the watermark?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            Yes! You can optionally replace the removed watermark with a company
+            logo (LakeB2B, Champions, or Ampliz). The logo will be placed in the
+            same corner where the watermark was removed.
           </p>
         </details>
       </div>
     </section>
+
     {{> footer }}
     <script type="module" src="/src/js/utils/lucide-init.ts"></script>
     <script type="module" src="/src/js/utils/full-width.ts"></script>

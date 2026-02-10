@@ -76,7 +76,10 @@ export const downloadFile = (blob: Blob, filename: string): void => {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // Delay revocation to ensure browser handles the download stream
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
 };
 
 export const readFileAsArrayBuffer = (file: any) => {
