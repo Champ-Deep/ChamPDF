@@ -1,29 +1,3 @@
-import { createIcons, icons } from 'lucide';
-import { showAlert, showLoader, hideLoader } from '../ui.js';
-import { downloadFile, formatBytes } from '../utils/helpers.js';
-import { PDFDocument as PDFLibDocument } from 'pdf-lib';
-import { RemoveWatermarkState, WatermarkRegion, InpaintingOptions } from '@/types';
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-
-const pageState: RemoveWatermarkState = {
-  file: null,
-  pdfDoc: null,
-  currentPage: 1,
-  totalPages: 0,
-  scale: 1.5,
-  regions: [],
-  isDrawing: false,
-  startX: 0,
-  startY: 0,
-  canvas: null,
-  ctx: null,
-};
-
-let pdfJsDoc: any = null;
-let currentRect: WatermarkRegion | null = null;
 /**
  * PDF Watermark Remover - Remove watermarks from PDFs and optionally replace with logo
  *
@@ -107,7 +81,11 @@ function initializePage() {
     });
   }
 
-  if (backBtn) backBtn.addEventListener('click', () => (window.location.href = import.meta.env.BASE_URL));
+  if (backBtn)
+    backBtn.addEventListener(
+      'click',
+      () => (window.location.href = import.meta.env.BASE_URL)
+    );
   if (processBtn) processBtn.addEventListener('click', removeWatermarks);
   if (prevPageBtn) prevPageBtn.addEventListener('click', () => changePage(-1));
   if (nextPageBtn) nextPageBtn.addEventListener('click', () => changePage(1));
@@ -161,7 +139,8 @@ function updateFileDisplay() {
 
   fileDisplayArea.innerHTML = '';
   const fileDiv = document.createElement('div');
-  fileDiv.className = 'flex items-center justify-between bg-gray-700 p-3 rounded-lg';
+  fileDiv.className =
+    'flex items-center justify-between bg-gray-700 p-3 rounded-lg';
 
   // File input handler
   fileInput?.addEventListener('change', handleFileSelect);
@@ -307,7 +286,8 @@ function resetState() {
 
   if (pageState.canvas) {
     const ctx = pageState.canvas.getContext('2d');
-    if (ctx) ctx.clearRect(0, 0, pageState.canvas.width, pageState.canvas.height);
+    if (ctx)
+      ctx.clearRect(0, 0, pageState.canvas.width, pageState.canvas.height);
   }
 }
 
@@ -334,7 +314,8 @@ async function renderPage(pageNum: number) {
 
   // Update page info
   const pageInfo = document.getElementById('page-info');
-  if (pageInfo) pageInfo.textContent = `Page ${pageNum} of ${pageState.totalPages}`;
+  if (pageInfo)
+    pageInfo.textContent = `Page ${pageNum} of ${pageState.totalPages}`;
 
   // Update navigation buttons
   const prevBtn = document.getElementById('prev-page') as HTMLButtonElement;
@@ -416,16 +397,28 @@ function drawCurrentSelection() {
   pageState.ctx.strokeStyle = '#ef4444';
   pageState.ctx.lineWidth = 2;
   pageState.ctx.setLineDash([5, 5]);
-  pageState.ctx.strokeRect(currentRect.x, currentRect.y, currentRect.width, currentRect.height);
+  pageState.ctx.strokeRect(
+    currentRect.x,
+    currentRect.y,
+    currentRect.width,
+    currentRect.height
+  );
   pageState.ctx.fillStyle = 'rgba(239, 68, 68, 0.1)';
-  pageState.ctx.fillRect(currentRect.x, currentRect.y, currentRect.width, currentRect.height);
+  pageState.ctx.fillRect(
+    currentRect.x,
+    currentRect.y,
+    currentRect.width,
+    currentRect.height
+  );
   pageState.ctx.setLineDash([]);
 }
 
 function drawSelections() {
   if (!pageState.ctx) return;
 
-  const currentPageRegions = pageState.regions.filter((r) => r.pageIndex === pageState.currentPage - 1);
+  const currentPageRegions = pageState.regions.filter(
+    (r) => r.pageIndex === pageState.currentPage - 1
+  );
 
   currentPageRegions.forEach((region) => {
     pageState.ctx!.strokeStyle = '#ef4444';
@@ -441,7 +434,9 @@ function updateSelectionInfo() {
   if (!infoDiv) return;
 
   const count = pageState.regions.length;
-  const currentPageCount = pageState.regions.filter((r) => r.pageIndex === pageState.currentPage - 1).length;
+  const currentPageCount = pageState.regions.filter(
+    (r) => r.pageIndex === pageState.currentPage - 1
+  ).length;
 
   infoDiv.innerHTML = `
     <span class="text-sm text-gray-400">
@@ -473,7 +468,9 @@ function undoLastSelection() {
 }
 
 function setupSettings() {
-  const radiusSlider = document.getElementById('inpainting-radius') as HTMLInputElement;
+  const radiusSlider = document.getElementById(
+    'inpainting-radius'
+  ) as HTMLInputElement;
   const radiusValue = document.getElementById('radius-value');
 
   radiusSlider?.addEventListener('input', () => {
@@ -483,7 +480,10 @@ function setupSettings() {
 
 async function removeWatermarks() {
   if (!pageState.pdfDoc || pageState.regions.length === 0) {
-    showAlert('Error', 'Please select at least one watermark region to remove.');
+    showAlert(
+      'Error',
+      'Please select at least one watermark region to remove.'
+    );
     return;
   }
 
@@ -494,8 +494,12 @@ async function removeWatermarks() {
     // Load OpenCV.js dynamically
     await loadOpenCV();
 
-    const method = (document.getElementById('inpainting-method') as HTMLSelectElement).value as 'telea' | 'ns';
-    const radius = parseInt((document.getElementById('inpainting-radius') as HTMLInputElement).value);
+    const method = (
+      document.getElementById('inpainting-method') as HTMLSelectElement
+    ).value as 'telea' | 'ns';
+    const radius = parseInt(
+      (document.getElementById('inpainting-radius') as HTMLInputElement).value
+    );
 
     const options: InpaintingOptions = { method, radius };
 
@@ -510,8 +514,16 @@ async function removeWatermarks() {
         loaderProgress.textContent = `Processing page ${pageIndex + 1} of ${pageState.totalPages}...`;
       }
 
-      const pageRegions = pageState.regions.filter((r) => r.pageIndex === pageIndex);
-      await processPageWithInpainting(pdfJsDoc, pdfLibDoc, pageIndex, pageRegions, options);
+      const pageRegions = pageState.regions.filter(
+        (r) => r.pageIndex === pageIndex
+      );
+      await processPageWithInpainting(
+        pdfJsDoc,
+        pdfLibDoc,
+        pageIndex,
+        pageRegions,
+        options
+      );
       processedCount++;
     }
 
@@ -520,12 +532,20 @@ async function removeWatermarks() {
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     downloadFile(blob, 'watermark-removed.pdf');
 
-    showAlert('Success', `Watermarks removed successfully from ${processedCount} page${processedCount !== 1 ? 's' : ''}!`, 'success', () => {
-      resetState();
-    });
+    showAlert(
+      'Success',
+      `Watermarks removed successfully from ${processedCount} page${processedCount !== 1 ? 's' : ''}!`,
+      'success',
+      () => {
+        resetState();
+      }
+    );
   } catch (error: any) {
     console.error(error);
-    showAlert('Error', error.message || 'Failed to remove watermarks. Please try again.');
+    showAlert(
+      'Error',
+      error.message || 'Failed to remove watermarks. Please try again.'
+    );
   } finally {
     hideLoader();
   }
@@ -586,7 +606,12 @@ async function processPageWithInpainting(
   }).promise;
 
   // Convert to OpenCV Mat
-  const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+  const imgData = tempCtx.getImageData(
+    0,
+    0,
+    tempCanvas.width,
+    tempCanvas.height
+  );
   const src = cv.matFromImageData(imgData);
 
   // Create mask
@@ -601,12 +626,19 @@ async function processPageWithInpainting(
     const scaledHeight = Math.floor(region.height * scaleRatio);
 
     const rect = new cv.Rect(scaledX, scaledY, scaledWidth, scaledHeight);
-    cv.rectangle(mask, rect.tl(), rect.br(), new cv.Scalar(255, 255, 255, 255), -1);
+    cv.rectangle(
+      mask,
+      rect.tl(),
+      rect.br(),
+      new cv.Scalar(255, 255, 255, 255),
+      -1
+    );
   });
 
   // Apply inpainting
   const dst = new cv.Mat();
-  const inpaintFlag = options.method === 'telea' ? cv.INPAINT_TELEA : cv.INPAINT_NS;
+  const inpaintFlag =
+    options.method === 'telea' ? cv.INPAINT_TELEA : cv.INPAINT_NS;
   cv.inpaint(src, mask, dst, options.radius, inpaintFlag);
 
   // Convert back to canvas
@@ -642,6 +674,8 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
+}
+
 function showOptionsSection() {
   document.getElementById('options-section')?.classList.remove('hidden');
   document.getElementById('download-section')?.classList.add('hidden');

@@ -1,4 +1,4 @@
-import { categories } from './config/tools.js';
+import { categories, type Tool } from './config/tools.js';
 import { dom, switchView, hideAlert } from './ui.js';
 import { ShortcutsManager } from './logic/shortcuts.js';
 import { createIcons, icons } from 'lucide';
@@ -81,7 +81,10 @@ const init = async () => {
     'Remove Background': 'tools:removeBg',
     'Video Logo Remover': 'tools:videoRebrander',
     'Image Watermark Remover': 'tools:imageWatermarkRemover',
-    'PDF Watermark Remover': 'tools:removeWatermark',
+    'Remove Watermark': 'tools:removeWatermark',
+    'Replace Logo': 'tools:replaceLogo',
+    'Extract Pages': 'tools:extractPages',
+    'PDF Watermark Remover': 'tools:pdfWatermarkRemover',
     'Images to PDF': 'tools:imageToPdf',
     'PDF to JPG': 'tools:pdfToJpg',
     'PDF to PNG': 'tools:pdfToPng',
@@ -218,6 +221,11 @@ const init = async () => {
           toolCard.appendChild(toolSubtitle);
         }
 
+        // Store search tags as a hidden data attribute for search
+        if (tool.tags && tool.tags.length > 0) {
+          (toolCard as HTMLElement).dataset.searchTags = tool.tags.join(' ');
+        }
+
         toolsContainer.appendChild(toolCard);
       });
 
@@ -284,6 +292,9 @@ const init = async () => {
           const toolSubtitle = (
             card.querySelector('p')?.textContent || ''
           ).toLowerCase();
+          const toolTags = (
+            (card as HTMLElement).dataset.searchTags || ''
+          ).toLowerCase();
           const toolHref =
             (card as HTMLAnchorElement).href ||
             (card as HTMLElement).dataset.toolId ||
@@ -293,7 +304,9 @@ const init = async () => {
             toolHref.split('/').pop()?.replace('.html', '') || toolName;
 
           const isMatch =
-            toolName.includes(searchTerm) || toolSubtitle.includes(searchTerm);
+            toolName.includes(searchTerm) ||
+            toolSubtitle.includes(searchTerm) ||
+            toolTags.includes(searchTerm);
           const isDuplicate = seenToolIds.has(toolId);
 
           if (isMatch && !isDuplicate) {
