@@ -193,6 +193,10 @@ const init = async () => {
           toolCard.dataset.toolId = getToolId(tool);
         }
 
+        if (tool.keywords) {
+          toolCard.dataset.keywords = tool.keywords.join(',').toLowerCase();
+        }
+
         const icon = document.createElement('i');
         icon.className = 'w-10 h-10 mb-3 text-orange-400';
 
@@ -292,8 +296,13 @@ const init = async () => {
           const toolId =
             toolHref.split('/').pop()?.replace('.html', '') || toolName;
 
+          const toolKeywords = (card as HTMLElement).dataset.keywords || '';
+
           const isMatch =
-            toolName.includes(searchTerm) || toolSubtitle.includes(searchTerm);
+            toolName.includes(searchTerm) ||
+            toolSubtitle.includes(searchTerm) ||
+            toolKeywords.includes(searchTerm);
+
           const isDuplicate = seenToolIds.has(toolId);
 
           if (isMatch && !isDuplicate) {

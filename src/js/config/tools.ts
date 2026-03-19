@@ -11,6 +11,7 @@ export const categories = [
         icon: 'ph-pencil-ruler',
         subtitle:
           'Merge, Split, Organize, Delete, Rotate, Extract and Duplicate in one interface.',
+        keywords: ['multiple', 'all', 'everything', 'swiss army knife'],
       },
       {
         href: B + 'merge-pdf.html',
@@ -70,24 +71,28 @@ export const categories = [
         name: 'Remove Background',
         icon: 'ph-magic-wand',
         subtitle: 'Instantly remove backgrounds from images using AI.',
+        keywords: ['transparent', 'cutout', 'bg', 'erase', 'photo'],
       },
       {
         href: B + 'video-rebrander.html',
         name: 'Video Logo Remover',
         icon: 'ph-video',
         subtitle: 'Remove watermarks and rebrand videos with your logo.',
+        keywords: ['mp4', 'movie', 'clean', 'erase', 'watermark'],
       },
       {
         href: B + 'remove-image-watermark.html',
         name: 'Image Watermark Remover',
         icon: 'ph-image',
         subtitle: 'Remove watermarks from images (JPG, PNG).',
+        keywords: ['clean', 'photo', 'picture', 'erase', 'logo'],
       },
       {
         href: B + 'remove-watermark.html',
         name: 'PDF Watermark Remover',
         icon: 'ph-eraser',
         subtitle: 'Remove watermarks with AI-powered smooth inpainting.',
+        keywords: ['clean', 'document', 'erase', 'logo', 'remove'],
       },
       {
         href: B + 'replace-logo.html',
@@ -100,18 +105,21 @@ export const categories = [
         name: 'Images to PDF',
         icon: 'ph-images',
         subtitle: 'Convert JPG, PNG, WebP, SVG, and more to PDF.',
+        keywords: ['convert', 'photo', 'picture', 'jpg', 'jpeg', 'png'],
       },
       {
         href: B + 'pdf-to-jpg.html',
         name: 'PDF to JPG',
         icon: 'ph-file-image',
         subtitle: 'Convert PDF pages into JPG images.',
+        keywords: ['convert', 'image', 'picture', 'jpeg', 'extract'],
       },
       {
         href: B + 'pdf-to-png.html',
         name: 'PDF to PNG',
         icon: 'ph-file-image',
         subtitle: 'Convert PDF pages into high-quality PNG images.',
+        keywords: ['convert', 'image', 'picture', 'extract', 'transparent'],
       },
       {
         href: B + 'extract-images.html',
