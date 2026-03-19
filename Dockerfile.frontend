@@ -18,8 +18,12 @@ COPY vendor ./vendor
 # Disable Husky hooks in Docker (not needed for build)
 ENV HUSKY=0
 
-# Install dependencies
-RUN npm ci --only=production=false
+# Install dependencies with retry logic for Railway builds
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 60000 && \
+    npm config set fetch-retry-maxtimeout 300000 && \
+    npm config set fetch-timeout 600000 && \
+    npm ci
 
 # Copy source files
 COPY . .
