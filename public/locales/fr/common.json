@@ -6,7 +6,11 @@
     "licensing": "Licence",
     "allTools": "Tous les outils",
     "openMainMenu": "Ouvrir le menu principal",
-    "language": "Langue"
+    "language": "Langue",
+    "documents": "Documents",
+    "images": "Images",
+    "video": "Vidéo",
+    "viewAll": "Voir tout"
   },
   "donation": {
     "message": "Vous aimez ChamPDF ? Aidez-nous à le garder open source !",

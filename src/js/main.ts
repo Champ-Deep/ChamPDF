@@ -69,6 +69,9 @@ const init = async () => {
     'Security & Privacy': 'tools:categories.securityPrivacy',
     'Document Converters': 'tools:categories.documentConverters',
     'Optimize & Repair': 'tools:categories.optimizeRepair',
+    'Image to PDF Converters': 'tools:categories.imageToPdfConverters',
+    'Office to PDF Converters': 'tools:categories.officeToPdfConverters',
+    'Forms & Data': 'tools:categories.formsData',
   };
 
   const toolTranslationKeys: Record<string, string> = {
@@ -238,7 +241,10 @@ const init = async () => {
     initMagneticCursor('.btn-gradient');
     initRippleEffect('.tool-card');
 
-    const searchBar = document.getElementById('search-bar');
+    const searchBar = document.getElementById(
+      'search-bar'
+    ) as HTMLInputElement | null;
+    const categoryNavEl = document.getElementById('category-nav');
     const categoryGroups = dom.toolGrid.querySelectorAll('.category-group');
 
     const searchResultsContainer = document.createElement('div');
@@ -247,68 +253,80 @@ const init = async () => {
       'hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 col-span-full';
     dom.toolGrid.insertBefore(searchResultsContainer, dom.toolGrid.firstChild);
 
-    searchBar.addEventListener('input', () => {
-      // @ts-expect-error TS(2339) FIXME: Property 'value' does not exist on type 'HTMLEleme... Remove this comment to see the full error message
-      const searchTerm = searchBar.value.toLowerCase().trim();
+    if (searchBar) {
+      searchBar.addEventListener('input', () => {
+        const searchTerm = searchBar.value.toLowerCase().trim();
 
-      if (!searchTerm) {
-        searchResultsContainer.classList.add('hidden');
-        searchResultsContainer.innerHTML = '';
+        if (!searchTerm) {
+          searchResultsContainer.classList.add('hidden');
+          searchResultsContainer.innerHTML = '';
+          categoryNavEl?.classList.remove('hidden');
+          categoryGroups.forEach((group) => {
+            (group as HTMLElement).style.display = '';
+            const toolCards = group.querySelectorAll('.tool-card');
+            toolCards.forEach((card) => {
+              (card as HTMLElement).style.display = '';
+            });
+          });
+          return;
+        }
+
+        categoryNavEl?.classList.add('hidden');
         categoryGroups.forEach((group) => {
-          (group as HTMLElement).style.display = '';
-          const toolCards = group.querySelectorAll('.tool-card');
+          (group as HTMLElement).style.display = 'none';
+        });
+
+        searchResultsContainer.innerHTML = '';
+        searchResultsContainer.classList.remove('hidden');
+
+        const seenToolIds = new Set<string>();
+        const allTools: HTMLElement[] = [];
+
+        categoryGroups.forEach((group) => {
+          const toolCards = Array.from(group.querySelectorAll('.tool-card'));
+
           toolCards.forEach((card) => {
-            (card as HTMLElement).style.display = '';
+            const toolName = (
+              card.querySelector('h3')?.textContent || ''
+            ).toLowerCase();
+            const toolSubtitle = (
+              card.querySelector('p')?.textContent || ''
+            ).toLowerCase();
+            const toolHref =
+              (card as HTMLAnchorElement).href ||
+              (card as HTMLElement).dataset.toolId ||
+              '';
+
+            const toolId =
+              toolHref.split('/').pop()?.replace('.html', '') || toolName;
+
+            const isMatch =
+              toolName.includes(searchTerm) ||
+              toolSubtitle.includes(searchTerm);
+            const isDuplicate = seenToolIds.has(toolId);
+
+            if (isMatch && !isDuplicate) {
+              seenToolIds.add(toolId);
+              allTools.push(card.cloneNode(true) as HTMLElement);
+            }
           });
         });
-        return;
-      }
 
-      categoryGroups.forEach((group) => {
-        (group as HTMLElement).style.display = 'none';
+        if (allTools.length === 0) {
+          const emptyMsg = document.createElement('p');
+          emptyMsg.className =
+            'col-span-full text-center text-gray-400 py-16 text-lg';
+          emptyMsg.textContent = `No tools found for "${searchTerm}"`;
+          searchResultsContainer.appendChild(emptyMsg);
+        } else {
+          allTools.forEach((tool) => {
+            searchResultsContainer.appendChild(tool);
+          });
+        }
+
+        createIcons({ icons });
       });
-
-      searchResultsContainer.innerHTML = '';
-      searchResultsContainer.classList.remove('hidden');
-
-      const seenToolIds = new Set<string>();
-      const allTools: HTMLElement[] = [];
-
-      categoryGroups.forEach((group) => {
-        const toolCards = Array.from(group.querySelectorAll('.tool-card'));
-
-        toolCards.forEach((card) => {
-          const toolName = (
-            card.querySelector('h3')?.textContent || ''
-          ).toLowerCase();
-          const toolSubtitle = (
-            card.querySelector('p')?.textContent || ''
-          ).toLowerCase();
-          const toolHref =
-            (card as HTMLAnchorElement).href ||
-            (card as HTMLElement).dataset.toolId ||
-            '';
-
-          const toolId =
-            toolHref.split('/').pop()?.replace('.html', '') || toolName;
-
-          const isMatch =
-            toolName.includes(searchTerm) || toolSubtitle.includes(searchTerm);
-          const isDuplicate = seenToolIds.has(toolId);
-
-          if (isMatch && !isDuplicate) {
-            seenToolIds.add(toolId);
-            allTools.push(card.cloneNode(true) as HTMLElement);
-          }
-        });
-      });
-
-      allTools.forEach((tool) => {
-        searchResultsContainer.appendChild(tool);
-      });
-
-      createIcons({ icons });
-    });
+    }
 
     window.addEventListener('keydown', function (e) {
       const key = e.key.toLowerCase();
@@ -316,7 +334,7 @@ const init = async () => {
       const isCtrlK = e.ctrlKey && key === 'k';
       const isCmdK = isMac && e.metaKey && key === 'k';
 
-      if (isCtrlK || isCmdK) {
+      if ((isCtrlK || isCmdK) && searchBar) {
         e.preventDefault();
         searchBar.focus();
       }

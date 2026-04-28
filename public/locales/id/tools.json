@@ -7,7 +7,10 @@
     "convertFromPdf": "Konversi dari PDF",
     "organizeManage": "Atur & Kelola",
     "optimizeRepair": "Optimalkan & Perbaiki",
-    "securePdf": "Amankan PDF"
+    "securePdf": "Amankan PDF",
+    "imageToPdfConverters": "Gambar ke PDF",
+    "officeToPdfConverters": "Office ke PDF",
+    "formsData": "Formulir & Data"
   },
   "pdfMultiTool": {
     "name": "Alat Multi PDF",

@@ -6,7 +6,11 @@
     "licensing": "Lisensi",
     "allTools": "Semua Alat",
     "openMainMenu": "Buka menu utama",
-    "language": "Bahasa"
+    "language": "Bahasa",
+    "documents": "Dokumen",
+    "images": "Gambar",
+    "video": "Video",
+    "viewAll": "Lihat semua"
   },
   "donation": {
     "message": "Suka ChamPDF? Bantu kami menjaganya tetap gratis dan sumber terbuka!",

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video Tools - Remove Watermarks & Rebrand Videos | ChamPDF</title>
+    <meta
+      name="description"
+      content="Video editing tools: remove logos and watermarks from videos, rebrand with your own logo, and more coming soon. Free, in-browser."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://www.champdf.com/video.html" />
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link href="/src/css/styles.css" rel="stylesheet" />
+    <link rel="manifest" href="/site.webmanifest" />
+  </head>
+  <body
+    data-pillar="video"
+    class="bg-gray-900 text-white min-h-screen flex flex-col"
+  >
+    {{> navbar}}
+
+    <main class="flex-1">
+      <!-- Pillar hero -->
+      <div class="bg-gray-800 border-b border-gray-700">
+        <div class="container mx-auto px-4 py-10 text-center">
+          <div
+            class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-orange-600 mb-4"
+          >
+            <i class="ph ph-video text-3xl text-white"></i>
+          </div>
+          <h1 class="text-3xl md:text-4xl font-bold text-white mb-3">
+            Video Tools
+          </h1>
+          <p class="text-gray-400 text-lg max-w-2xl mx-auto">
+            Remove watermarks, swap logos, and rebrand videos. More video
+            editing tools are on the way.
+          </p>
+        </div>
+      </div>
+
+      <div class="container mx-auto px-4 py-6">
+        <!-- Search bar -->
+        <div class="relative max-w-xl mx-auto mb-6">
+          <input
+            id="search-bar"
+            type="text"
+            placeholder="Search video tools…"
+            class="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 pl-10 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+          />
+          <i
+            class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-lg"
+          ></i>
+        </div>
+
+        <!-- Category nav -->
+        <div
+          id="category-nav"
+          class="sticky top-16 z-20 bg-gray-900 py-3 mb-6 -mx-4 px-4 border-b border-gray-800"
+        >
+          <div class="flex gap-2 overflow-x-auto scrollbar-hide pb-1"></div>
+        </div>
+
+        <!-- Tool grid — live tools injected by hub-page.ts -->
+        <div
+          id="tool-grid"
+          class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6"
+        ></div>
+
+        <!-- Coming soon section -->
+        <div class="mt-12">
+          <h2
+            class="text-xl font-bold text-gray-500 mb-4 mt-8 uppercase tracking-wider text-sm"
+          >
+            Coming Soon
+          </h2>
+          <div
+            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6"
+          >
+            <div
+              class="tool-card bg-gray-800 opacity-50 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-not-allowed select-none"
+            >
+              <i class="ph ph-scissors text-4xl mb-3 text-gray-500"></i>
+              <h3 class="font-semibold text-gray-500">Trim Video</h3>
+              <p class="text-xs text-gray-600 mt-1">Cut and trim video clips</p>
+            </div>
+
+            <div
+              class="tool-card bg-gray-800 opacity-50 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-not-allowed select-none"
+            >
+              <i class="ph ph-lightning text-4xl mb-3 text-gray-500"></i>
+              <h3 class="font-semibold text-gray-500">Compress Video</h3>
+              <p class="text-xs text-gray-600 mt-1">Reduce video file size</p>
+            </div>
+
+            <div
+              class="tool-card bg-gray-800 opacity-50 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-not-allowed select-none"
+            >
+              <i class="ph ph-subtitles text-4xl mb-3 text-gray-500"></i>
+              <h3 class="font-semibold text-gray-500">Add Captions</h3>
+              <p class="text-xs text-gray-600 mt-1">
+                Auto-generate and embed captions
+              </p>
+            </div>
+
+            <div
+              class="tool-card bg-gray-800 opacity-50 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-not-allowed select-none"
+            >
+              <i
+                class="ph ph-arrows-left-right text-4xl mb-3 text-gray-500"
+              ></i>
+              <h3 class="font-semibold text-gray-500">Convert Format</h3>
+              <p class="text-xs text-gray-600 mt-1">
+                Convert between video formats
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    {{> footer}}
+
+    <script type="module" src="/src/js/logic/hub-page.ts"></script>
+    <script type="module" src="/src/js/mobileMenu.ts"></script>
+  </body>
+</html>

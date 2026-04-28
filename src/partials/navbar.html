@@ -17,7 +17,73 @@
       </div>
 
       <!-- Desktop Navigation -->
-      <div class="hidden md:flex items-center space-x-8">
+      <div class="hidden md:flex items-center space-x-1">
+        <!-- Documents pillar -->
+        <div class="pillar-dropdown-wrapper relative">
+          <button
+            class="pillar-nav-btn nav-link flex items-center gap-1.5"
+            data-pillar="documents"
+            aria-expanded="false"
+            aria-haspopup="true"
+          >
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            <span class="hidden lg:inline" data-i18n="nav.documents"
+              >Documents</span
+            >
+            <i
+              data-lucide="chevron-down"
+              class="w-3 h-3 opacity-60 pillar-chevron-icon transition-transform duration-200"
+            ></i>
+          </button>
+          <div class="mega-menu" id="mega-menu-documents" role="menu">
+            <!-- Populated by mobileMenu.ts -->
+          </div>
+        </div>
+
+        <!-- Images pillar -->
+        <div class="pillar-dropdown-wrapper relative">
+          <button
+            class="pillar-nav-btn nav-link flex items-center gap-1.5"
+            data-pillar="images"
+            aria-expanded="false"
+            aria-haspopup="true"
+          >
+            <i data-lucide="image" class="w-4 h-4"></i>
+            <span class="hidden lg:inline" data-i18n="nav.images">Images</span>
+            <i
+              data-lucide="chevron-down"
+              class="w-3 h-3 opacity-60 pillar-chevron-icon transition-transform duration-200"
+            ></i>
+          </button>
+          <div class="mega-menu" id="mega-menu-images" role="menu">
+            <!-- Populated by mobileMenu.ts -->
+          </div>
+        </div>
+
+        <!-- Video pillar -->
+        <div class="pillar-dropdown-wrapper relative">
+          <button
+            class="pillar-nav-btn nav-link flex items-center gap-1.5"
+            data-pillar="video"
+            aria-expanded="false"
+            aria-haspopup="true"
+          >
+            <i data-lucide="video" class="w-4 h-4"></i>
+            <span class="hidden lg:inline" data-i18n="nav.video">Video</span>
+            <i
+              data-lucide="chevron-down"
+              class="w-3 h-3 opacity-60 pillar-chevron-icon transition-transform duration-200"
+            ></i>
+          </button>
+          <div class="mega-menu" id="mega-menu-video" role="menu">
+            <!-- Populated by mobileMenu.ts -->
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="w-px h-5 bg-gray-600 mx-2"></div>
+
+        <!-- Signatures -->
         <button
           id="open-signatures-btn"
           class="nav-link flex items-center gap-1.5"
@@ -29,7 +95,6 @@
 
         <!-- User Account Area -->
         <div id="user-account-area" class="flex items-center">
-          <!-- Logged out: Show login button -->
           <button
             id="login-btn"
             class="nav-link flex items-center gap-1.5"
@@ -39,7 +104,6 @@
             <span class="hidden lg:inline">Sign In</span>
           </button>
 
-          <!-- Logged in: Show avatar + dropdown (hidden by default) -->
           <div id="user-menu" class="hidden relative">
             <button
               id="user-menu-btn"
@@ -82,7 +146,6 @@
           <span class="sr-only" data-i18n="nav.openMainMenu"
             >Open main menu</span
           >
-          <!-- Hamburger Icon -->
           <svg
             id="menu-icon"
             class="block h-6 w-6"
@@ -99,7 +162,6 @@
               d="M4 6h16M4 12h16M4 18h16"
             />
           </svg>
-          <!-- Close Icon -->
           <svg
             id="close-icon"
             class="hidden h-6 w-6"
@@ -126,45 +188,114 @@
     id="mobile-menu"
     class="hidden md:hidden bg-gray-800 border-t border-gray-700"
   >
-    <div class="px-2 pt-2 pb-3 space-y-1 text-center">
-      <button
-        id="open-signatures-btn-mobile"
-        class="mobile-nav-link w-full flex items-center justify-center gap-2"
-      >
-        <i data-lucide="pen-tool" class="w-4 h-4"></i>
-        Signatures
-      </button>
-
-      <!-- Mobile User Account Area -->
-      <div
-        id="user-account-area-mobile"
-        class="mt-2 pt-2 border-t border-gray-700"
-      >
-        <!-- Logged out: Show login button -->
+    <div class="px-2 pt-2 pb-3">
+      <!-- Documents accordion -->
+      <div class="mobile-pillar-section">
         <button
-          id="login-btn-mobile"
+          class="mobile-pillar-toggle w-full flex items-center justify-between px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
+        >
+          <span class="flex items-center gap-2 text-base font-medium">
+            <i data-lucide="file-text" class="w-4 h-4 text-orange-400"></i>
+            <span data-i18n="nav.documents">Documents</span>
+          </span>
+          <i
+            data-lucide="chevron-down"
+            class="w-4 h-4 pillar-chevron transition-transform duration-200"
+          ></i>
+        </button>
+        <div
+          class="mobile-pillar-content overflow-hidden"
+          style="max-height: 0"
+        >
+          <div id="mobile-pillar-tools-documents" class="pl-4 pb-2 space-y-1">
+            <!-- Populated by mobileMenu.ts -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Images accordion -->
+      <div class="mobile-pillar-section">
+        <button
+          class="mobile-pillar-toggle w-full flex items-center justify-between px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
+        >
+          <span class="flex items-center gap-2 text-base font-medium">
+            <i data-lucide="image" class="w-4 h-4 text-orange-400"></i>
+            <span data-i18n="nav.images">Images</span>
+          </span>
+          <i
+            data-lucide="chevron-down"
+            class="w-4 h-4 pillar-chevron transition-transform duration-200"
+          ></i>
+        </button>
+        <div
+          class="mobile-pillar-content overflow-hidden"
+          style="max-height: 0"
+        >
+          <div id="mobile-pillar-tools-images" class="pl-4 pb-2 space-y-1">
+            <!-- Populated by mobileMenu.ts -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Video accordion -->
+      <div class="mobile-pillar-section">
+        <button
+          class="mobile-pillar-toggle w-full flex items-center justify-between px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
+        >
+          <span class="flex items-center gap-2 text-base font-medium">
+            <i data-lucide="video" class="w-4 h-4 text-orange-400"></i>
+            <span data-i18n="nav.video">Video</span>
+          </span>
+          <i
+            data-lucide="chevron-down"
+            class="w-4 h-4 pillar-chevron transition-transform duration-200"
+          ></i>
+        </button>
+        <div
+          class="mobile-pillar-content overflow-hidden"
+          style="max-height: 0"
+        >
+          <div id="mobile-pillar-tools-video" class="pl-4 pb-2 space-y-1">
+            <!-- Populated by mobileMenu.ts -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="border-t border-gray-700 mt-2 pt-2 space-y-1">
+        <button
+          id="open-signatures-btn-mobile"
           class="mobile-nav-link w-full flex items-center justify-center gap-2"
         >
-          <i data-lucide="log-in" class="w-4 h-4"></i>
-          Sign In
+          <i data-lucide="pen-tool" class="w-4 h-4"></i>
+          Signatures
         </button>
 
-        <!-- Logged in: Show user info (hidden by default) -->
-        <div id="user-menu-mobile" class="hidden">
-          <div class="flex items-center justify-center gap-2 py-2">
-            <div
-              class="w-8 h-8 rounded-full bg-orange-600 flex items-center justify-center text-white text-sm font-medium"
-            >
-              <span id="user-initial-mobile">?</span>
-            </div>
-          </div>
+        <div id="user-account-area-mobile">
           <button
-            id="logout-btn-mobile"
-            class="mobile-nav-link w-full flex items-center justify-center gap-2 text-red-400"
+            id="login-btn-mobile"
+            class="mobile-nav-link w-full flex items-center justify-center gap-2"
           >
-            <i data-lucide="log-out" class="w-4 h-4"></i>
-            Sign Out
+            <i data-lucide="log-in" class="w-4 h-4"></i>
+            Sign In
           </button>
+
+          <div id="user-menu-mobile" class="hidden">
+            <div class="flex items-center justify-center gap-2 py-2">
+              <div
+                class="w-8 h-8 rounded-full bg-orange-600 flex items-center justify-center text-white text-sm font-medium"
+              >
+                <span id="user-initial-mobile">?</span>
+              </div>
+            </div>
+            <button
+              id="logout-btn-mobile"
+              class="mobile-nav-link w-full flex items-center justify-center gap-2 text-red-400"
+            >
+              <i data-lucide="log-out" class="w-4 h-4"></i>
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
     </div>
