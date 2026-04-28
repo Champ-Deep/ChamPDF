@@ -81,6 +81,13 @@ export const categories = [
         keywords: ['mp4', 'movie', 'clean', 'erase', 'watermark'],
       },
       {
+        href: B + 'video-downloader.html',
+        name: 'Video Downloader',
+        icon: 'ph-download-simple',
+        subtitle:
+          'Download YouTube or Instagram videos as MP4 or extract MP3 audio.',
+      },
+      {
         href: B + 'remove-image-watermark.html',
         name: 'Image Watermark Remover',
         icon: 'ph-image',

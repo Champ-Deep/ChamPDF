@@ -7,19 +7,28 @@ import uuid
 import io
 import asyncio
 import os
+import tempfile
+import time
+from collections import deque
 from pathlib import Path
-from typing import Optional
+from typing import Deque, Dict, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from pydantic import BaseModel, Field
 import aiofiles
 import logging
 
 from config import settings
 from video_processor import VideoProcessor
 from image_processor import ImageProcessor
+from media_downloader import (
+    MediaDownloadError,
+    cleanup_work_dir,
+    download_media,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +286,131 @@ async def process_video(
         # Cleanup on unexpected error
         cleanup_files(input_path, output_path)
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+# ---------------------------------------------------------------------------
+# URL → MP4/MP3 downloader
+# ---------------------------------------------------------------------------
+
+# Per-IP sliding-window rate limit for the URL downloader.
+DOWNLOAD_RATE_LIMIT = 5         # requests
+DOWNLOAD_RATE_WINDOW = 10 * 60  # seconds
+# MP3 transcode adds ~2-3 minutes for a 30-min source; MP4 muxing is faster
+# but the download itself can take longer for high-bitrate sources.
+DOWNLOAD_TIMEOUT_MP3 = 8 * 60
+DOWNLOAD_TIMEOUT_MP4 = 12 * 60
+
+_download_buckets: Dict[str, Deque[float]] = {}
+
+
+def _check_rate_limit(client_ip: str) -> None:
+    now = time.monotonic()
+    window_start = now - DOWNLOAD_RATE_WINDOW
+    bucket = _download_buckets.setdefault(client_ip, deque())
+    while bucket and bucket[0] < window_start:
+        bucket.popleft()
+    if len(bucket) >= DOWNLOAD_RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "rate_limited",
+                "message": "Too many requests. Please wait a moment.",
+            },
+        )
+    bucket.append(now)
+
+
+class DownloadRequest(BaseModel):
+    url: str = Field(min_length=1, max_length=2048)
+    format: str = Field(default="mp4")
+
+
+@app.post("/api/download-from-url")
+async def download_from_url(
+    payload: DownloadRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Download a video URL (YouTube, Instagram) as MP4 or MP3.
+    Protected by concurrency semaphore and per-IP rate limit.
+    """
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+
+    url = payload.url.strip()
+    fmt = payload.format.strip().lower()
+
+    if not (url.startswith("http://") or url.startswith("https://")):
+        return JSONResponse(
+            status_code=400,
+            content={
+                "code": "unsupported_url",
+                "message": "URL must start with http:// or https://.",
+            },
+        )
+
+    if fmt not in ("mp4", "mp3"):
+        return JSONResponse(
+            status_code=400,
+            content={
+                "code": "unsupported_url",
+                "message": "Format must be 'mp4' or 'mp3'.",
+            },
+        )
+
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        _check_rate_limit(client_ip)
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content=e.detail)
+
+    work_dir = Path(tempfile.mkdtemp(prefix="champdf_dl_", dir=settings.BASE_TEMP_DIR))
+    timeout = DOWNLOAD_TIMEOUT_MP4 if fmt == "mp4" else DOWNLOAD_TIMEOUT_MP3
+
+    try:
+        async with process_semaphore:
+            output_path, download_filename = await asyncio.wait_for(
+                download_media(url, fmt, work_dir),
+                timeout=timeout,
+            )
+
+        background_tasks.add_task(cleanup_work_dir, work_dir)
+
+        media_type = "video/mp4" if fmt == "mp4" else "audio/mpeg"
+        return FileResponse(
+            output_path,
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{download_filename}"'
+            },
+        )
+
+    except MediaDownloadError as e:
+        cleanup_work_dir(work_dir)
+        return JSONResponse(
+            status_code=e.status_code,
+            content={"code": e.code, "message": e.message},
+        )
+    except asyncio.TimeoutError:
+        cleanup_work_dir(work_dir)
+        return JSONResponse(
+            status_code=504,
+            content={
+                "code": "timeout",
+                "message": "Download took too long and was cancelled.",
+            },
+        )
+    except Exception as e:
+        logger.exception("Unexpected URL download error: %s", e)
+        cleanup_work_dir(work_dir)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": "download_failed",
+                "message": "Something went wrong. Please try again.",
+            },
+        )
 
 
 @app.delete("/api/cleanup")

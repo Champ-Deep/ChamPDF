@@ -51,8 +51,23 @@ ARG BASE_URL
 # Set this to "true" to disable Nginx listening on IPv6
 ENV DISABLE_IPV6=false
 
+# Backend URL for the /api/ reverse proxy. Override at runtime (e.g. on
+# Railway, set BACKEND_URL to the private URL of the FastAPI service).
+# When unset, /api/ requests will 502 because nothing is listening on
+# localhost:8000 inside this container.
+ENV BACKEND_URL=http://localhost:8000
+
+# Route nginx.conf through the unprivileged image's envsubst entrypoint
+# so ${BACKEND_URL} is substituted at container start. Output dir is
+# overridden so the templated file lands at /etc/nginx/nginx.conf
+# (not the default /etc/nginx/conf.d/). The filter restricts substitution
+# to BACKEND_URL only, so nginx's own $host/$uri/$remote_addr/etc.
+# variables are left untouched.
+ENV NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+ENV NGINX_ENVSUBST_FILTER=^BACKEND_URL$
+
 COPY --chown=nginx:nginx --from=builder /app/dist /usr/share/nginx/html${BASE_URL%/}
-COPY --chown=nginx:nginx nginx.conf /etc/nginx/nginx.conf
+COPY --chown=nginx:nginx nginx.conf /etc/nginx/templates/nginx.conf.template
 COPY --chown=nginx:nginx --chmod=755 nginx-ipv6.sh /docker-entrypoint.d/99-disable-ipv6.sh
 RUN mkdir -p /etc/nginx/tmp && chown -R nginx:nginx /etc/nginx/tmp
 
