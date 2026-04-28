@@ -85,20 +85,56 @@ export class AnnotationLayer {
         input?.addEventListener('mousedown', (e) => e.stopPropagation());
       }
     } else if (annotation.type === 'date') {
-      el.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-yellow-100/80 border border-yellow-400 rounded text-sm text-gray-800 px-2">${annotation.data.text || new Date().toLocaleDateString()}</div>`;
+      const dateText = annotation.data.text || new Date().toLocaleDateString();
+      el.innerHTML = `
+        <div class="w-full h-full flex items-center justify-center bg-yellow-100/80 border border-yellow-400 rounded">
+          <input type="text"
+            value="${dateText}"
+            class="w-full h-full text-center bg-transparent border-none outline-none text-gray-800 pointer-events-auto text-sm"
+          >
+        </div>
+      `;
+      const input = el.querySelector('input');
+      input?.addEventListener('input', (e) => {
+        annotation.data.text = (e.target as HTMLInputElement).value;
+        this.onUpdate(annotation);
+      });
+      input?.addEventListener('click', (e) => e.stopPropagation());
+      input?.addEventListener('mousedown', (e) => e.stopPropagation());
     } else if (annotation.type === 'text') {
-      el.innerHTML = `<div class="w-full h-full flex items-center bg-blue-100/80 border border-blue-400 rounded text-sm text-gray-800 px-2">${annotation.data.text || 'Text'}</div>`;
+      const textVal = annotation.data.text || '';
+      el.innerHTML = `
+        <div class="w-full h-full flex items-center bg-blue-100/80 border border-blue-400 rounded">
+          <textarea
+            placeholder="Type text here..."
+            class="w-full h-full p-1 bg-transparent border-none outline-none text-gray-800 pointer-events-auto resize-none text-sm leading-tight"
+          >${textVal}</textarea>
+        </div>
+      `;
+      const input = el.querySelector('textarea');
+      input?.addEventListener('input', (e) => {
+        annotation.data.text = (e.target as HTMLTextAreaElement).value;
+        this.onUpdate(annotation);
+      });
+      input?.addEventListener('click', (e) => e.stopPropagation());
+      input?.addEventListener('mousedown', (e) => e.stopPropagation());
     } else if (annotation.type === 'checkbox') {
       const checked = annotation.data.checked ? 'checked' : '';
-      el.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-white border border-gray-400 rounded">
-        <input type="checkbox" ${checked} class="w-5 h-5 pointer-events-auto cursor-pointer">
-      </div>`;
+      // We scale the checkbox relative to its container to make it match user sizing
+      el.innerHTML = `
+        <div class="w-full h-full flex items-center justify-center bg-white border border-gray-400 rounded">
+          <input type="checkbox" ${checked} class="w-full h-full pointer-events-auto cursor-pointer m-0 p-0" style="min-width: 100%; min-height: 100%;">
+        </div>
+      `;
       // Handle checkbox changes
       const checkbox = el.querySelector('input');
       checkbox?.addEventListener('change', (e) => {
         annotation.data.checked = (e.target as HTMLInputElement).checked;
         this.onUpdate(annotation);
       });
+      // Prevent drag conflicts when interacting with the checkbox
+      checkbox?.addEventListener('mousedown', (e) => e.stopPropagation());
+      checkbox?.addEventListener('click', (e) => e.stopPropagation());
     }
   }
 
@@ -112,6 +148,7 @@ export class AnnotationLayer {
     const onMouseDown = (e: MouseEvent) => {
       if ((e.target as HTMLElement).classList.contains('resize-handle')) return;
       if ((e.target as HTMLElement).tagName === 'INPUT') return;
+      if ((e.target as HTMLElement).tagName === 'TEXTAREA') return;
       isDragging = true;
       startX = e.clientX;
       startY = e.clientY;

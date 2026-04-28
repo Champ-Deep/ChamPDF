@@ -385,10 +385,16 @@ export class PDFSigner {
       } else if (annotation.type === 'date' || annotation.type === 'text') {
         const text = annotation.data.text || '';
         if (text) {
+          // Adjust font size based on bounding box
+          // For dates and texts, a simple fit can use bounding box height, or default to 12
+          const fontSize = Math.min(12, Math.max(8, h * 0.8));
           page.drawText(text, {
-            x,
-            y: y + h / 2 - 6, // Adjust for text baseline
-            size: 12,
+            x: x + 2, // Slight padding
+            y: y + (h - fontSize) / 2, // Center vertically
+            size: fontSize,
+            maxWidth: w - 4,
+            wordBreaks: [' '],
+            lineHeight: fontSize * 1.2
           });
         }
       } else if (annotation.type === 'checkbox' && annotation.data.checked) {
