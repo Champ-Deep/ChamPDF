@@ -7,7 +7,10 @@
     "convertFromPdf": "Convertir desde PDF",
     "organizeManage": "Organizar y Gestionar",
     "optimizeRepair": "Optimizar y Reparar",
-    "securePdf": "Asegurar PDF"
+    "securePdf": "Asegurar PDF",
+    "imageToPdfConverters": "Imagen a PDF",
+    "officeToPdfConverters": "Office a PDF",
+    "formsData": "Formularios y datos"
   },
   "pdfMultiTool": {
     "name": "Multiherramienta PDF",

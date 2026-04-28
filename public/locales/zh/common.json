@@ -6,7 +6,11 @@
     "licensing": "许可",
     "allTools": "所有工具",
     "openMainMenu": "打开主菜单",
-    "language": "语言"
+    "language": "语言",
+    "documents": "文档",
+    "images": "图片",
+    "video": "视频",
+    "viewAll": "查看全部"
   },
   "donation": {
     "message": "喜欢 ChamPDF？帮助我们保持免费和开源！",

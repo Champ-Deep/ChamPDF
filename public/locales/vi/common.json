@@ -6,7 +6,11 @@
     "licensing": "Giấy phép",
     "allTools": "Tất cả công cụ",
     "openMainMenu": "Mở menu chính",
-    "language": "Ngôn ngữ"
+    "language": "Ngôn ngữ",
+    "documents": "Tài liệu",
+    "images": "Hình ảnh",
+    "video": "Video",
+    "viewAll": "Xem tất cả"
   },
   "donation": {
     "message": "Bạn yêu thích ChamPDF? Hãy giúp chúng tôi giữ nó miễn phí và mã nguồn mở!",

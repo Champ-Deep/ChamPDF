@@ -6,7 +6,11 @@
     "licensing": "Lisanslama",
     "allTools": "Tüm Araçlar",
     "openMainMenu": "Ana menüyü aç",
-    "language": "Dil"
+    "language": "Dil",
+    "documents": "Belgeler",
+    "images": "Görseller",
+    "video": "Video",
+    "viewAll": "Tümünü gör"
   },
   "donation": {
     "message": "ChamPDF'i seviyor musunuz? Ücretsiz ve açık kaynaklı kalmasına yardımcı olun!",

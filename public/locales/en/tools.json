@@ -5,7 +5,10 @@
     "organizeManage": "Organize & Manage",
     "securityPrivacy": "Security & Privacy",
     "documentConverters": "Document Converters",
-    "optimizeRepair": "Optimize & Repair"
+    "optimizeRepair": "Optimize & Repair",
+    "imageToPdfConverters": "Image to PDF Converters",
+    "officeToPdfConverters": "Office to PDF Converters",
+    "formsData": "Forms & Data"
   },
   "removeBg": {
     "name": "Remove Background",

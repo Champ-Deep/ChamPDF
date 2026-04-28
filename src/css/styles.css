@@ -1033,3 +1033,50 @@ input[type='number']::-webkit-outer-spin-button {
 #annotation-overlay.ring-inset {
   box-shadow: inset 0 0 0 3px rgb(249, 115, 22);
 }
+
+/* ── Pillar navigation ──────────────────────────────────────────────────── */
+.pillar-nav-btn {
+  @apply text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5;
+}
+
+.pillar-nav-btn.is-active {
+  @apply text-orange-400;
+}
+
+.pillar-nav-btn[aria-expanded='true'] .pillar-chevron-icon {
+  transform: rotate(180deg);
+}
+
+/* ── Desktop mega-menu ──────────────────────────────────────────────────── */
+.mega-menu {
+  @apply hidden absolute top-full left-1/2 -translate-x-1/2 mt-1 w-72 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl py-3 z-50;
+}
+
+.mega-menu.open {
+  @apply block;
+}
+
+.mega-menu-grid {
+  @apply grid grid-cols-1 gap-0.5 px-1 mb-2;
+}
+
+.mega-menu-item {
+  @apply flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors no-underline;
+}
+
+.mega-menu-view-all {
+  @apply block text-center text-xs text-orange-400 hover:text-orange-300 font-medium pt-2 pb-1 border-t border-gray-700 mx-3 transition-colors no-underline;
+}
+
+/* ── Mobile pillar accordion ────────────────────────────────────────────── */
+.mobile-pillar-section {
+  @apply mb-0.5;
+}
+
+.mobile-pillar-content {
+  transition: max-height 0.25s ease-out;
+}
+
+.mobile-pillar-tool-link {
+  @apply flex items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors no-underline;
+}

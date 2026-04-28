@@ -7,7 +7,10 @@
     "convertFromPdf": "從 PDF 轉換",
     "organizeManage": "組織與管理",
     "optimizeRepair": "優化與修復",
-    "securePdf": "安全 PDF"
+    "securePdf": "安全 PDF",
+    "imageToPdfConverters": "圖片轉PDF",
+    "officeToPdfConverters": "Office轉PDF",
+    "formsData": "表單與資料"
   },
   "pdfMultiTool": {
     "name": "PDF 多功能工具",

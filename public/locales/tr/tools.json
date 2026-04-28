@@ -7,7 +7,10 @@
     "convertFromPdf": "PDF'den Dönüştür",
     "organizeManage": "Düzenle & Yönet",
     "optimizeRepair": "Optimize Et & Onar",
-    "securePdf": "PDF Güvenliği"
+    "securePdf": "PDF Güvenliği",
+    "imageToPdfConverters": "Görüntüden PDF",
+    "officeToPdfConverters": "Office'den PDF",
+    "formsData": "Formlar ve Veriler"
   },
   "pdfMultiTool": {
     "name": "PDF Çoklu Araç",
