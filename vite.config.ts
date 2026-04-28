@@ -9,7 +9,7 @@ import handlebars from 'vite-plugin-handlebars';
 import { resolve } from 'path';
 import fs from 'fs';
 import { constants as zlibConstants } from 'zlib';
-import type { OutputBundle } from 'rollup';
+import type { OutputBundle } from 'rolldown';
 
 const SUPPORTED_LANGUAGES = [
   'en',
@@ -159,16 +159,33 @@ function languageRouterPlugin(): Plugin {
 }
 
 function flattenPagesPlugin(): Plugin {
+  // Rolldown disallows mutating the bundle map (Rollup-era pattern). We move
+  // the files on disk after they are written.
   return {
     name: 'flatten-pages',
     enforce: 'post',
-    generateBundle(_: unknown, bundle: OutputBundle): void {
+    async writeBundle(options, bundle): Promise<void> {
+      const outDir = options.dir;
+      if (!outDir) return;
       for (const fileName of Object.keys(bundle)) {
         if (fileName.startsWith('src/pages/') && fileName.endsWith('.html')) {
           const newFileName = fileName.replace('src/pages/', '');
-          bundle[newFileName] = bundle[fileName];
-          bundle[newFileName].fileName = newFileName;
-          delete bundle[fileName];
+          const oldPath = resolve(outDir, fileName);
+          const newPath = resolve(outDir, newFileName);
+          if (fs.existsSync(oldPath)) {
+            fs.mkdirSync(resolve(newPath, '..'), { recursive: true });
+            fs.renameSync(oldPath, newPath);
+          }
+        }
+      }
+      // Clean up the now-empty src/pages directory
+      const pagesOutDir = resolve(outDir, 'src/pages');
+      if (fs.existsSync(pagesOutDir)) {
+        const remaining = fs.readdirSync(pagesOutDir);
+        if (remaining.length === 0) fs.rmdirSync(pagesOutDir);
+        const srcDir = resolve(outDir, 'src');
+        if (fs.existsSync(srcDir) && fs.readdirSync(srcDir).length === 0) {
+          fs.rmdirSync(srcDir);
         }
       }
     },
@@ -181,34 +198,40 @@ function rewriteHtmlPathsPlugin(): Plugin {
 
   const escapedBase = normalizedBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+  // Rolldown forbids mutating bundle assets in generateBundle, so we patch
+  // the written HTML files on disk via writeBundle instead.
   return {
     name: 'rewrite-html-paths',
     enforce: 'post',
-    generateBundle(_: unknown, bundle: OutputBundle): void {
+    async writeBundle(options, bundle): Promise<void> {
       if (normalizedBase === '/') return;
+      const outDir = options.dir;
+      if (!outDir) return;
+
+      const hrefRegex = new RegExp(
+        `href="\\/(?!${escapedBase.slice(1)}|test\\/|http|\\/\\/)`,
+        'g'
+      );
+      const srcRegex = new RegExp(
+        `src="\\/(?!${escapedBase.slice(1)}|test\\/|http|\\/\\/)`,
+        'g'
+      );
+      const contentRegex = new RegExp(
+        `content="\\/(?!${escapedBase.slice(1)}|test\\/|http|\\/\\/)`,
+        'g'
+      );
 
       for (const fileName of Object.keys(bundle)) {
-        if (fileName.endsWith('.html')) {
-          const asset = bundle[fileName];
-          if (asset.type === 'asset' && typeof asset.source === 'string') {
-            const hrefRegex = new RegExp(
-              `href="\\/(?!${escapedBase.slice(1)}|test\\/|http|\\/\\/)`,
-              'g'
-            );
-            const srcRegex = new RegExp(
-              `src="\\/(?!${escapedBase.slice(1)}|test\\/|http|\\/\\/)`,
-              'g'
-            );
-            const contentRegex = new RegExp(
-              `content="\\/(?!${escapedBase.slice(1)}|test\\/|http|\\/\\/)`,
-              'g'
-            );
-
-            asset.source = asset.source
-              .replace(hrefRegex, `href="${normalizedBase}`)
-              .replace(srcRegex, `src="${normalizedBase}`)
-              .replace(contentRegex, `content="${normalizedBase}`);
-          }
+        if (!fileName.endsWith('.html')) continue;
+        const filePath = resolve(outDir, fileName);
+        if (!fs.existsSync(filePath)) continue;
+        const original = fs.readFileSync(filePath, 'utf8');
+        const rewritten = original
+          .replace(hrefRegex, `href="${normalizedBase}`)
+          .replace(srcRegex, `src="${normalizedBase}`)
+          .replace(contentRegex, `content="${normalizedBase}`);
+        if (rewritten !== original) {
+          fs.writeFileSync(filePath, rewritten);
         }
       }
     },
