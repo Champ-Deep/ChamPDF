@@ -96,7 +96,24 @@ def cleanup_files(*files: Path):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "ffmpeg": processor.check_ffmpeg()}
+    try:
+        import cv2
+        opencv_available = True
+    except ImportError:
+        opencv_available = False
+
+    try:
+        from propainter_wrapper import is_available as pp_available, get_status as pp_status
+        propainter_info = {"available": pp_available(), "status": pp_status()}
+    except Exception:
+        propainter_info = {"available": False, "status": "module not loaded"}
+
+    return {
+        "status": "healthy",
+        "ffmpeg": processor.check_ffmpeg(),
+        "opencv_inpaint": opencv_available,
+        "propainter": propainter_info,
+    }
 
 
 @app.get("/api/presets")

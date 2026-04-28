@@ -239,7 +239,10 @@ async function handleProcess() {
     formData.append('watermark_position', state.watermarkPosition);
 
     // Update status
-    updateStatus('Uploading video...', 'Sending to server for processing');
+    updateStatus(
+      'Uploading video...',
+      'Sending to server for AI-powered inpainting'
+    );
 
     // Send to API
     const response = await fetch(`${API_BASE_URL}/api/process-video`, {

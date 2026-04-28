@@ -1,17 +1,29 @@
 """
-Video Processor - FFmpeg-based video processing for watermark removal and logo overlay
+Video Processor - Video processing for watermark removal and logo overlay.
+Uses OpenCV inpainting for high-quality logo removal when available,
+falls back to FFmpeg delogo filter otherwise.
 """
 
 import asyncio
 import subprocess
 import json
 import os
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Tuple, Optional, Dict
 
+# Try to import OpenCV for high-quality inpainting
+try:
+    import cv2
+    import numpy as np
+    HAS_OPENCV = True
+except ImportError:
+    HAS_OPENCV = False
+
 
 class VideoProcessor:
-    """Handles video processing using FFmpeg"""
+    """Handles video processing using OpenCV inpainting + FFmpeg"""
 
     # Watermark regions by resolution (x, y, width, height)
     # These are approximate regions for NotebookLM and similar AI tool watermarks
@@ -24,12 +36,6 @@ class VideoProcessor:
 
     def __init__(self, logo_dir: Optional[Path] = None):
         # Check multiple possible logo locations
-        # 1. Passed argument (highest priority)
-        # 2. Environment variable
-        # 3. Docker mount location (/app/assets/logos)
-        # 4. Local dev: "Images & Logos" folder in project root
-        # 5. Fallback: backend/assets/logos
-        
         logo_dir_env = os.environ.get("LOGO_DIR", "")
         logo_paths = [
             logo_dir,
@@ -125,8 +131,10 @@ class VideoProcessor:
         base_region = self.WATERMARK_REGIONS.get(resolution, self.WATERMARK_REGIONS["720p"])
 
         # Scale region based on actual dimensions
-        scale_x = width / (3840 if resolution == "4k" else 1920 if resolution == "1080p" else 1280 if resolution == "720p" else 854)
-        scale_y = height / (2160 if resolution == "4k" else 1080 if resolution == "1080p" else 720 if resolution == "720p" else 480)
+        ref_widths = {"4k": 3840, "1080p": 1920, "720p": 1280, "480p": 854}
+        ref_heights = {"4k": 2160, "1080p": 1080, "720p": 720, "480p": 480}
+        scale_x = width / ref_widths.get(resolution, 1280)
+        scale_y = height / ref_heights.get(resolution, 720)
 
         region_w = int(base_region["w"] * scale_x)
         region_h = int(base_region["h"] * scale_y)
@@ -161,6 +169,327 @@ class VideoProcessor:
         }
         return positions.get(position, positions["bottom-right"])
 
+    def _create_inpaint_mask(
+        self,
+        width: int,
+        height: int,
+        region: Dict[str, int],
+        feather_px: int = 6
+    ) -> "np.ndarray":
+        """Create a binary mask for the watermark region with soft feathered edges."""
+        mask = np.zeros((height, width), dtype=np.uint8)
+
+        x, y, w, h = region["x"], region["y"], region["w"], region["h"]
+
+        # Expand region slightly for better coverage
+        pad = 4
+        x1 = max(0, x - pad)
+        y1 = max(0, y - pad)
+        x2 = min(width, x + w + pad)
+        y2 = min(height, y + h + pad)
+
+        mask[y1:y2, x1:x2] = 255
+
+        # Apply Gaussian blur for soft edges (helps inpainting blend naturally)
+        if feather_px > 0:
+            ksize = feather_px * 2 + 1
+            mask = cv2.GaussianBlur(mask, (ksize, ksize), 0)
+            # Re-threshold to keep solid center but soft edges
+            _, mask = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
+
+        return mask
+
+    def _inpaint_frame(
+        self,
+        frame: "np.ndarray",
+        mask: "np.ndarray",
+        radius: int = 5
+    ) -> "np.ndarray":
+        """Inpaint a single frame using OpenCV's Navier-Stokes method.
+
+        Uses INPAINT_NS (Navier-Stokes) which produces smoother results
+        for small regions like logos compared to INPAINT_TELEA.
+        A second TELEA pass refines the result for cleaner blending.
+        """
+        # First pass: Navier-Stokes (smooth, good for texture continuation)
+        result = cv2.inpaint(frame, mask, radius, cv2.INPAINT_NS)
+
+        # Second pass: TELEA (better edge handling) with smaller radius
+        result = cv2.inpaint(result, mask, max(2, radius // 2), cv2.INPAINT_TELEA)
+
+        return result
+
+    async def _inpaint_video_opencv(
+        self,
+        input_path: str,
+        output_path: str,
+        region: Dict[str, int],
+        logo_path: Optional[Path],
+        logo_position: str,
+        width: int,
+        height: int,
+    ) -> Tuple[bool, Optional[str]]:
+        """Process video frame-by-frame with OpenCV inpainting, then re-encode."""
+
+        work_dir = tempfile.mkdtemp(prefix="champdf_inpaint_")
+
+        try:
+            # Create the mask once (same for all frames since logo is static)
+            mask = self._create_inpaint_mask(width, height, region)
+            inpaint_radius = max(3, min(region["w"], region["h"]) // 8)
+
+            # Extract audio first
+            audio_path = os.path.join(work_dir, "audio.aac")
+            has_audio = await self._extract_audio(input_path, audio_path)
+
+            # Process frames using OpenCV in a thread pool
+            inpainted_path = os.path.join(work_dir, "inpainted_raw.mp4")
+            loop = asyncio.get_event_loop()
+            success, err = await loop.run_in_executor(
+                None,
+                self._process_frames_sync,
+                input_path,
+                inpainted_path,
+                mask,
+                inpaint_radius,
+            )
+
+            if not success:
+                return False, err
+
+            # Re-encode with FFmpeg: mux inpainted video + original audio + optional logo
+            success, err = await self._finalize_video(
+                inpainted_path,
+                output_path,
+                audio_path if has_audio else None,
+                logo_path,
+                logo_position,
+            )
+
+            return success, err
+
+        except Exception as e:
+            return False, str(e)
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
+
+    def _process_frames_sync(
+        self,
+        input_path: str,
+        output_path: str,
+        mask: "np.ndarray",
+        inpaint_radius: int,
+    ) -> Tuple[bool, Optional[str]]:
+        """Synchronous frame-by-frame inpainting (runs in thread pool)."""
+        cap = cv2.VideoCapture(input_path)
+        if not cap.isOpened():
+            return False, "Could not open video for frame processing"
+
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+        if not writer.isOpened():
+            cap.release()
+            return False, "Could not create video writer"
+
+        try:
+            frame_idx = 0
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+
+                # Inpaint the logo region
+                inpainted = self._inpaint_frame(frame, mask, inpaint_radius)
+                writer.write(inpainted)
+                frame_idx += 1
+
+        except Exception as e:
+            return False, f"Frame processing error at frame {frame_idx}: {str(e)}"
+        finally:
+            cap.release()
+            writer.release()
+
+        if frame_idx == 0:
+            return False, "No frames were processed"
+
+        return True, None
+
+    async def _extract_audio(self, input_path: str, audio_path: str) -> bool:
+        """Extract audio stream from video."""
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", input_path,
+            "-vn", "-acodec", "copy",
+            audio_path
+        ]
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        await proc.communicate()
+        return proc.returncode == 0 and Path(audio_path).exists()
+
+    async def _finalize_video(
+        self,
+        video_path: str,
+        output_path: str,
+        audio_path: Optional[str],
+        logo_path: Optional[Path],
+        logo_position: str,
+    ) -> Tuple[bool, Optional[str]]:
+        """Re-encode inpainted video with H.264, mux audio, and optionally overlay logo."""
+
+        if logo_path and audio_path:
+            # Inpainted video + audio + logo overlay
+            filter_complex = f"[0:v][1:v]overlay={logo_position}:format=auto[out]"
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", video_path,
+                "-i", str(logo_path),
+                "-i", audio_path,
+                "-filter_complex", f"[1:v]scale=120:-1[logo];[0:v][logo]overlay={logo_position}:format=auto[out]",
+                "-map", "[out]",
+                "-map", "2:a",
+                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+                "-c:a", "aac", "-b:a", "128k",
+                "-movflags", "+faststart",
+                output_path
+            ]
+        elif logo_path:
+            # Inpainted video + logo overlay (no audio)
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", video_path,
+                "-i", str(logo_path),
+                "-filter_complex", f"[1:v]scale=120:-1[logo];[0:v][logo]overlay={logo_position}:format=auto[out]",
+                "-map", "[out]",
+                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+                "-movflags", "+faststart",
+                output_path
+            ]
+        elif audio_path:
+            # Inpainted video + audio (no logo)
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", video_path,
+                "-i", audio_path,
+                "-map", "0:v", "-map", "1:a",
+                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+                "-c:a", "aac", "-b:a", "128k",
+                "-movflags", "+faststart",
+                output_path
+            ]
+        else:
+            # Just re-encode (no logo, no audio)
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", video_path,
+                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+                "-movflags", "+faststart",
+                output_path
+            ]
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        from config import settings
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=settings.PROCESS_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.communicate()
+            return False, f"Finalization timed out after {settings.PROCESS_TIMEOUT} seconds"
+
+        if proc.returncode != 0:
+            error_msg = stderr.decode()[-500:] if stderr else "Unknown error"
+            return False, f"FFmpeg finalize error: {error_msg}"
+
+        if not Path(output_path).exists():
+            return False, "Output file was not created"
+
+        return True, None
+
+    async def _process_with_ffmpeg_delogo(
+        self,
+        input_path: str,
+        output_path: str,
+        region: Dict[str, int],
+        logo_path: Optional[Path],
+        logo_position: str,
+    ) -> Tuple[bool, Optional[str]]:
+        """Fallback: process video with FFmpeg delogo filter (lower quality)."""
+
+        if logo_path:
+            filter_complex = (
+                f"[0:v]delogo=x={region['x']}:y={region['y']}:w={region['w']}:h={region['h']}:show=0[delogoed];"
+                f"[1:v]scale=120:-1[logo];"
+                f"[delogoed][logo]overlay={logo_position}:format=auto[out]"
+            )
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", input_path,
+                "-i", str(logo_path),
+                "-filter_complex", filter_complex,
+                "-map", "[out]",
+                "-map", "0:a?",
+                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+                "-c:a", "copy",
+                "-movflags", "+faststart",
+                output_path
+            ]
+        else:
+            filter_complex = (
+                f"delogo=x={region['x']}:y={region['y']}:w={region['w']}:h={region['h']}:show=0"
+            )
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", input_path,
+                "-vf", filter_complex,
+                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+                "-c:a", "copy",
+                "-movflags", "+faststart",
+                output_path
+            ]
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        from config import settings
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=settings.PROCESS_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.communicate()
+            return False, f"Processing timed out after {settings.PROCESS_TIMEOUT} seconds"
+
+        if proc.returncode != 0:
+            error_msg = stderr.decode()[-500:] if stderr else "Unknown error"
+            return False, f"FFmpeg error: {error_msg}"
+
+        if not Path(output_path).exists():
+            return False, "Output file was not created"
+
+        return True, None
+
     async def process(
         self,
         input_path: str,
@@ -170,6 +499,9 @@ class VideoProcessor:
     ) -> Tuple[bool, Optional[str]]:
         """
         Process video to remove watermark and optionally add logo.
+
+        Uses OpenCV inpainting (Navier-Stokes + TELEA dual pass) when available
+        for high-quality logo removal. Falls back to FFmpeg delogo filter.
 
         Args:
             input_path: Path to input video
@@ -202,78 +534,30 @@ class VideoProcessor:
             # Calculate watermark region
             region = self._calculate_watermark_region(width, height, watermark_position)
 
-            # Build FFmpeg command
+            # Get logo info
             logo_path = self.get_logo_path(logo_preset)
             logo_position = self._get_logo_position(watermark_position)
 
-            if logo_path:
-                # Delogo + overlay new logo
-                filter_complex = (
-                    f"[0:v]delogo=x={region['x']}:y={region['y']}:w={region['w']}:h={region['h']}:show=0[delogoed];"
-                    f"[1:v]scale=120:-1[logo];"
-                    f"[delogoed][logo]overlay={logo_position}:format=auto[out]"
+            # Use OpenCV inpainting for higher quality when available
+            if HAS_OPENCV:
+                return await self._inpaint_video_opencv(
+                    input_path=input_path,
+                    output_path=output_path,
+                    region=region,
+                    logo_path=logo_path,
+                    logo_position=logo_position,
+                    width=width,
+                    height=height,
                 )
-                cmd = [
-                    "ffmpeg",
-                    "-y",  # Overwrite output
-                    "-i", input_path,
-                    "-i", str(logo_path),
-                    "-filter_complex", filter_complex,
-                    "-map", "[out]",
-                    "-map", "0:a?",  # Include audio if present
-                    "-c:v", "libx264",
-                    "-crf", "18",
-                    "-preset", "fast",
-                    "-c:a", "copy",
-                    "-movflags", "+faststart",
-                    output_path
-                ]
             else:
-                # Just delogo, no new logo overlay
-                filter_complex = (
-                    f"delogo=x={region['x']}:y={region['y']}:w={region['w']}:h={region['h']}:show=0"
+                # Fallback to FFmpeg delogo
+                return await self._process_with_ffmpeg_delogo(
+                    input_path=input_path,
+                    output_path=output_path,
+                    region=region,
+                    logo_path=logo_path,
+                    logo_position=logo_position,
                 )
-                cmd = [
-                    "ffmpeg",
-                    "-y",
-                    "-i", input_path,
-                    "-vf", filter_complex,
-                    "-c:v", "libx264",
-                    "-crf", "18",
-                    "-preset", "fast",
-                    "-c:a", "copy",
-                    "-movflags", "+faststart",
-                    output_path
-                ]
-
-            # Run FFmpeg
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            
-            from config import settings
-            try:
-                # Wait for process to complete with timeout
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(),
-                    timeout=settings.PROCESS_TIMEOUT
-                )
-            except asyncio.TimeoutError:
-                proc.kill()
-                await proc.communicate()
-                return False, f"Processing timed out after {settings.PROCESS_TIMEOUT} seconds"
-
-            if proc.returncode != 0:
-                error_msg = stderr.decode()[-500:] if stderr else "Unknown error"
-                return False, f"FFmpeg error: {error_msg}"
-
-            # Verify output exists
-            if not Path(output_path).exists():
-                return False, "Output file was not created"
-
-            return True, None
 
         except Exception as e:
             return False, str(e)

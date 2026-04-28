@@ -21,10 +21,12 @@ RUN pip install --no-cache-dir --upgrade pip && \
 FROM python:3.11-slim
 
 # Install runtime dependencies only
+# libglib2.0-0 is needed by opencv-python-headless
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/* && \
     apt-get clean
 
@@ -36,7 +38,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 
 # Copy application code
-COPY backend/main.py backend/image_processor.py backend/video_processor.py backend/config.py ./
+COPY backend/main.py backend/image_processor.py backend/video_processor.py backend/config.py backend/propainter_wrapper.py ./
 
 # Create directory structure for logos
 RUN mkdir -p ./assets
