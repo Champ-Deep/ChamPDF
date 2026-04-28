@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Primary Meta Tags -->
+    <title>Video Downloader (MP4 & MP3) | ChamPDF</title>
+    <meta name="title" content="Video Downloader (MP4 & MP3) | ChamPDF" />
+    <meta
+      name="description"
+      content="Paste a YouTube or Instagram link to download the video as MP4 or extract 320 kbps MP3 audio. Supports long-form and short-form content."
+    />
+    <meta
+      name="keywords"
+      content="youtube downloader, instagram downloader, video to mp3, video to mp4, reels downloader, shorts downloader"
+    />
+    <meta name="author" content="ChamPDF" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+
+    <link rel="canonical" href="https://www.champdf.com/video-downloader.html" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.champdf.com/video-downloader" />
+    <meta property="og:title" content="Video Downloader (MP4 & MP3) | ChamPDF" />
+    <meta
+      property="og:description"
+      content="Paste a YouTube or Instagram link — download as MP4 video or 320 kbps MP3 audio."
+    />
+    <meta property="og:site_name" content="ChamPDF" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://www.champdf.com/video-downloader" />
+    <meta name="twitter:title" content="Video Downloader (MP4 & MP3)" />
+    <meta
+      name="twitter:description"
+      content="Download YouTube or Instagram videos as MP4 or extract MP3 audio."
+    />
+    <meta name="twitter:site" content="@ChamPDF" />
+
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Video Downloader" />
+
+    <link href="/src/css/styles.css" rel="stylesheet" />
+
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="/images/favicon-192x192.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="512x512"
+      href="/images/favicon-512x512.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/images/apple-touch-icon.png"
+    />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  </head>
+
+  <body class="antialiased bg-gray-900">
+    {{> navbar }}
+
+    <div
+      id="uploader"
+      class="min-h-screen flex flex-col items-center justify-start py-12 p-4 bg-gray-900"
+    >
+      <div
+        id="tool-uploader"
+        class="bg-gray-800 rounded-xl shadow-xl px-4 py-8 md:p-8 max-w-2xl w-full text-gray-200 border border-gray-700"
+      >
+        <button
+          id="back-to-tools"
+          class="flex items-center gap-2 text-orange-400 hover:text-orange-300 mb-6 font-semibold"
+        >
+          <i data-lucide="arrow-left" class="cursor-pointer"></i>
+          <span class="cursor-pointer">Back to Tools</span>
+        </button>
+
+        <h1 class="text-2xl font-bold text-white mb-2">
+          Video Downloader (MP4 &amp; MP3)
+        </h1>
+        <p class="text-gray-400 mb-6">
+          Paste a YouTube or Instagram link — download as MP4 video or extract
+          320 kbps MP3 audio. Supports long-form videos and Shorts/Reels.
+        </p>
+
+        <!-- Server Notice -->
+        <div
+          class="bg-blue-900/30 border border-blue-700 rounded-lg p-3 mb-6 flex items-start gap-3"
+        >
+          <i
+            data-lucide="server"
+            class="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5"
+          ></i>
+          <div class="text-sm">
+            <p class="text-blue-300 font-medium">Server-Side Processing</p>
+            <p class="text-blue-400/80">
+              The link is fetched on our server and the resulting file is sent
+              back to your browser. Files are deleted automatically after the
+              download completes.
+            </p>
+          </div>
+        </div>
+
+        <!-- URL Input -->
+        <div>
+          <label
+            for="url-input"
+            class="block text-sm font-medium text-gray-300 mb-2"
+          >
+            Video URL
+          </label>
+          <div class="flex gap-2">
+            <input
+              id="url-input"
+              type="url"
+              inputmode="url"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="https://www.youtube.com/watch?v=… or https://www.instagram.com/reel/…"
+              class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-3 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-orange-500"
+            />
+            <button
+              id="paste-btn"
+              type="button"
+              class="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+              title="Paste from clipboard"
+            >
+              <i data-lucide="clipboard" class="w-4 h-4"></i>
+              <span class="hidden sm:inline">Paste</span>
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">
+            Only use with content you own or have rights to. Respect each
+            platform's Terms of Service. Maximum video length: 30 minutes.
+          </p>
+        </div>
+
+        <!-- Format Selector -->
+        <div class="mt-6">
+          <label class="block text-sm font-medium text-gray-300 mb-3">
+            Output Format
+          </label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="relative">
+              <input
+                type="radio"
+                name="output-format"
+                value="mp4"
+                class="peer sr-only"
+                checked
+              />
+              <div
+                class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+              >
+                <div
+                  class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                >
+                  <i data-lucide="film" class="w-4 h-4 text-orange-400"></i>
+                </div>
+                <div class="flex flex-col text-left">
+                  <span class="text-sm font-medium">MP4</span>
+                  <span class="text-xs text-gray-400">Best-quality video</span>
+                </div>
+              </div>
+            </label>
+            <label class="relative">
+              <input
+                type="radio"
+                name="output-format"
+                value="mp3"
+                class="peer sr-only"
+              />
+              <div
+                class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+              >
+                <div
+                  class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                >
+                  <i data-lucide="music" class="w-4 h-4 text-purple-400"></i>
+                </div>
+                <div class="flex flex-col text-left">
+                  <span class="text-sm font-medium">MP3</span>
+                  <span class="text-xs text-gray-400">Audio only, 320 kbps</span>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Download Button -->
+        <button
+          id="download-action-btn"
+          class="w-full mt-6 bg-orange-600 hover:bg-orange-500 text-white px-6 py-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <i data-lucide="download" class="w-5 h-5"></i>
+          <span id="download-action-label">Download MP4</span>
+        </button>
+
+        <!-- Processing Status -->
+        <div id="processing-status" class="hidden mt-6">
+          <div class="bg-gray-900 rounded-lg p-6 border border-gray-700">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="solid-spinner"></div>
+              <div>
+                <p id="status-text" class="text-white font-medium">
+                  Downloading…
+                </p>
+                <p id="status-detail" class="text-gray-400 text-sm">
+                  This can take a minute for longer videos
+                </p>
+              </div>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-2">
+              <div
+                id="progress-bar"
+                class="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                style="width: 0%"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Success / Download -->
+        <div id="success-section" class="hidden mt-6">
+          <div class="bg-green-900/30 border border-green-700 rounded-lg p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <i data-lucide="check-circle" class="w-8 h-8 text-green-400"></i>
+              <div>
+                <p class="text-green-300 font-medium">Download Ready!</p>
+                <p id="success-detail" class="text-green-400/80 text-sm">
+                  Your file is ready to save.
+                </p>
+              </div>
+            </div>
+            <button
+              id="save-file-btn"
+              class="w-full bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <i data-lucide="download" class="w-5 h-5"></i>
+              Save File
+            </button>
+            <button
+              id="download-another-btn"
+              class="w-full mt-3 text-gray-400 hover:text-white transition-colors text-sm"
+            >
+              Download Another
+            </button>
+          </div>
+        </div>
+
+        <!-- Error Section -->
+        <div id="error-section" class="hidden mt-6">
+          <div class="bg-red-900/30 border border-red-700 rounded-lg p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <i data-lucide="alert-circle" class="w-8 h-8 text-red-400"></i>
+              <div>
+                <p class="text-red-300 font-medium">Couldn't Download</p>
+                <p id="error-message" class="text-red-400/80 text-sm">
+                  Something went wrong.
+                </p>
+              </div>
+            </div>
+            <button
+              id="try-again-btn"
+              class="w-full bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loader Modal -->
+    <div
+      id="loader-modal"
+      class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+    >
+      <div
+        class="bg-gray-800 p-8 rounded-lg flex flex-col items-center gap-4 border border-gray-700 shadow-xl"
+      >
+        <div class="solid-spinner"></div>
+        <p id="loader-text" class="text-white text-lg font-medium">
+          Processing...
+        </p>
+      </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div
+      id="alert-modal"
+      class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 hidden"
+    >
+      <div
+        class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full border border-gray-700"
+      >
+        <h3 id="alert-title" class="text-xl font-bold text-white mb-2">
+          Alert
+        </h3>
+        <p id="alert-message" class="text-gray-300 mb-6"></p>
+        <button
+          id="alert-ok"
+          class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+
+    <!-- How It Works -->
+    <section class="max-w-4xl mx-auto px-4 py-12">
+      <h2 class="text-2xl md:text-3xl font-bold text-white mb-8 text-center">
+        How It Works
+      </h2>
+      <div class="space-y-6">
+        <div class="flex items-start gap-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold"
+          >
+            1
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-white mb-1">Paste URL</h3>
+            <p class="text-gray-400">
+              Paste a YouTube link (long-form or Shorts) or an Instagram link
+              (post or Reel).
+            </p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold"
+          >
+            2
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-white mb-1">Pick a Format</h3>
+            <p class="text-gray-400">
+              Choose MP4 to download the full video, or MP3 to extract just the
+              audio at 320 kbps CBR.
+            </p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold"
+          >
+            3
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-white mb-1">
+              Download
+            </h3>
+            <p class="text-gray-400">
+              We fetch the file on the server and stream it back to your
+              browser. Temporary files are deleted right after.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="max-w-4xl mx-auto px-4 py-12">
+      <h2 class="text-2xl md:text-3xl font-bold text-white mb-6 text-center">
+        Frequently Asked Questions
+      </h2>
+      <div class="space-y-4">
+        <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
+          <summary
+            class="cursor-pointer font-semibold text-white flex items-center justify-between"
+          >
+            Which platforms are supported?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            YouTube long-form videos and Shorts, plus Instagram posts and
+            Reels. If your link works on those platforms and is publicly
+            viewable, it should work here.
+          </p>
+        </details>
+        <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
+          <summary
+            class="cursor-pointer font-semibold text-white flex items-center justify-between"
+          >
+            What's the MP3 quality?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            Audio is encoded at 320 kbps CBR, stereo, 44.1 kHz. The actual
+            quality depends on the source — if the original audio is lower
+            bitrate, the MP3 won't gain detail it never had.
+          </p>
+        </details>
+        <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
+          <summary
+            class="cursor-pointer font-semibold text-white flex items-center justify-between"
+          >
+            Are private or login-required videos supported?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            No. Only publicly accessible content can be downloaded. Private
+            posts, age-gated videos, and content that requires sign-in will
+            return an error.
+          </p>
+        </details>
+        <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
+          <summary
+            class="cursor-pointer font-semibold text-white flex items-center justify-between"
+          >
+            Are there length limits?
+            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+          </summary>
+          <p class="mt-3 text-gray-400">
+            Videos up to 30 minutes are supported. Live streams and scheduled
+            premieres are not.
+          </p>
+        </details>
+      </div>
+    </section>
+
+    {{> footer }}
+    <script type="module" src="/src/js/utils/lucide-init.ts"></script>
+    <script type="module" src="/src/js/utils/full-width.ts"></script>
+    <script type="module" src="/src/js/utils/simple-mode-footer.ts"></script>
+    <script type="module" src="/src/version.ts"></script>
+    <script type="module" src="/src/js/logic/video-downloader-page.ts"></script>
+    <script type="module" src="/src/js/mobileMenu.ts"></script>
+    <script type="module" src="/src/js/main.ts"></script>
+  </body>
+</html>

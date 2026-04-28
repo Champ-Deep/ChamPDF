@@ -36,7 +36,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 
 # Copy application code
-COPY backend/main.py backend/image_processor.py backend/video_processor.py backend/config.py ./
+COPY backend/main.py backend/image_processor.py backend/video_processor.py backend/media_downloader.py backend/config.py ./
 
 # Create directory structure for logos
 RUN mkdir -p ./assets
