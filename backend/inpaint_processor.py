@@ -172,3 +172,94 @@ def _ensure_png(data: bytes) -> bytes:
     out = io.BytesIO()
     img.save(out, format="PNG", optimize=True)
     return out.getvalue()
+
+
+class EditError(Exception):
+    """Raised when prompt-based image editing fails."""
+
+
+async def edit_image_with_prompt(
+    image_bytes: bytes,
+    prompt: str,
+) -> bytes:
+    """
+    Prompt-based image editing via Gemini's image-editing model
+    (the user-facing "Edit Banana" tool — separate from mask-based
+    watermark inpainting). Returns PNG bytes.
+
+    Unlike inpaint_image(), this does not silently fall back to OpenCV
+    on failure: prompt-based edits have no classical equivalent, so a
+    Gemini-unavailable error is surfaced to the caller as an EditError
+    and the caller (the API endpoint) returns a 503/502.
+    """
+    if not _gemini_available():
+        raise EditError(
+            "AI image editing is not configured on this server "
+            "(GEMINI_API_KEY is not set)."
+        )
+
+    if not prompt or not prompt.strip():
+        raise EditError("A prompt is required for image editing.")
+    if len(prompt) > 2000:
+        raise EditError("Prompt is too long (max 2000 characters).")
+
+    # Re-encode incoming bytes through PIL so we (a) reject malformed images
+    # before the API call, (b) normalize to PNG, (c) cap dimensions.
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        img.load()
+    except Exception as e:
+        raise EditError(f"Could not read input image: {e}") from e
+
+    # Cap longest side at 2048px — Gemini handles this well and keeps
+    # latency / per-request cost predictable. Preserve aspect.
+    max_side = 2048
+    if max(img.size) > max_side:
+        ratio = max_side / max(img.size)
+        new_size = (int(img.size[0] * ratio), int(img.size[1] * ratio))
+        img = img.resize(new_size, Image.LANCZOS)
+
+    if img.mode not in ("RGB", "RGBA"):
+        img = img.convert("RGB")
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    normalized_bytes = buf.getvalue()
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        model = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image-preview")
+
+        response = client.models.generate_content(
+            model=model,
+            contents=[
+                prompt.strip(),
+                types.Part.from_bytes(data=normalized_bytes, mime_type="image/png"),
+            ],
+        )
+
+        for candidate in response.candidates or []:
+            for part in candidate.content.parts or []:
+                inline = getattr(part, "inline_data", None)
+                if inline and inline.data:
+                    data = inline.data
+                    if isinstance(data, str):
+                        import base64
+                        data = base64.b64decode(data)
+                    return _ensure_png(data)
+
+        # Surface any safety / refusal text from Gemini back to the user
+        for candidate in response.candidates or []:
+            for part in candidate.content.parts or []:
+                if getattr(part, "text", None):
+                    raise EditError(f"Model declined: {part.text[:300]}")
+
+        raise EditError("Model returned no image and no text.")
+    except EditError:
+        raise
+    except Exception as e:
+        logger.warning("[edit] Gemini call failed: %s", e)
+        raise EditError(f"Image edit failed: {e}") from e

@@ -104,6 +104,29 @@ export const categories: Category[] = [
     name: 'Image & Media Tools',
     tools: [
       {
+        href: B + 'edit-banana.html',
+        name: 'Edit Banana',
+        icon: 'ph-sparkle',
+        subtitle:
+          'Edit any image with a natural-language prompt — remove, replace, restyle, restore.',
+        pillar: 'images',
+        keywords: [
+          'edit-banana',
+          'edit banana',
+          'nano-banana',
+          'nano banana',
+          'gemini',
+          'ai image editor',
+          'magic edit',
+          'prompt edit',
+          'image edit',
+          'inpaint',
+          'restore',
+          'restyle',
+          'remove person',
+        ],
+      },
+      {
         href: B + 'remove-bg.html',
         name: 'Remove Background',
         icon: 'ph-magic-wand',

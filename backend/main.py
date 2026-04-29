@@ -29,7 +29,12 @@ from media_downloader import (
     cleanup_work_dir,
     download_media,
 )
-from inpaint_processor import InpaintError, inpaint_image
+from inpaint_processor import (
+    EditError,
+    InpaintError,
+    edit_image_with_prompt,
+    inpaint_image,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -375,6 +380,47 @@ async def inpaint_image_endpoint(
         io.BytesIO(result_png),
         media_type="image/png",
         headers={"Content-Disposition": 'inline; filename="inpainted.png"'},
+    )
+
+
+@app.post("/api/edit-image")
+async def edit_image_endpoint(
+    image: UploadFile = File(...),
+    prompt: str = Form(...),
+):
+    """
+    Prompt-based image editor backed by Gemini's image-editing model
+    (the "Edit Banana" tool). Multipart form: `image` (PNG/JPEG) +
+    `prompt` (text). Returns PNG.
+    """
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="image is required")
+    if len(image_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image too large (20MB max)")
+
+    try:
+        async with process_semaphore:
+            result_png = await edit_image_with_prompt(
+                image_bytes=image_bytes, prompt=prompt
+            )
+    except EditError as e:
+        # 503 if the server is just not configured; 422 if the user input
+        # was the problem; 502 for an actual upstream failure.
+        msg = str(e)
+        if "not configured" in msg:
+            raise HTTPException(status_code=503, detail=msg)
+        if "Prompt" in msg or "prompt is required" in msg.lower():
+            raise HTTPException(status_code=422, detail=msg)
+        raise HTTPException(status_code=502, detail=msg)
+
+    return StreamingResponse(
+        io.BytesIO(result_png),
+        media_type="image/png",
+        headers={"Content-Disposition": 'inline; filename="edited.png"'},
     )
 
 
