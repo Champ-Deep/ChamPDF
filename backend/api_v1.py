@@ -423,6 +423,43 @@ async def v1_edit_image(
 
 
 @router.post(
+    "/image/detect-watermarks",
+    summary="Auto-detect watermarks/logos in an image (Gemini)",
+    description="Returns bounding boxes for any watermarks Gemini finds. Useful as a pre-step before /image/inpaint.",
+)
+async def v1_detect_watermarks(
+    image: UploadFile = File(...),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from inpaint_processor import DetectError, detect_watermarks
+
+    started = time.monotonic()
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="image is required")
+    if len(image_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image too large (20MB max)")
+
+    try:
+        boxes = await detect_watermarks(image_bytes)
+    except DetectError as e:
+        msg = str(e)
+        status = 503 if "not set" in msg or "not configured" in msg else 502
+        _record_request(
+            key["id"], "image/detect-watermarks", status, int((time.monotonic() - started) * 1000)
+        )
+        raise HTTPException(status_code=status, detail=msg)
+
+    _record_request(
+        key_id=key["id"],
+        endpoint="image/detect-watermarks",
+        status=200,
+        latency_ms=int((time.monotonic() - started) * 1000),
+    )
+    return {"watermarks": boxes}
+
+
+@router.post(
     "/image/inpaint",
     summary="Inpaint masked regions of an image (Gemini, OpenCV fallback)",
     description="Mask-based inpainting. Provide an image and a binary mask (white=inpaint).",

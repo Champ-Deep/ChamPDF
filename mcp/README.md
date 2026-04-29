@@ -8,6 +8,7 @@ What you get:
 
 - **`champdf_remove_background`** — strip the background from a photo (rembg / U²-Net).
 - **`champdf_edit_image`** — natural-language image editing via Gemini ("Edit Banana"). _"remove the person on the left and inpaint the background"_.
+- **`champdf_detect_watermarks`** — find bounding boxes of watermarks/logos in an image. Pair with `champdf_inpaint_image` for fully autonomous removal.
 - **`champdf_inpaint_image`** — mask-based inpainting. Provide an image and a binary PNG mask; agent gets back a clean image.
 - **`champdf_download_video`** — pull a YouTube/Instagram video (long-form, Shorts, Reels) as MP4 or 320 kbps MP3.
 - **`champdf_remove_video_logo`** — strip the corner watermark from a video (NotebookLM-style logos) and optionally overlay your own.

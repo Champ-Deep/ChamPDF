@@ -261,6 +261,63 @@ server.registerTool(
 );
 
 // --------------------------------------------------------------------------
+// Tool: detect_watermarks — Gemini-based bounding-box detection
+// --------------------------------------------------------------------------
+
+server.registerTool(
+  'champdf_detect_watermarks',
+  {
+    title: 'ChamPDF — Auto-Detect Watermarks',
+    description:
+      "Find watermarks, AI logos, or stamps in an image using Gemini. Returns a JSON array of bounding boxes ({x, y, w, h, label, confidence}) you can feed into champdf_inpaint_image as masks. Use this when you don't know exactly where the watermarks are.",
+    inputSchema: {
+      input_path: z
+        .string()
+        .describe('Absolute path to the image to scan (PNG/JPEG/WebP).'),
+    },
+  },
+  async ({ input_path }) => {
+    try {
+      const data = await readFile(resolve(input_path));
+      const form = new FormData();
+      form.append(
+        'image',
+        new Blob([new Uint8Array(data)]),
+        input_path.split('/').pop() ?? 'image'
+      );
+      const res = await callApi('/api/v1/image/detect-watermarks', {
+        method: 'POST',
+        multipart: form,
+      });
+      const body = (await res.json()) as {
+        watermarks: Array<{
+          x: number;
+          y: number;
+          w: number;
+          h: number;
+          label: string;
+          confidence: number;
+        }>;
+      };
+      const summary =
+        body.watermarks.length === 0
+          ? 'No watermarks detected.'
+          : body.watermarks
+              .map(
+                (b, i) =>
+                  `  ${i + 1}. "${b.label}" at (${b.x}, ${b.y}) ${b.w}×${b.h}px (confidence ${b.confidence.toFixed(2)})`
+              )
+              .join('\n');
+      return ok(
+        `Found ${body.watermarks.length} watermark(s) in ${input_path}:\n${summary}\n\nFull JSON:\n${JSON.stringify(body, null, 2)}`
+      );
+    } catch (err) {
+      return fail(err);
+    }
+  }
+);
+
+// --------------------------------------------------------------------------
 // Tool: inpaint_image — mask-based inpainting (Gemini, OpenCV fallback)
 // --------------------------------------------------------------------------
 
