@@ -80,6 +80,9 @@ function initializePage() {
   if (clearBtn) clearBtn.addEventListener('click', clearAllSelections);
   if (undoBtn) undoBtn.addEventListener('click', undoLastSelection);
 
+  const autoDetectBtn = document.getElementById('auto-detect-btn');
+  if (autoDetectBtn) autoDetectBtn.addEventListener('click', autoDetectWatermarks);
+
   setupCanvas();
   setupSettings();
 }
@@ -342,6 +345,118 @@ function clearAllSelections() {
   pageState.regions = [];
   updateSelectionInfo();
   renderPage(pageState.currentPage);
+}
+
+async function autoDetectWatermarks() {
+  if (!pageState.pdfDoc || !pageState.canvas) {
+    showAlert('Error', 'Please upload a PDF file first.');
+    return;
+  }
+
+  const btn = document.getElementById(
+    'auto-detect-btn'
+  ) as HTMLButtonElement | null;
+  const originalLabel = btn?.innerHTML ?? '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML =
+      '<i data-lucide="loader" class="w-4 h-4 inline mr-1 animate-spin"></i> Detecting…';
+  }
+
+  try {
+    // Render the current page to a canvas at the same scale used for
+    // selection so coordinates line up with pageState.regions.
+    if (!pdfJsDoc) throw new Error('PDF not yet loaded');
+    const page = await pdfJsDoc.getPage(pageState.currentPage);
+    const viewport = page.getViewport({ scale: pageState.scale });
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = viewport.width;
+    tempCanvas.height = viewport.height;
+    const tempCtx = tempCanvas.getContext('2d')!;
+    await page.render({ canvasContext: tempCtx, viewport }).promise;
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      tempCanvas.toBlob((b) => resolve(b), 'image/png')
+    );
+    if (!blob) throw new Error('Could not capture page image');
+
+    const form = new FormData();
+    form.append('image', blob, 'page.png');
+
+    const apiBaseUrl =
+      (import.meta.env.VITE_API_URL as string | undefined) || '';
+    const res = await fetch(`${apiBaseUrl}/api/detect-watermarks`, {
+      method: 'POST',
+      body: form,
+    });
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      throw new Error(
+        res.status === 503
+          ? 'Auto-detect requires a Gemini API key on the server.'
+          : `Detection failed (${res.status}): ${detail.slice(0, 200)}`
+      );
+    }
+
+    const { watermarks } = (await res.json()) as {
+      watermarks: Array<{
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        label: string;
+        confidence: number;
+      }>;
+    };
+
+    if (!watermarks || watermarks.length === 0) {
+      showAlert(
+        'No watermarks found',
+        'Gemini did not detect any watermarks on this page. Try drawing a rectangle manually.'
+      );
+      return;
+    }
+
+    // Append (don't replace) so users can keep manual selections too.
+    for (const wm of watermarks) {
+      pageState.regions.push({
+        x: wm.x,
+        y: wm.y,
+        width: wm.w,
+        height: wm.h,
+        pageIndex: pageState.currentPage - 1,
+      });
+    }
+
+    updateSelectionInfo();
+    renderPage(pageState.currentPage);
+    drawSelections();
+
+    showAlert(
+      'Auto-detect complete',
+      `Found ${watermarks.length} watermark${watermarks.length === 1 ? '' : 's'} on this page. Review the boxes; you can adjust, undo, or clear before removing.`,
+      'success'
+    );
+  } catch (err) {
+    showAlert(
+      'Auto-detect failed',
+      err instanceof Error ? err.message : 'Unknown error'
+    );
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalLabel;
+      // Re-mount lucide icons that were torn out
+      try {
+        // @ts-ignore - lucide is available via /utils/lucide-init
+        if ((window as any).lucide?.createIcons)
+          (window as any).lucide.createIcons();
+      } catch {
+        /* noop */
+      }
+    }
+  }
 }
 
 function undoLastSelection() {

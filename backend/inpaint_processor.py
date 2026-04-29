@@ -178,6 +178,135 @@ class EditError(Exception):
     """Raised when prompt-based image editing fails."""
 
 
+class DetectError(Exception):
+    """Raised when watermark auto-detection fails."""
+
+
+async def detect_watermarks(image_bytes: bytes) -> list[dict]:
+    """
+    Ask Gemini to find watermarks/logos in an image and return their
+    bounding boxes as a list of {x, y, w, h, label, confidence} dicts in
+    pixel coordinates of the input image.
+
+    Returns an empty list if Gemini finds nothing. Raises DetectError if
+    Gemini is not configured or returns malformed output.
+    """
+    if not _gemini_available():
+        raise DetectError(
+            "Auto-detect requires Gemini (GEMINI_API_KEY not set on the server)."
+        )
+
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        img.load()
+    except Exception as e:
+        raise DetectError(f"Could not read input image: {e}") from e
+
+    width, height = img.size
+    if img.mode not in ("RGB", "RGBA"):
+        img = img.convert("RGB")
+
+    # Cap dimensions for predictable latency / cost.
+    max_side = 1536
+    if max(img.size) > max_side:
+        ratio = max_side / max(img.size)
+        new_size = (int(img.size[0] * ratio), int(img.size[1] * ratio))
+        img = img.resize(new_size, Image.LANCZOS)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    normalized_bytes = buf.getvalue()
+    sent_w, sent_h = img.size
+
+    detect_prompt = (
+        "You are a vision model. Find every watermark, AI-generated logo, "
+        "or stamped overlay (e.g. NotebookLM corner logos, brand watermarks, "
+        '"PROOF"/"DRAFT" stamps, software trial overlays) in this document '
+        "page image. Return ONLY a JSON object with this exact shape:\n"
+        '{"watermarks": [{"x": int, "y": int, "w": int, "h": int, '
+        '"label": string, "confidence": float}]}\n'
+        f"Coordinates must be pixel offsets from the top-left of an image "
+        f"that is {sent_w}x{sent_h} pixels. Boxes should snugly fit the "
+        "watermark with ~5px margin. If no watermark is present, return "
+        '{"watermarks": []}. Do NOT include any text outside the JSON.'
+    )
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        # Use a Gemini model that does well on structured output. The image
+        # editing model is overkill for detection; default to a vision-capable
+        # text model if GEMINI_DETECT_MODEL is set.
+        model = os.environ.get("GEMINI_DETECT_MODEL", "gemini-2.5-flash")
+
+        response = client.models.generate_content(
+            model=model,
+            contents=[
+                detect_prompt,
+                types.Part.from_bytes(data=normalized_bytes, mime_type="image/png"),
+            ],
+        )
+
+        # Pull the first text part out of the response
+        text_out = ""
+        for candidate in response.candidates or []:
+            for part in candidate.content.parts or []:
+                if getattr(part, "text", None):
+                    text_out = part.text
+                    break
+            if text_out:
+                break
+
+        if not text_out:
+            raise DetectError("Model returned no text response.")
+
+        import json
+        import re
+
+        # Tolerate Markdown code-fences around the JSON
+        m = re.search(r"\{.*\}", text_out, re.DOTALL)
+        if not m:
+            raise DetectError(f"Model output was not JSON: {text_out[:200]}")
+        parsed = json.loads(m.group(0))
+        boxes = parsed.get("watermarks") or []
+
+        # Scale coords back to the ORIGINAL image dimensions if we resized.
+        sx = width / sent_w
+        sy = height / sent_h
+        out: list[dict] = []
+        for b in boxes:
+            try:
+                x = int(round(float(b["x"]) * sx))
+                y = int(round(float(b["y"]) * sy))
+                w = int(round(float(b["w"]) * sx))
+                h = int(round(float(b["h"]) * sy))
+            except (KeyError, TypeError, ValueError):
+                continue
+            # Clamp to image bounds and skip degenerate boxes
+            x = max(0, min(width - 1, x))
+            y = max(0, min(height - 1, y))
+            w = max(1, min(width - x, w))
+            h = max(1, min(height - y, h))
+            out.append(
+                {
+                    "x": x,
+                    "y": y,
+                    "w": w,
+                    "h": h,
+                    "label": str(b.get("label", "watermark"))[:80],
+                    "confidence": float(b.get("confidence", 0.0)),
+                }
+            )
+        return out
+    except DetectError:
+        raise
+    except Exception as e:
+        logger.warning("[detect] Gemini call failed: %s", e)
+        raise DetectError(f"Watermark detection failed: {e}") from e
+
+
 async def edit_image_with_prompt(
     image_bytes: bytes,
     prompt: str,

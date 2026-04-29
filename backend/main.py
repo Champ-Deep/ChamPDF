@@ -30,8 +30,10 @@ from media_downloader import (
     download_media,
 )
 from inpaint_processor import (
+    DetectError,
     EditError,
     InpaintError,
+    detect_watermarks,
     edit_image_with_prompt,
     inpaint_image,
 )
@@ -392,6 +394,35 @@ async def inpaint_image_endpoint(
         media_type="image/png",
         headers={"Content-Disposition": 'inline; filename="inpainted.png"'},
     )
+
+
+@app.post("/api/detect-watermarks")
+async def detect_watermarks_endpoint(
+    image: UploadFile = File(...),
+):
+    """
+    Auto-detect watermarks/logos in an image. Returns a JSON array of
+    bounding boxes the frontend can pre-populate the selection state
+    with. Used by the PDF Watermark Remover's "Auto-detect" button.
+    """
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="image is required")
+    if len(image_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image too large (20MB max)")
+
+    try:
+        async with process_semaphore:
+            boxes = await detect_watermarks(image_bytes)
+    except DetectError as e:
+        msg = str(e)
+        status = 503 if "not set" in msg or "not configured" in msg else 502
+        raise HTTPException(status_code=status, detail=msg)
+
+    return {"watermarks": boxes}
 
 
 @app.post("/api/edit-image")
