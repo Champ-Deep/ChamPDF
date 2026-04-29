@@ -1,0 +1,53 @@
+{
+  "name": "@champ-deep/champdf-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for ChamPDF — let Claude Code and other AI agents call ChamPDF's tools (PDF watermark removal, image editing, video processing) natively.",
+  "license": "MIT",
+  "homepage": "https://champdf.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Champ-Deep/ChamPDF.git",
+    "directory": "mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/Champ-Deep/ChamPDF/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "champdf",
+    "pdf",
+    "claude",
+    "ai-agent",
+    "image-editing",
+    "watermark-remover",
+    "gemini"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "champdf-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}
