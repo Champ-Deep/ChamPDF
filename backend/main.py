@@ -29,6 +29,7 @@ from media_downloader import (
     cleanup_work_dir,
     download_media,
 )
+from inpaint_processor import InpaintError, inpaint_image
 
 logger = logging.getLogger(__name__)
 
@@ -332,6 +333,49 @@ def _check_rate_limit(client_ip: str) -> None:
 class DownloadRequest(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
     format: str = Field(default="mp4")
+
+
+@app.post("/api/inpaint-image")
+async def inpaint_image_endpoint(
+    image: UploadFile = File(...),
+    mask: UploadFile = File(...),
+    prompt: Optional[str] = Form(None),
+    radius: int = Form(5),
+):
+    """
+    Inpaint masked regions of an image using Gemini's image-editing model
+    (with an OpenCV Telea fallback if Gemini is unavailable). Used by the
+    PDF Watermark Remover for higher-quality results than client-side OpenCV.
+    """
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+
+    image_bytes = await image.read()
+    mask_bytes = await mask.read()
+
+    if not image_bytes or not mask_bytes:
+        raise HTTPException(status_code=400, detail="image and mask are required")
+
+    # Sanity: cap image size at 20MB to avoid abusive uploads
+    if len(image_bytes) > 20 * 1024 * 1024 or len(mask_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image or mask too large (20MB max)")
+
+    try:
+        async with process_semaphore:
+            result_png = await inpaint_image(
+                image_bytes=image_bytes,
+                mask_bytes=mask_bytes,
+                prompt=prompt,
+                radius=radius,
+            )
+    except InpaintError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    return StreamingResponse(
+        io.BytesIO(result_png),
+        media_type="image/png",
+        headers={"Content-Disposition": 'inline; filename="inpainted.png"'},
+    )
 
 
 @app.post("/api/download-from-url")

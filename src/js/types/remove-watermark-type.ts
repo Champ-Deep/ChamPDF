@@ -21,8 +21,8 @@ export interface RemoveWatermarkState {
 }
 
 export interface InpaintingOptions {
-  method: 'telea' | 'ns'; // Telea or Navier-Stokes
-  radius: number; // Inpainting radius in pixels
+  method: 'telea' | 'ns' | 'gemini'; // Telea, Navier-Stokes, or Gemini AI
+  radius: number; // Inpainting radius in pixels (ignored for 'gemini')
 }
 
 export interface ProcessingProgress {

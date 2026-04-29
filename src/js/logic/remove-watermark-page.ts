@@ -360,6 +360,22 @@ function setupSettings() {
   radiusSlider?.addEventListener('input', () => {
     if (radiusValue) radiusValue.textContent = radiusSlider.value;
   });
+
+  // The Gemini option doesn't use the radius (it's an ML model, not a
+  // local kernel). Show a note when it's selected and disable the radius
+  // slider so users don't think it does something.
+  const methodSelect = document.getElementById(
+    'inpainting-method'
+  ) as HTMLSelectElement | null;
+  const geminiNote = document.getElementById('gemini-method-note');
+  const updateMethodUi = () => {
+    if (!methodSelect) return;
+    const isGemini = methodSelect.value === 'gemini';
+    geminiNote?.classList.toggle('hidden', !isGemini);
+    if (radiusSlider) radiusSlider.disabled = isGemini;
+  };
+  methodSelect?.addEventListener('change', updateMethodUi);
+  updateMethodUi();
 }
 
 async function removeWatermarks() {
@@ -375,12 +391,15 @@ async function removeWatermarks() {
   const loaderProgress = document.getElementById('loader-progress');
 
   try {
-    // Load OpenCV.js dynamically
-    await loadOpenCV();
-
     const method = (
       document.getElementById('inpainting-method') as HTMLSelectElement
-    ).value as 'telea' | 'ns';
+    ).value as 'telea' | 'ns' | 'gemini';
+
+    // OpenCV is only needed for the local methods. Gemini path uploads to
+    // the backend instead.
+    if (method !== 'gemini') {
+      await loadOpenCV();
+    }
     const radius = parseInt(
       (document.getElementById('inpainting-radius') as HTMLInputElement).value
     );
@@ -472,8 +491,6 @@ async function processPageWithInpainting(
   regions: WatermarkRegion[],
   options: InpaintingOptions
 ) {
-  const cv = (window as any).cv;
-
   // Render page to canvas at higher resolution
   const page = await pdfJsDoc.getPage(pageIndex + 1);
   const scale = 2.0; // Higher resolution for better quality
@@ -489,27 +506,52 @@ async function processPageWithInpainting(
     viewport: viewport,
   }).promise;
 
-  // Convert to OpenCV Mat
-  const imgData = tempCtx.getImageData(
-    0,
-    0,
-    tempCanvas.width,
-    tempCanvas.height
-  );
-  const src = cv.matFromImageData(imgData);
+  const scaleRatio = scale / pageState.scale;
 
-  // Create mask
+  let imageBytes: Uint8Array;
+
+  if (options.method === 'gemini') {
+    imageBytes = await inpaintWithGemini(tempCanvas, regions, scaleRatio);
+  } else {
+    imageBytes = inpaintWithOpenCV(tempCanvas, tempCtx, regions, scaleRatio, options);
+  }
+
+  // Replace page in PDF with processed image
+  const pdfPage = pdfLibDoc.getPage(pageIndex);
+  const jpgImage =
+    options.method === 'gemini'
+      ? await pdfLibDoc.embedPng(imageBytes)
+      : await pdfLibDoc.embedJpg(imageBytes);
+
+  const { width, height } = pdfPage.getSize();
+  pdfPage.drawImage(jpgImage, {
+    x: 0,
+    y: 0,
+    width: width,
+    height: height,
+  });
+}
+
+function inpaintWithOpenCV(
+  tempCanvas: HTMLCanvasElement,
+  tempCtx: CanvasRenderingContext2D,
+  regions: WatermarkRegion[],
+  scaleRatio: number,
+  options: InpaintingOptions
+): Uint8Array {
+  const cv = (window as any).cv;
+
+  const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+  const src = cv.matFromImageData(imgData);
   const mask = new cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
 
-  // Draw regions on mask (scaled to match rendered resolution)
-  const scaleRatio = scale / pageState.scale;
   regions.forEach((region) => {
-    const scaledX = Math.floor(region.x * scaleRatio);
-    const scaledY = Math.floor(region.y * scaleRatio);
-    const scaledWidth = Math.floor(region.width * scaleRatio);
-    const scaledHeight = Math.floor(region.height * scaleRatio);
-
-    const rect = new cv.Rect(scaledX, scaledY, scaledWidth, scaledHeight);
+    const rect = new cv.Rect(
+      Math.floor(region.x * scaleRatio),
+      Math.floor(region.y * scaleRatio),
+      Math.floor(region.width * scaleRatio),
+      Math.floor(region.height * scaleRatio)
+    );
     cv.rectangle(
       mask,
       rect.tl(),
@@ -519,35 +561,73 @@ async function processPageWithInpainting(
     );
   });
 
-  // Apply inpainting
   const dst = new cv.Mat();
   const inpaintFlag =
     options.method === 'telea' ? cv.INPAINT_TELEA : cv.INPAINT_NS;
   cv.inpaint(src, mask, dst, options.radius, inpaintFlag);
 
-  // Convert back to canvas
   cv.imshow(tempCanvas, dst);
 
-  // Convert canvas to image and embed in PDF
-  const imageDataUrl = tempCanvas.toDataURL('image/jpeg', 0.95);
-  const imageBytes = dataUrlToBytes(imageDataUrl);
-
-  // Replace page in PDF with processed image
-  const pdfPage = pdfLibDoc.getPage(pageIndex);
-  const jpgImage = await pdfLibDoc.embedJpg(imageBytes);
-
-  const { width, height } = pdfPage.getSize();
-  pdfPage.drawImage(jpgImage, {
-    x: 0,
-    y: 0,
-    width: width,
-    height: height,
-  });
-
-  // Clean up
   src.delete();
   mask.delete();
   dst.delete();
+
+  return dataUrlToBytes(tempCanvas.toDataURL('image/jpeg', 0.95));
+}
+
+const API_BASE_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) || '';
+
+async function inpaintWithGemini(
+  tempCanvas: HTMLCanvasElement,
+  regions: WatermarkRegion[],
+  scaleRatio: number
+): Promise<Uint8Array> {
+  // Build a binary mask matching the rendered canvas size: white = inpaint.
+  const maskCanvas = document.createElement('canvas');
+  maskCanvas.width = tempCanvas.width;
+  maskCanvas.height = tempCanvas.height;
+  const maskCtx = maskCanvas.getContext('2d')!;
+  maskCtx.fillStyle = '#000';
+  maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+  maskCtx.fillStyle = '#fff';
+  regions.forEach((region) => {
+    maskCtx.fillRect(
+      Math.floor(region.x * scaleRatio),
+      Math.floor(region.y * scaleRatio),
+      Math.floor(region.width * scaleRatio),
+      Math.floor(region.height * scaleRatio)
+    );
+  });
+
+  const imageBlob = await canvasToBlob(tempCanvas, 'image/png');
+  const maskBlob = await canvasToBlob(maskCanvas, 'image/png');
+
+  const form = new FormData();
+  form.append('image', imageBlob, 'page.png');
+  form.append('mask', maskBlob, 'mask.png');
+
+  const res = await fetch(`${API_BASE_URL}/api/inpaint-image`, {
+    method: 'POST',
+    body: form,
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Gemini inpaint failed (HTTP ${res.status}): ${detail.slice(0, 200)}`
+    );
+  }
+  const ab = await res.arrayBuffer();
+  return new Uint8Array(ab);
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('canvas.toBlob returned null'))),
+      type
+    );
+  });
 }
 
 function dataUrlToBytes(dataUrl: string): Uint8Array {
