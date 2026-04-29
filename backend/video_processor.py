@@ -228,6 +228,7 @@ class VideoProcessor:
         logo_position: str,
         width: int,
         height: int,
+        logo_scale: float = 1.0,
     ) -> Tuple[bool, Optional[str]]:
         """Process video frame-by-frame with OpenCV inpainting, then re-encode."""
 
@@ -264,6 +265,7 @@ class VideoProcessor:
                 audio_path if has_audio else None,
                 logo_path,
                 logo_position,
+                logo_scale,
             )
 
             return success, err
@@ -343,8 +345,13 @@ class VideoProcessor:
         audio_path: Optional[str],
         logo_path: Optional[Path],
         logo_position: str,
+        logo_scale: float = 1.0,
     ) -> Tuple[bool, Optional[str]]:
         """Re-encode inpainted video with H.264, mux audio, and optionally overlay logo."""
+
+        # Default logo width is 120px; user-supplied logo_scale (0.5–2.0)
+        # multiplies it. Round to even so libx264 is happy.
+        logo_w = max(2, int(round(120 * logo_scale / 2)) * 2)
 
         if logo_path and audio_path:
             # Inpainted video + audio + logo overlay
@@ -354,7 +361,7 @@ class VideoProcessor:
                 "-i", video_path,
                 "-i", str(logo_path),
                 "-i", audio_path,
-                "-filter_complex", f"[1:v]scale=120:-1[logo];[0:v][logo]overlay={logo_position}:format=auto[out]",
+                "-filter_complex", f"[1:v]scale={logo_w}:-1[logo];[0:v][logo]overlay={logo_position}:format=auto[out]",
                 "-map", "[out]",
                 "-map", "2:a",
                 "-c:v", "libx264", "-crf", "18", "-preset", "fast",
@@ -368,7 +375,7 @@ class VideoProcessor:
                 "ffmpeg", "-y",
                 "-i", video_path,
                 "-i", str(logo_path),
-                "-filter_complex", f"[1:v]scale=120:-1[logo];[0:v][logo]overlay={logo_position}:format=auto[out]",
+                "-filter_complex", f"[1:v]scale={logo_w}:-1[logo];[0:v][logo]overlay={logo_position}:format=auto[out]",
                 "-map", "[out]",
                 "-c:v", "libx264", "-crf", "18", "-preset", "fast",
                 "-movflags", "+faststart",
@@ -429,13 +436,16 @@ class VideoProcessor:
         region: Dict[str, int],
         logo_path: Optional[Path],
         logo_position: str,
+        logo_scale: float = 1.0,
     ) -> Tuple[bool, Optional[str]]:
         """Fallback: process video with FFmpeg delogo filter (lower quality)."""
+
+        logo_w = max(2, int(round(120 * logo_scale / 2)) * 2)
 
         if logo_path:
             filter_complex = (
                 f"[0:v]delogo=x={region['x']}:y={region['y']}:w={region['w']}:h={region['h']}:show=0[delogoed];"
-                f"[1:v]scale=120:-1[logo];"
+                f"[1:v]scale={logo_w}:-1[logo];"
                 f"[delogoed][logo]overlay={logo_position}:format=auto[out]"
             )
             cmd = [
@@ -496,6 +506,7 @@ class VideoProcessor:
         output_path: str,
         logo_preset: str = "lakeb2b",
         watermark_position: str = "bottom-right",
+        logo_scale: float = 1.0,
     ) -> Tuple[bool, Optional[str]]:
         """
         Process video to remove watermark and optionally add logo.
@@ -508,6 +519,8 @@ class VideoProcessor:
             output_path: Path for output video
             logo_preset: Logo to add (lakeb2b, champions, ampliz, none)
             watermark_position: Position of original watermark
+            logo_scale: User-supplied size multiplier for replacement logo
+                (1.0 = default 120px width). Range 0.5–2.0.
 
         Returns:
             Tuple of (success, error_message)
@@ -548,6 +561,7 @@ class VideoProcessor:
                     logo_position=logo_position,
                     width=width,
                     height=height,
+                    logo_scale=logo_scale,
                 )
             else:
                 # Fallback to FFmpeg delogo
@@ -557,6 +571,7 @@ class VideoProcessor:
                     region=region,
                     logo_path=logo_path,
                     logo_position=logo_position,
+                    logo_scale=logo_scale,
                 )
 
         except Exception as e:

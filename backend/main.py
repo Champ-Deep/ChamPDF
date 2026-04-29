@@ -198,6 +198,7 @@ async def process_video(
     file: UploadFile = File(...),
     logo_preset: str = Form("lakeb2b"),
     watermark_position: str = Form("bottom-right"),
+    logo_scale: float = Form(1.0),
 ):
     """
     Process a video to remove watermarks and optionally add a new logo.
@@ -230,6 +231,13 @@ async def process_video(
             detail=f"Invalid watermark position. Allowed: {', '.join(valid_positions)}"
         )
 
+    # Clamp logo_scale to a sane range; 0.5x to 2.0x of default size.
+    if not 0.5 <= logo_scale <= 2.0:
+        raise HTTPException(
+            status_code=400,
+            detail="logo_scale must be between 0.5 and 2.0"
+        )
+
     # Generate unique filenames
     job_id = str(uuid.uuid4())
     input_path = settings.UPLOAD_DIR / f"{job_id}{file_ext}"
@@ -258,6 +266,7 @@ async def process_video(
                 output_path=str(output_path),
                 logo_preset=logo_preset,
                 watermark_position=watermark_position,
+                logo_scale=logo_scale,
             )
 
         if not success:

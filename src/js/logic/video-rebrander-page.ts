@@ -21,6 +21,7 @@ interface VideoRebraderState {
   file: File | null;
   logoPreset: 'lakeb2b' | 'champions' | 'ampliz' | 'none';
   watermarkPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  logoScale: number;
   isProcessing: boolean;
   downloadUrl: string | null;
   downloadFilename: string;
@@ -30,6 +31,7 @@ const state: VideoRebraderState = {
   file: null,
   logoPreset: 'lakeb2b',
   watermarkPosition: 'bottom-right',
+  logoScale: 1.0,
   isProcessing: false,
   downloadUrl: null,
   downloadFilename: 'video_rebranded.mp4',
@@ -100,6 +102,17 @@ function initializePage() {
           .value as typeof state.watermarkPosition;
       });
     });
+
+  // Logo scale slider (50-200% of default size; backend expects 0.5-2.0)
+  const logoScaleEl = document.getElementById(
+    'logo-scale'
+  ) as HTMLInputElement | null;
+  const logoScaleValueEl = document.getElementById('logo-scale-value');
+  logoScaleEl?.addEventListener('input', () => {
+    const pct = parseInt(logoScaleEl.value, 10) || 100;
+    state.logoScale = pct / 100;
+    if (logoScaleValueEl) logoScaleValueEl.textContent = `${pct}%`;
+  });
 
   // Process button
   document
@@ -237,6 +250,7 @@ async function handleProcess() {
     formData.append('file', state.file);
     formData.append('logo_preset', state.logoPreset);
     formData.append('watermark_position', state.watermarkPosition);
+    formData.append('logo_scale', state.logoScale.toString());
 
     // Update status
     updateStatus(
@@ -366,6 +380,14 @@ function resetToUpload() {
   ) as HTMLInputElement;
   if (defaultPosition) defaultPosition.checked = true;
   state.watermarkPosition = 'bottom-right';
+
+  const logoScaleEl = document.getElementById(
+    'logo-scale'
+  ) as HTMLInputElement | null;
+  const logoScaleValueEl = document.getElementById('logo-scale-value');
+  if (logoScaleEl) logoScaleEl.value = '100';
+  if (logoScaleValueEl) logoScaleValueEl.textContent = '100%';
+  state.logoScale = 1.0;
 }
 
 function cleanup() {

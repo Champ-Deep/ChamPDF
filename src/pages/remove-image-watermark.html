@@ -324,6 +324,35 @@
             </div>
           </div>
 
+          <!-- Logo Scale -->
+          <div class="mb-6">
+            <div class="flex items-center justify-between mb-2">
+              <label
+                for="logo-scale"
+                class="block text-sm font-medium text-gray-300"
+              >
+                Logo size
+              </label>
+              <span
+                id="logo-scale-value"
+                class="text-sm text-gray-400 tabular-nums"
+                >100%</span
+              >
+            </div>
+            <input
+              type="range"
+              id="logo-scale"
+              min="50"
+              max="200"
+              step="5"
+              value="100"
+              class="w-full accent-orange-500"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              Adjust the replacement logo size from 50% to 200% of default.
+            </p>
+          </div>
+
           <!-- Process Button -->
           <button
             id="process-btn"

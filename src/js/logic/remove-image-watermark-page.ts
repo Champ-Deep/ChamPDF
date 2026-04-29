@@ -16,6 +16,7 @@ interface WatermarkRemoverState {
   selectionBox: { x: number; y: number; width: number; height: number } | null;
   blurRadius: number; // 5, 10, 15 for light/medium/heavy
   logoPreset: 'none' | 'lakeb2b' | 'champions' | 'ampliz';
+  logoScale: number;
   isProcessing: boolean;
   resultBlob: Blob | null;
   previewCanvas: HTMLCanvasElement | null;
@@ -29,6 +30,7 @@ const state: WatermarkRemoverState = {
   selectionBox: null,
   blurRadius: 10, // Default: medium blur
   logoPreset: 'none',
+  logoScale: 1.0,
   isProcessing: false,
   resultBlob: null,
   previewCanvas: null,
@@ -97,6 +99,17 @@ function initializePage() {
       state.logoPreset = (e.target as HTMLInputElement)
         .value as typeof state.logoPreset;
     });
+  });
+
+  // Logo scale slider (50–200% of default size; 1.0 = default)
+  const logoScaleEl = document.getElementById(
+    'logo-scale'
+  ) as HTMLInputElement | null;
+  const logoScaleValueEl = document.getElementById('logo-scale-value');
+  logoScaleEl?.addEventListener('input', () => {
+    const pct = parseInt(logoScaleEl.value, 10) || 100;
+    state.logoScale = pct / 100;
+    if (logoScaleValueEl) logoScaleValueEl.textContent = `${pct}%`;
   });
 
   // Clear selection button
@@ -737,7 +750,8 @@ async function addReplacementLogo(
     // Calculate logo dimensions maintaining aspect ratio
     const maxLogoWidth = width * 0.15; // 15% of image width
     const logoAspect = logoImg.width / logoImg.height;
-    const logoWidth = Math.min(200, maxLogoWidth);
+    const baseLogoWidth = Math.min(200, maxLogoWidth);
+    const logoWidth = baseLogoWidth * state.logoScale;
     const logoHeight = logoWidth / logoAspect;
 
     // Align logo with BOTTOM of selection box

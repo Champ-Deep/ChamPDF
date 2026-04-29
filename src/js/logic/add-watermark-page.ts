@@ -134,6 +134,12 @@ function setupWatermarkUI() {
 
     opacitySliderImage?.addEventListener('input', () => { if (opacityValueImage) opacityValueImage.textContent = opacitySliderImage.value; });
     angleSliderImage?.addEventListener('input', () => { if (angleValueImage) angleValueImage.textContent = angleSliderImage.value; });
+
+    const scaleSliderImage = document.getElementById('scale-image') as HTMLInputElement | null;
+    const scaleValueImage = document.getElementById('scale-value-image');
+    scaleSliderImage?.addEventListener('input', () => {
+        if (scaleValueImage) scaleValueImage.textContent = scaleSliderImage.value;
+    });
 }
 
 async function addWatermark() {
@@ -189,7 +195,8 @@ async function addWatermark() {
             } else {
                 const angle = parseInt((document.getElementById('angle-image') as HTMLInputElement).value) || 0;
                 const opacity = parseFloat((document.getElementById('opacity-image') as HTMLInputElement).value) || 0.3;
-                const scale = 0.5;
+                const scalePct = parseInt((document.getElementById('scale-image') as HTMLInputElement)?.value || '50', 10);
+                const scale = Math.min(2, Math.max(0.1, scalePct / 100));
                 const imgWidth = watermarkAsset.width * scale;
                 const imgHeight = watermarkAsset.height * scale;
 
