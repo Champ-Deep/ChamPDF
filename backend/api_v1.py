@@ -422,6 +422,95 @@ async def v1_edit_image(
     return _stream_png(out, filename="edited.png")
 
 
+class PdfRemoveWatermarkRegion(BaseModel):
+    page: int = Field(ge=1, description="1-indexed page number.")
+    x: float = Field(description="Left edge in PDF points (1pt = 1/72 in).")
+    y: float = Field(description="Top edge in PDF points.")
+    w: float = Field(gt=0)
+    h: float = Field(gt=0)
+
+
+@router.post(
+    "/pdf/remove-watermark",
+    summary="Remove watermarks from a PDF",
+    description=(
+        "Server-side equivalent of the browser PDF Watermark Remover. Pass "
+        "the source PDF and a JSON list of region rectangles in PDF-point "
+        "coordinates. Affected pages are rendered, inpainted, and re-embedded; "
+        "untouched pages pass through unchanged."
+    ),
+)
+async def v1_pdf_remove_watermark(
+    file: UploadFile = File(..., description="Source PDF (up to 50MB)"),
+    regions: str = Form(
+        ...,
+        description=(
+            'JSON array of {"page": int (1-indexed), "x": float, "y": float, '
+            '"w": float, "h": float}, all in PDF points.'
+        ),
+    ),
+    method: str = Form(
+        "telea",
+        description="Inpainting method: 'telea' / 'ns' (OpenCV, local) or 'gemini' (AI, server).",
+    ),
+    radius: int = Form(5, ge=1, le=30),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    import json as _json
+
+    from pdf_processor import PdfWatermarkError, remove_watermarks_from_pdf
+
+    started = time.monotonic()
+    pdf_bytes = await file.read()
+    if not pdf_bytes:
+        raise HTTPException(status_code=400, detail="file is required")
+    if len(pdf_bytes) > 50 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="PDF too large (50MB max)")
+
+    try:
+        parsed_regions = _json.loads(regions)
+        if not isinstance(parsed_regions, list) or not parsed_regions:
+            raise ValueError("regions must be a non-empty array")
+        for r in parsed_regions:
+            for k in ("page", "x", "y", "w", "h"):
+                if k not in r:
+                    raise ValueError(f"each region needs {k}")
+    except (ValueError, _json.JSONDecodeError) as e:
+        raise HTTPException(status_code=422, detail=f"invalid regions: {e}")
+
+    if method not in {"telea", "ns", "gemini"}:
+        raise HTTPException(
+            status_code=422, detail="method must be 'telea', 'ns', or 'gemini'"
+        )
+
+    try:
+        out_pdf = await remove_watermarks_from_pdf(
+            pdf_bytes=pdf_bytes,
+            regions=parsed_regions,
+            method=method,
+            radius=radius,
+        )
+    except PdfWatermarkError as e:
+        _record_request(
+            key["id"], "pdf/remove-watermark", 422, int((time.monotonic() - started) * 1000)
+        )
+        raise HTTPException(status_code=422, detail=str(e))
+
+    _record_request(
+        key_id=key["id"],
+        endpoint="pdf/remove-watermark",
+        status=200,
+        latency_ms=int((time.monotonic() - started) * 1000),
+    )
+    return StreamingResponse(
+        io.BytesIO(out_pdf),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'attachment; filename="watermark-removed.pdf"',
+        },
+    )
+
+
 @router.post(
     "/image/detect-watermarks",
     summary="Auto-detect watermarks/logos in an image (Gemini)",

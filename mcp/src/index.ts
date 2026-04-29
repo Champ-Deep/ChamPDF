@@ -429,6 +429,77 @@ server.registerTool(
 );
 
 // --------------------------------------------------------------------------
+// Tool: remove_pdf_watermark — server-side equivalent of the browser tool
+// --------------------------------------------------------------------------
+
+server.registerTool(
+  'champdf_remove_pdf_watermark',
+  {
+    title: 'ChamPDF — Remove PDF Watermark',
+    description:
+      'Remove watermarks/logos from a PDF. Provide the PDF and a JSON list of region rectangles in PDF-point coordinates (1pt = 1/72 in, origin top-left). The page numbers are 1-indexed. Best paired with `champdf_detect_watermarks` on rendered pages first if you do not know where the watermarks are.',
+    inputSchema: {
+      input_path: z.string().describe('Absolute path to the source PDF.'),
+      output_path: z
+        .string()
+        .describe('Absolute path where the cleaned PDF should be written.'),
+      regions: z
+        .array(
+          z.object({
+            page: z.number().int().min(1),
+            x: z.number(),
+            y: z.number(),
+            w: z.number().positive(),
+            h: z.number().positive(),
+          })
+        )
+        .min(1)
+        .describe(
+          'Region rectangles in PDF points. Example: [{"page":1,"x":480,"y":720,"w":80,"h":24}].'
+        ),
+      method: z
+        .enum(['telea', 'ns', 'gemini'])
+        .default('telea')
+        .describe(
+          "Inpainting algorithm. 'gemini' is highest quality (server-side AI), 'telea' is fastest (local OpenCV)."
+        ),
+      radius: z
+        .number()
+        .int()
+        .min(1)
+        .max(30)
+        .default(5)
+        .describe('Inpaint radius in pixels (only used by OpenCV methods).'),
+    },
+  },
+  async ({ input_path, output_path, regions, method, radius }) => {
+    try {
+      const data = await readFile(resolve(input_path));
+      const form = new FormData();
+      form.append(
+        'file',
+        new Blob([new Uint8Array(data)]),
+        input_path.split('/').pop() ?? 'input.pdf'
+      );
+      form.append('regions', JSON.stringify(regions));
+      form.append('method', method);
+      form.append('radius', String(radius));
+      const res = await callApi('/api/v1/pdf/remove-watermark', {
+        method: 'POST',
+        multipart: form,
+      });
+      const { bytes } = await downloadToPath(res, resolve(output_path));
+      return ok(
+        `Removed ${regions.length} watermark region(s) from ${input_path} (method=${method}). ` +
+          `Wrote ${bytes.toLocaleString()} bytes to ${output_path}.`
+      );
+    } catch (err) {
+      return fail(err);
+    }
+  }
+);
+
+// --------------------------------------------------------------------------
 // Tool: remove_video_logo
 // --------------------------------------------------------------------------
 

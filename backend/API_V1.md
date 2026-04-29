@@ -17,6 +17,7 @@ All under `/api/v1`. Auth: `Authorization: Bearer <api_key>`.
 | POST   | `/image/inpaint`           | multipart `image` + `mask` (+ optional `prompt`, `radius`) → PNG.         |
 | POST   | `/video/download`          | JSON `{url, format: "mp3" \| "mp4"}` → binary stream of the file.         |
 | POST   | `/video/remove-logo`       | multipart `file` + `logo_preset` + `watermark_position` + `logo_scale` → MP4. |
+| POST   | `/pdf/remove-watermark`    | multipart `file` + `regions` (JSON) + `method` (telea/ns/gemini) → cleaned PDF. |
 
 Auto-generated docs at `GET /docs` (Swagger UI) and `GET /openapi.json`.
 v1 endpoints show under the **v1** tag.
