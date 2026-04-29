@@ -8,6 +8,19 @@
 
 ---
 
+## ✨ What's new (v2)
+
+- **🍌 Edit Banana** — prompt-based AI image editor backed by Gemini's image-editing model ("Nano Banana"). Drop an image, describe what to change, get the result. See `/edit-banana.html`.
+- **📺 Video Downloader (MP4 & MP3)** — paste a YouTube or Instagram link to download as MP4 video or 320 kbps MP3 audio. Supports long-form and Shorts/Reels. See `/video-downloader.html`.
+- **🪄 Better PDF Watermark Removal** — the existing Telea / Navier-Stokes options are joined by a third "Gemini AI" option that routes pages through Google's image-editing model for results that compete with Magic Eraser. Falls back to OpenCV silently if no Gemini key is configured.
+- **🔌 Public API + MCP server** — a versioned `/api/v1/*` surface with API-key auth and per-key rate limits, plus an npm-publishable MCP server (`@champ-deep/champdf-mcp`) so Claude Code, Claude Desktop, Cursor, etc. can call ChamPDF tools natively. See [`backend/API_V1.md`](./backend/API_V1.md) and [`mcp/README.md`](./mcp/README.md).
+- **🧭 Three-pillar navigation** — Documents / Images / Video pillars with mega-menu dropdowns and dedicated hub pages.
+- **📐 Adjustable logo size** on Video Logo Remover, Image Watermark Remover, and Add Watermark.
+- **🔍 Better search** — keyword aliases (e.g. searching `notebooklm` or `nano-banana`) and an empty-state message.
+- **🔧 LibreOffice WASM ships in the build** — fixes 14 Office-to-PDF tools (Word, PowerPoint, Excel, RTF, ODT, etc.) that previously shipped without their runtime.
+
+---
+
 ## 📢 Join Us on Discord
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Server-7289da?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/Bgq3Ay3f2w)

@@ -523,6 +523,135 @@ async def v1_video_download(
     )
 
 
+_VALID_LOGO_PRESETS = {"lakeb2b", "champions", "ampliz", "none"}
+_VALID_WATERMARK_POSITIONS = {
+    "bottom-right",
+    "bottom-left",
+    "top-right",
+    "top-left",
+}
+_VALID_VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".avi"}
+
+
+@router.post(
+    "/video/remove-logo",
+    summary="Remove a watermark/logo from a video and optionally rebrand",
+    description=(
+        "Strips an AI watermark (e.g. NotebookLM-style corner logos) from a "
+        "video using OpenCV inpainting (FFmpeg-delogo fallback) and optionally "
+        "overlays a replacement logo. Returns MP4."
+    ),
+)
+async def v1_video_remove_logo(
+    file: UploadFile = File(..., description="Source video (mp4/mov/webm/avi, up to 100MB)"),
+    logo_preset: str = Form(
+        "lakeb2b",
+        description="Replacement logo preset. One of: lakeb2b, champions, ampliz, none.",
+    ),
+    watermark_position: str = Form(
+        "bottom-right",
+        description="Where the original watermark sits — also where the new logo lands.",
+    ),
+    logo_scale: float = Form(
+        1.0,
+        description="Replacement logo size multiplier (0.5–2.0; 1.0 = ~120px wide).",
+    ),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    import tempfile
+
+    from video_processor import VideoProcessor
+    from config import settings as v_settings
+
+    started = time.monotonic()
+
+    file_ext = Path(file.filename or "").suffix.lower()
+    if file_ext not in _VALID_VIDEO_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(_VALID_VIDEO_EXTENSIONS)}",
+        )
+    if logo_preset not in _VALID_LOGO_PRESETS:
+        raise HTTPException(
+            status_code=400, detail=f"logo_preset must be one of {_VALID_LOGO_PRESETS}"
+        )
+    if watermark_position not in _VALID_WATERMARK_POSITIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"watermark_position must be one of {_VALID_WATERMARK_POSITIONS}",
+        )
+    if not 0.5 <= logo_scale <= 2.0:
+        raise HTTPException(
+            status_code=400, detail="logo_scale must be between 0.5 and 2.0"
+        )
+
+    work_dir = Path(tempfile.mkdtemp(prefix="champdf_v1_video_"))
+    input_path = work_dir / f"input{file_ext}"
+    output_path = work_dir / "output.mp4"
+
+    try:
+        # Stream upload to disk with a size cap
+        total = 0
+        async with __import__("aiofiles").open(input_path, "wb") as out_file:
+            while chunk := await file.read(1024 * 1024):
+                total += len(chunk)
+                if total > v_settings.MAX_FILE_SIZE:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File too large. Max: {v_settings.MAX_VIDEO_SIZE_MB}MB",
+                    )
+                await out_file.write(chunk)
+
+        proc = VideoProcessor(logo_dir=v_settings.LOGO_DIR)
+        success, error = await proc.process(
+            input_path=str(input_path),
+            output_path=str(output_path),
+            logo_preset=logo_preset,
+            watermark_position=watermark_position,
+            logo_scale=logo_scale,
+        )
+        if not success:
+            raise HTTPException(status_code=500, detail=f"Processing failed: {error}")
+
+        # Stream result and clean up the work_dir afterwards.
+        def file_iter():
+            try:
+                with open(output_path, "rb") as f:
+                    while chunk := f.read(64 * 1024):
+                        yield chunk
+            finally:
+                import shutil
+                shutil.rmtree(work_dir, ignore_errors=True)
+
+        _record_request(
+            key_id=key["id"],
+            endpoint="video/remove-logo",
+            status=200,
+            latency_ms=int((time.monotonic() - started) * 1000),
+        )
+        return StreamingResponse(
+            file_iter(),
+            media_type="video/mp4",
+            headers={
+                "Content-Disposition": 'attachment; filename="rebranded.mp4"',
+            },
+        )
+    except HTTPException:
+        import shutil
+        shutil.rmtree(work_dir, ignore_errors=True)
+        raise
+    except Exception as e:
+        import shutil
+        shutil.rmtree(work_dir, ignore_errors=True)
+        _record_request(
+            key_id=key["id"],
+            endpoint="video/remove-logo",
+            status=500,
+            latency_ms=int((time.monotonic() - started) * 1000),
+        )
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/whoami", summary="Inspect the authenticated key")
 async def v1_whoami(key: Dict[str, Any] = Depends(require_api_key)) -> Dict[str, Any]:
     """Useful smoke test: confirms the key works without consuming heavy quota."""

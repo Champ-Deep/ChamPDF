@@ -10,6 +10,7 @@ What you get:
 - **`champdf_edit_image`** — natural-language image editing via Gemini ("Edit Banana"). _"remove the person on the left and inpaint the background"_.
 - **`champdf_inpaint_image`** — mask-based inpainting. Provide an image and a binary PNG mask; agent gets back a clean image.
 - **`champdf_download_video`** — pull a YouTube/Instagram video (long-form, Shorts, Reels) as MP4 or 320 kbps MP3.
+- **`champdf_remove_video_logo`** — strip the corner watermark from a video (NotebookLM-style logos) and optionally overlay your own.
 - **`champdf_whoami`** — cheap sanity check that returns your key's quota and usage.
 
 ## Setup

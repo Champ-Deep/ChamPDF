@@ -372,6 +372,77 @@ server.registerTool(
 );
 
 // --------------------------------------------------------------------------
+// Tool: remove_video_logo
+// --------------------------------------------------------------------------
+
+server.registerTool(
+  'champdf_remove_video_logo',
+  {
+    title: 'ChamPDF — Remove Video Watermark / Logo',
+    description:
+      'Remove an AI watermark (e.g. NotebookLM-style corner logos) from a video and optionally overlay a replacement logo. Output is MP4. Use for cleaning up generated videos before posting them.',
+    inputSchema: {
+      input_path: z
+        .string()
+        .describe('Absolute path to the source video (mp4, mov, webm, or avi).'),
+      output_path: z
+        .string()
+        .describe('Absolute path where the cleaned MP4 should be written.'),
+      watermark_position: z
+        .enum(['bottom-right', 'bottom-left', 'top-right', 'top-left'])
+        .default('bottom-right')
+        .describe('Where the original watermark sits.'),
+      logo_preset: z
+        .enum(['lakeb2b', 'champions', 'ampliz', 'none'])
+        .default('none')
+        .describe(
+          'Replacement logo preset. Use "none" to just remove the watermark without adding a new one.'
+        ),
+      logo_scale: z
+        .number()
+        .min(0.5)
+        .max(2.0)
+        .default(1.0)
+        .describe('Size multiplier for the replacement logo (0.5–2.0; 1.0 ≈ 120px wide).'),
+    },
+  },
+  async ({
+    input_path,
+    output_path,
+    watermark_position,
+    logo_preset,
+    logo_scale,
+  }) => {
+    try {
+      const data = await readFile(resolve(input_path));
+      const form = new FormData();
+      form.append(
+        'file',
+        new Blob([new Uint8Array(data)]),
+        input_path.split('/').pop() ?? 'video.mp4'
+      );
+      form.append('watermark_position', watermark_position);
+      form.append('logo_preset', logo_preset);
+      form.append('logo_scale', String(logo_scale));
+      const res = await callApi('/api/v1/video/remove-logo', {
+        method: 'POST',
+        multipart: form,
+      });
+      const { bytes } = await downloadToPath(res, resolve(output_path));
+      return ok(
+        `Removed ${watermark_position} watermark from ${input_path}` +
+          (logo_preset !== 'none'
+            ? ` and overlaid ${logo_preset} logo at ${logo_scale}× size`
+            : '') +
+          `. Wrote ${bytes.toLocaleString()} bytes to ${output_path}.`
+      );
+    } catch (err) {
+      return fail(err);
+    }
+  }
+);
+
+// --------------------------------------------------------------------------
 // Boot
 // --------------------------------------------------------------------------
 

@@ -8,13 +8,14 @@ unversioned `/api/*` endpoints the ChamPDF frontend uses.
 
 All under `/api/v1`. Auth: `Authorization: Bearer <api_key>`.
 
-| Method | Path                       | What                                                               |
-| ------ | -------------------------- | ------------------------------------------------------------------ |
-| GET    | `/whoami`                  | Returns the authenticated key's id, label, quota, usage. Cheap.    |
-| POST   | `/image/remove-bg`         | multipart `image` → PNG with transparent background.               |
-| POST   | `/image/edit`              | multipart `image` + `prompt` → PNG (Gemini "Edit Banana").         |
-| POST   | `/image/inpaint`           | multipart `image` + `mask` (+ optional `prompt`, `radius`) → PNG.  |
-| POST   | `/video/download`          | JSON `{url, format: "mp3" \| "mp4"}` → binary stream of the file.  |
+| Method | Path                       | What                                                                      |
+| ------ | -------------------------- | ------------------------------------------------------------------------- |
+| GET    | `/whoami`                  | Returns the authenticated key's id, label, quota, usage. Cheap.           |
+| POST   | `/image/remove-bg`         | multipart `image` → PNG with transparent background.                      |
+| POST   | `/image/edit`              | multipart `image` + `prompt` → PNG (Gemini "Edit Banana").                |
+| POST   | `/image/inpaint`           | multipart `image` + `mask` (+ optional `prompt`, `radius`) → PNG.         |
+| POST   | `/video/download`          | JSON `{url, format: "mp3" \| "mp4"}` → binary stream of the file.         |
+| POST   | `/video/remove-logo`       | multipart `file` + `logo_preset` + `watermark_position` + `logo_scale` → MP4. |
 
 Auto-generated docs at `GET /docs` (Swagger UI) and `GET /openapi.json`.
 v1 endpoints show under the **v1** tag.
