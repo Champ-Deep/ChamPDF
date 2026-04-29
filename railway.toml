@@ -1,11 +1,9 @@
 # ChamPDF Multi-Service Railway Configuration
 #
-# This configuration deploys both frontend (React + Nginx) and backend (FastAPI)
-# as separate Railway services within a single project.
-#
-# Services:
-#   1. champdf-frontend - Nginx serving React app with API reverse proxy
-#   2. champdf-backend - FastAPI API for video/image processing
+# Three services within a single project:
+#   1. champdf-frontend  - Nginx serving the React app with /api/ reverse proxy
+#   2. champdf-backend   - FastAPI API for video/image/PDF processing + v1 public API
+#   3. champdf-mcp       - HTTP MCP server (optional, for hosted MCP access)
 
 # =============================================================================
 # FRONTEND SERVICE - React App + Nginx
@@ -36,5 +34,29 @@ dockerfilePath = "backend/Dockerfile.railway"
 [services.deploy]
 healthcheckPath = "/health"
 healthcheckTimeout = 120  # Longer timeout for ML model initialization
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# =============================================================================
+# MCP SERVER (HTTP/SSE) — optional hosted MCP for users without local Node.
+# Required env vars:
+#   CHAMPDF_API_KEY           — v1 API key the MCP server uses to call the
+#                               backend (issue via /api/v1/admin/keys).
+#   CHAMPDF_API_BASE_URL      — usually http://champdf-backend.railway.internal
+#                               so traffic stays on the private network.
+# Optional:
+#   CHAMPDF_MCP_AUTH_TOKEN    — gate the public URL with a Bearer token. If
+#                               unset, anyone with the URL can use the server.
+# =============================================================================
+[[services]]
+name = "champdf-mcp"
+
+[services.build]
+builder = "DOCKERFILE"
+dockerfilePath = "mcp/Dockerfile.railway"
+
+[services.deploy]
+healthcheckPath = "/healthz"
+healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

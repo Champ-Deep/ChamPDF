@@ -106,6 +106,54 @@ node dist/index.js # speaks MCP over stdio
 Set `CHAMPDF_API_KEY` and `CHAMPDF_API_BASE_URL` in your shell before
 running, otherwise tool calls will return 401.
 
+## Hosted (HTTP/SSE) variant
+
+For users who can't run Node locally — Claude Desktop on a managed machine,
+shared team accounts, etc. — there's an HTTP/SSE entry point you can host.
+Deploy it once and point clients at the URL.
+
+### Deploy on Railway
+
+The repo's `railway.toml` defines a third service `champdf-mcp` that builds
+from `mcp/Dockerfile.railway`. Set:
+
+| Env var                   | Required | Notes                                                                |
+| ------------------------- | -------- | -------------------------------------------------------------------- |
+| `CHAMPDF_API_KEY`         | yes      | A v1 API key the MCP server uses to call the backend.                |
+| `CHAMPDF_API_BASE_URL`    | yes      | Internal backend URL, e.g. `http://champdf-backend.railway.internal`. |
+| `CHAMPDF_MCP_AUTH_TOKEN`  | rec.     | Bearer token clients must pass. If unset, the URL is open to anyone. |
+
+Healthcheck path is `/healthz`. The MCP endpoint is `POST /mcp`.
+
+### Connect from Claude Desktop / web clients
+
+```json
+{
+  "mcpServers": {
+    "champdf": {
+      "type": "http",
+      "url": "https://champdf-mcp.up.railway.app/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_CHAMPDF_MCP_AUTH_TOKEN"
+      }
+    }
+  }
+}
+```
+
+### Run locally for development
+
+```bash
+CHAMPDF_API_KEY=champdf_live_... \
+CHAMPDF_API_BASE_URL=https://champdf-backend.up.railway.app \
+npm run dev:http
+# -> [champdf-mcp/http] listening on http://0.0.0.0:8081/mcp
+```
+
+The HTTP server is **stateless** — each request spawns a fresh MCP server
+instance, runs the tool, and tears down. That keeps it cheap to scale and
+avoids cross-request state leaks.
+
 ## License
 
 MIT.
