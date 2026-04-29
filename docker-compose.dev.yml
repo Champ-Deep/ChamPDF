@@ -1,8 +1,24 @@
-# Docker Compose for local development with video processing backend
-# Run: docker compose -f docker-compose.dev.yml up --build
+# Local end-to-end testing for v2.
+#
+# Brings up the full stack — frontend, backend (with v1 API + admin
+# endpoints + SQLite key store), and the new HTTP MCP server — so you
+# can exercise everything before deploying to Railway.
+#
+# Quickstart:
+#   export GEMINI_API_KEY=...         # required for AI inpainting / Edit Banana
+#   export CHAMPDF_ADMIN_TOKEN=admin_local_test_token_change_me
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Then in another shell:
+#   ./scripts/test-v2-local.sh
+#
+# That script issues a test API key, runs every v1 endpoint, and
+# pokes the MCP server. Clean exit = ready to deploy.
 
 services:
-  # Frontend (ChamPDF)
+  # ---------------------------------------------------------------------------
+  # Frontend (Nginx + the React/Vite static build)
+  # ---------------------------------------------------------------------------
   champdf:
     build:
       context: .
@@ -15,12 +31,15 @@ services:
       - '8080:8080'
     restart: unless-stopped
     depends_on:
-      - video-backend
+      video-backend:
+        condition: service_healthy
     # For IPv4-only environments
     #environment:
     #  - DISABLE_IPV6=true
 
-  # Video Processing Backend (FastAPI + FFmpeg)
+  # ---------------------------------------------------------------------------
+  # Backend (FastAPI + ffmpeg + Gemini + v1 API surface)
+  # ---------------------------------------------------------------------------
   video-backend:
     build:
       context: ./backend
@@ -31,11 +50,52 @@ services:
     restart: unless-stopped
     volumes:
       - "./Images & Logos:/app/assets/logos:ro"
+      - champdf-data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
+      # v1 API admin gate — required for /api/v1/admin/* (key issuance).
+      # Set in your shell before `docker compose up`. Compose will pass
+      # the host value through; if unset the admin endpoints 503.
+      - CHAMPDF_ADMIN_TOKEN=${CHAMPDF_ADMIN_TOKEN:-}
+      # Optional but recommended — without it Edit Banana, AI inpainting,
+      # and auto-detect-watermarks all return 503 (OpenCV path still works).
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_IMAGE_MODEL=${GEMINI_IMAGE_MODEL:-gemini-2.5-flash-image-preview}
+      - GEMINI_DETECT_MODEL=${GEMINI_DETECT_MODEL:-gemini-2.5-flash}
+      - CHAMPDF_DB_PATH=/app/data/champdf.db
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # MCP server (HTTP/SSE) — new in v2.
+  # ---------------------------------------------------------------------------
+  # Note: needs CHAMPDF_API_KEY at startup, but we don't have one yet — the
+  # v1 admin endpoint is what issues keys. Workflow:
+  #   1. `docker compose up video-backend` → wait for healthy
+  #   2. `./scripts/test-v2-local.sh` → issues a key, writes it to .env.mcp
+  #   3. `docker compose --env-file .env.mcp up champdf-mcp`
+  # OR set CHAMPDF_API_KEY in your shell first if you already have one.
+  champdf-mcp:
+    build:
+      context: .
+      dockerfile: mcp/Dockerfile.railway
+    container_name: champdf-mcp
+    ports:
+      - '8081:8081'
+    restart: unless-stopped
+    depends_on:
+      video-backend:
+        condition: service_healthy
+    environment:
+      - CHAMPDF_API_KEY=${CHAMPDF_API_KEY:-}
+      - CHAMPDF_API_BASE_URL=http://video-backend:8000
+      - CHAMPDF_MCP_AUTH_TOKEN=${CHAMPDF_MCP_AUTH_TOKEN:-}
+      - PORT=8081
+
+volumes:
+  champdf-data:
+    name: champdf-v2-data
