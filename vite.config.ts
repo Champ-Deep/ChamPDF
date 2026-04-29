@@ -294,6 +294,31 @@ export default defineConfig(() => {
       src: 'node_modules/embedpdf-snippet/dist/pdfium.wasm',
       dest: 'embedpdf',
     },
+    // LibreOffice WASM runtime (used by Word/PowerPoint/Excel/RTF/ODT/etc.
+    // -to-PDF tools via libreoffice-loader.ts). The loader requests
+    // soffice.wasm.gz and soffice.data.gz directly; viteCompression
+    // produces those .gz files automatically from the .wasm/.data
+    // originals, and nginx serves them with Content-Encoding: gzip.
+    {
+      src: 'node_modules/@matbee/libreoffice-converter/wasm/soffice.wasm',
+      dest: 'libreoffice-wasm',
+    },
+    {
+      src: 'node_modules/@matbee/libreoffice-converter/wasm/soffice.data',
+      dest: 'libreoffice-wasm',
+    },
+    {
+      src: 'node_modules/@matbee/libreoffice-converter/wasm/soffice.js',
+      dest: 'libreoffice-wasm',
+    },
+    {
+      src: 'node_modules/@matbee/libreoffice-converter/wasm/soffice.worker.js',
+      dest: 'libreoffice-wasm',
+    },
+    {
+      src: 'node_modules/@matbee/libreoffice-converter/dist/browser.worker.global.js',
+      dest: 'libreoffice-wasm',
+    },
   ];
 
   return {
