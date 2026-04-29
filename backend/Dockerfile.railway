@@ -38,7 +38,11 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 
 # Copy application code
-COPY backend/main.py backend/image_processor.py backend/video_processor.py backend/media_downloader.py backend/inpaint_processor.py backend/config.py backend/propainter_wrapper.py ./
+COPY backend/main.py backend/image_processor.py backend/video_processor.py backend/media_downloader.py backend/inpaint_processor.py backend/api_v1.py backend/config.py backend/propainter_wrapper.py ./
+
+# Persistent volume for the v1 API key SQLite store. Override with
+# CHAMPDF_DB_PATH env var if a different path is needed.
+RUN mkdir -p /app/data && chmod 777 /app/data
 
 # Create directory structure for logos
 RUN mkdir -p ./assets

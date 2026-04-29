@@ -35,6 +35,7 @@ from inpaint_processor import (
     edit_image_with_prompt,
     inpaint_image,
 )
+from api_v1 import init_db as init_v1_db, router as api_v1_router
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,13 @@ async def lifespan(app: FastAPI):
         logger.warning(f"⚠️  U2Net model not cached at: {model_file}")
         logger.warning("Model will download on first /api/remove-background request (~176MB)")
 
+    # v1 public API key store
+    try:
+        init_v1_db()
+        logger.info("✅ v1 API key store initialized")
+    except Exception as e:
+        logger.warning(f"v1 API key store init failed: {e}")
+
     logger.info("Backend startup complete - ready to accept connections")
 
     yield
@@ -91,6 +99,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Public versioned API (API-key auth)
+app.include_router(api_v1_router)
 
 # Initialize processors
 processor = VideoProcessor(logo_dir=settings.LOGO_DIR)
