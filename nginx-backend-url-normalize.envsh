@@ -1,0 +1,21 @@
+#!/bin/sh
+# Normalize BACKEND_URL before nginx's envsubst step renders it into
+# proxy_pass on line 38 of nginx.conf. Without this, an empty or
+# scheme-less value (e.g. "champdf-backend.railway.internal:8000"
+# pasted from Railway's UI) makes nginx crash on boot with
+# "invalid URL prefix" — taking down the entire frontend.
+#
+# Runs as a *.envsh file so the export is visible to the subsequent
+# 20-envsubst-on-templates.sh script.
+
+if [ -z "${BACKEND_URL}" ]; then
+    BACKEND_URL=http://localhost:8000
+fi
+
+case "$BACKEND_URL" in
+    http://*|https://*) ;;
+    *) BACKEND_URL="http://${BACKEND_URL}" ;;
+esac
+
+export BACKEND_URL
+echo "[backend-url-normalize] BACKEND_URL=${BACKEND_URL}"

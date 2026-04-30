@@ -43,6 +43,11 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy Nginx configuration template
 COPY nginx.railway.conf.template /etc/nginx/templates/default.conf.template
 
+# Normalize BACKEND_URL (prepend http:// if missing, default to localhost
+# if empty) before envsubst renders it. Prevents the container from
+# crashing with "invalid URL prefix" if the env var is misconfigured.
+COPY --chmod=755 nginx-backend-url-normalize.envsh /docker-entrypoint.d/19-normalize-backend-url.envsh
+
 # Expose port (Railway will override with $PORT)
 EXPOSE 8080
 

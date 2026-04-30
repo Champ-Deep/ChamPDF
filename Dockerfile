@@ -68,6 +68,7 @@ ENV NGINX_ENVSUBST_FILTER=^BACKEND_URL$
 
 COPY --chown=nginx:nginx --from=builder /app/dist /usr/share/nginx/html${BASE_URL%/}
 COPY --chown=nginx:nginx nginx.conf /etc/nginx/templates/nginx.conf.template
+COPY --chown=nginx:nginx --chmod=755 nginx-backend-url-normalize.envsh /docker-entrypoint.d/19-normalize-backend-url.envsh
 COPY --chown=nginx:nginx --chmod=755 nginx-ipv6.sh /docker-entrypoint.d/99-disable-ipv6.sh
 RUN mkdir -p /etc/nginx/tmp && chown -R nginx:nginx /etc/nginx/tmp
 
