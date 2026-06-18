@@ -39,14 +39,14 @@ describe('Tool Categories Configuration', () => {
     // 3. Loop through each tool inside the category to validate its schema
     describe.each(category.tools)('Tool: "$name"', (tool) => {
       it('should have the correct properties with non-empty string values', () => {
-        // Check for property existence
-        expect(tool).toHaveProperty('id');
+        // Tools are identified by their `href` (the page they link to).
+        expect(tool).toHaveProperty('href');
         expect(tool).toHaveProperty('name');
         expect(tool).toHaveProperty('icon');
         expect(tool).toHaveProperty('subtitle');
 
         // Check for non-empty string types for each property
-        for (const key of ['id', 'name', 'icon', 'subtitle']) {
+        for (const key of ['href', 'name', 'icon', 'subtitle']) {
           const value = tool[key as keyof typeof tool];
           expect(typeof value).toBe('string');
           expect(value.length).toBeGreaterThan(0);

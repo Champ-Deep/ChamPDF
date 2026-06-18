@@ -75,13 +75,19 @@ export const categories = [
         href: B + 'video-rebrander.html',
         name: 'Video Logo Remover',
         icon: 'ph-video',
-        subtitle: 'Remove watermarks and rebrand videos with your logo.',
+        subtitle: 'Auto-detect & remove watermarks, rebrand, and add captions.',
       },
       {
         href: B + 'remove-image-watermark.html',
         name: 'Image Watermark Remover',
         icon: 'ph-image',
-        subtitle: 'Remove watermarks from images (JPG, PNG).',
+        subtitle: 'Remove watermarks with AI inpainting or auto-detection.',
+      },
+      {
+        href: B + 'upscale-image.html',
+        name: 'AI Image Upscaler',
+        icon: 'ph-arrows-out',
+        subtitle: 'Enlarge & enhance images 2x/4x with Real-ESRGAN.',
       },
       {
         href: B + 'remove-watermark.html',
@@ -221,7 +227,7 @@ export const categories = [
         subtitle: 'Convert PDF content to Markdown format.',
       },
       {
-        href: B + 'text-to-pdf.html',
+        href: B + 'txt-to-pdf.html',
         name: 'Text to PDF',
         icon: 'ph-text-t',
         subtitle: 'Convert plain text to PDF.',

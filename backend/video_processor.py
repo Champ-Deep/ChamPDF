@@ -22,14 +22,17 @@ class VideoProcessor:
         "4k": {"x": 3600, "y": 2080, "w": 400, "h": 160},
     }
 
-    def __init__(self, logo_dir: Optional[Path] = None):
+    def __init__(self, logo_dir: Optional[Path] = None, detector=None):
+        # Optional WatermarkDetector for automatic region location.
+        self.detector = detector
+
         # Check multiple possible logo locations
         # 1. Passed argument (highest priority)
         # 2. Environment variable
         # 3. Docker mount location (/app/assets/logos)
         # 4. Local dev: "Images & Logos" folder in project root
         # 5. Fallback: backend/assets/logos
-        
+
         logo_dir_env = os.environ.get("LOGO_DIR", "")
         logo_paths = [
             logo_dir,
@@ -161,21 +164,56 @@ class VideoProcessor:
         }
         return positions.get(position, positions["bottom-right"])
 
+    @staticmethod
+    def _escape_subtitles_path(path: str) -> str:
+        """Escape a path for use inside the FFmpeg subtitles filter."""
+        # Backslashes, then the filtergraph-special ':' and "'".
+        return path.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+
+    async def _resolve_region(
+        self, input_path: str, width: int, height: int, watermark_position: str, auto_detect: bool
+    ) -> Dict[str, int]:
+        """Pick the watermark region: auto-detected if possible, else heuristic."""
+        if auto_detect and self.detector is not None and self.detector.has_templates():
+            try:
+                from config import settings
+                found = await asyncio.to_thread(
+                    self.detector.detect_in_video, input_path, settings.WATERMARK_SAMPLE_FRAMES
+                )
+                if found:
+                    box = found[0]
+                    pad = 4  # small pad so delogo fully covers the mark
+                    return {
+                        "x": max(0, int(box["x"]) - pad),
+                        "y": max(0, int(box["y"]) - pad),
+                        "w": min(width, int(box["w"]) + 2 * pad),
+                        "h": min(height, int(box["h"]) + 2 * pad),
+                    }
+            except Exception as e:  # detection is best-effort; never block processing
+                from config import settings  # noqa: F401
+                import logging
+                logging.getLogger(__name__).warning("Auto-detect failed, using heuristic: %s", e)
+        return self._calculate_watermark_region(width, height, watermark_position)
+
     async def process(
         self,
         input_path: str,
         output_path: str,
         logo_preset: str = "lakeb2b",
         watermark_position: str = "bottom-right",
+        auto_detect: bool = True,
+        caption_srt_path: Optional[str] = None,
     ) -> Tuple[bool, Optional[str]]:
         """
-        Process video to remove watermark and optionally add logo.
+        Process video to remove watermark and optionally add logo + captions.
 
         Args:
             input_path: Path to input video
             output_path: Path for output video
             logo_preset: Logo to add (lakeb2b, champions, ampliz, none)
-            watermark_position: Position of original watermark
+            watermark_position: Fallback position when auto-detection is off/empty
+            auto_detect: Locate the watermark automatically via template matching
+            caption_srt_path: Optional .srt file to burn into the video
 
         Returns:
             Tuple of (success, error_message)
@@ -199,19 +237,26 @@ class VideoProcessor:
             width = video_stream.get("width", 1280)
             height = video_stream.get("height", 720)
 
-            # Calculate watermark region
-            region = self._calculate_watermark_region(width, height, watermark_position)
+            # Resolve watermark region (auto-detected or heuristic)
+            region = await self._resolve_region(
+                input_path, width, height, watermark_position, auto_detect
+            )
+
+            # Optional burned-in subtitles, appended to whichever video chain runs.
+            sub_filter = ""
+            if caption_srt_path:
+                sub_filter = f",subtitles='{self._escape_subtitles_path(caption_srt_path)}'"
 
             # Build FFmpeg command
             logo_path = self.get_logo_path(logo_preset)
             logo_position = self._get_logo_position(watermark_position)
 
             if logo_path:
-                # Delogo + overlay new logo
+                # Delogo + overlay new logo (+ optional captions)
                 filter_complex = (
                     f"[0:v]delogo=x={region['x']}:y={region['y']}:w={region['w']}:h={region['h']}:show=0[delogoed];"
                     f"[1:v]scale=120:-1[logo];"
-                    f"[delogoed][logo]overlay={logo_position}:format=auto[out]"
+                    f"[delogoed][logo]overlay={logo_position}:format=auto{sub_filter}[out]"
                 )
                 cmd = [
                     "ffmpeg",
@@ -229,9 +274,9 @@ class VideoProcessor:
                     output_path
                 ]
             else:
-                # Just delogo, no new logo overlay
+                # Just delogo, no new logo overlay (+ optional captions)
                 filter_complex = (
-                    f"delogo=x={region['x']}:y={region['y']}:w={region['w']}:h={region['h']}:show=0"
+                    f"delogo=x={region['x']}:y={region['y']}:w={region['w']}:h={region['h']}:show=0{sub_filter}"
                 )
                 cmd = [
                     "ffmpeg",

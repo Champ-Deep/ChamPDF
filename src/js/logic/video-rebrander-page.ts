@@ -21,6 +21,8 @@ interface VideoRebraderState {
   file: File | null;
   logoPreset: 'lakeb2b' | 'champions' | 'ampliz' | 'none';
   watermarkPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  autoDetect: boolean;
+  addCaptions: boolean;
   isProcessing: boolean;
   downloadUrl: string | null;
   downloadFilename: string;
@@ -30,6 +32,8 @@ const state: VideoRebraderState = {
   file: null,
   logoPreset: 'lakeb2b',
   watermarkPosition: 'bottom-right',
+  autoDetect: true,
+  addCaptions: false,
   isProcessing: false,
   downloadUrl: null,
   downloadFilename: 'video_rebranded.mp4',
@@ -100,6 +104,28 @@ function initializePage() {
           .value as typeof state.watermarkPosition;
       });
     });
+
+  // Auto-detect toggle
+  const autoDetectEl = document.getElementById(
+    'auto-detect'
+  ) as HTMLInputElement | null;
+  if (autoDetectEl) {
+    state.autoDetect = autoDetectEl.checked;
+    autoDetectEl.addEventListener('change', () => {
+      state.autoDetect = autoDetectEl.checked;
+    });
+  }
+
+  // Captions toggle
+  const captionsEl = document.getElementById(
+    'add-captions'
+  ) as HTMLInputElement | null;
+  if (captionsEl) {
+    state.addCaptions = captionsEl.checked;
+    captionsEl.addEventListener('change', () => {
+      state.addCaptions = captionsEl.checked;
+    });
+  }
 
   // Process button
   document
@@ -237,9 +263,14 @@ async function handleProcess() {
     formData.append('file', state.file);
     formData.append('logo_preset', state.logoPreset);
     formData.append('watermark_position', state.watermarkPosition);
+    formData.append('auto_detect', String(state.autoDetect));
+    formData.append('add_captions', String(state.addCaptions));
 
     // Update status
-    updateStatus('Uploading video...', 'Sending to server for processing');
+    const detail = state.addCaptions
+      ? 'Transcribing audio + cleaning video (this can take a while)'
+      : 'Sending to server for processing';
+    updateStatus('Uploading video...', detail);
 
     // Send to API
     const response = await fetch(`${API_BASE_URL}/api/process-video`, {
@@ -363,6 +394,18 @@ function resetToUpload() {
   ) as HTMLInputElement;
   if (defaultPosition) defaultPosition.checked = true;
   state.watermarkPosition = 'bottom-right';
+
+  const autoDetectEl = document.getElementById(
+    'auto-detect'
+  ) as HTMLInputElement | null;
+  if (autoDetectEl) autoDetectEl.checked = true;
+  state.autoDetect = true;
+
+  const captionsEl = document.getElementById(
+    'add-captions'
+  ) as HTMLInputElement | null;
+  if (captionsEl) captionsEl.checked = false;
+  state.addCaptions = false;
 }
 
 function cleanup() {

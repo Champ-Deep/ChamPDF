@@ -11,14 +11,20 @@ import { showAlert } from '../ui.js';
 import { downloadFile, formatBytes } from '../utils/helpers.js';
 import { createIcons, icons } from 'lucide';
 
+// API endpoint - empty string makes relative URLs work behind the Nginx proxy.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 interface WatermarkRemoverState {
   file: File | null;
   selectionBox: { x: number; y: number; width: number; height: number } | null;
+  method: 'ai' | 'blur';
   blurRadius: number; // 5, 10, 15 for light/medium/heavy
   logoPreset: 'none' | 'lakeb2b' | 'champions' | 'ampliz';
   isProcessing: boolean;
   resultBlob: Blob | null;
   previewCanvas: HTMLCanvasElement | null;
+  imgNaturalWidth: number;
+  imgNaturalHeight: number;
   isDrawing: boolean;
   drawStartX: number;
   drawStartY: number;
@@ -27,11 +33,14 @@ interface WatermarkRemoverState {
 const state: WatermarkRemoverState = {
   file: null,
   selectionBox: null,
+  method: 'ai', // Default: AI inpaint (server)
   blurRadius: 10, // Default: medium blur
   logoPreset: 'none',
   isProcessing: false,
   resultBlob: null,
   previewCanvas: null,
+  imgNaturalWidth: 0,
+  imgNaturalHeight: 0,
   isDrawing: false,
   drawStartX: 0,
   drawStartY: 0,
@@ -90,6 +99,20 @@ function initializePage() {
       state.blurRadius = parseInt((e.target as HTMLInputElement).value, 10);
     });
   });
+
+  // Removal method radio buttons (ai = server inpaint, blur = local)
+  document.querySelectorAll('input[name="removal-method"]').forEach((radio) => {
+    radio.addEventListener('change', (e) => {
+      state.method = (e.target as HTMLInputElement).value as 'ai' | 'blur';
+      updateMethodVisibility();
+    });
+  });
+  updateMethodVisibility();
+
+  // Auto-detect watermark button
+  document
+    .getElementById('auto-detect-btn')
+    ?.addEventListener('click', handleAutoDetect);
 
   // Logo preset radio buttons
   document.querySelectorAll('input[name="logo-preset"]').forEach((radio) => {
@@ -180,6 +203,10 @@ function setupCanvasPreview(file: File) {
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d')!;
+
+    // Remember source dimensions for canvas<->source coordinate mapping.
+    state.imgNaturalWidth = img.naturalWidth;
+    state.imgNaturalHeight = img.naturalHeight;
 
     // Size canvas to fit container while maintaining aspect ratio
     const maxWidth = 800;
@@ -441,6 +468,12 @@ async function handleProcess() {
 
   const progressBar = document.getElementById('progress-bar') as HTMLElement;
 
+  // AI inpaint path is handled server-side.
+  if (state.method === 'ai') {
+    await runAiRemoval(progressBar, processBtn);
+    return;
+  }
+
   try {
     updateStatus('Reading Image...', 'Loading data');
     if (progressBar) progressBar.style.width = '10%';
@@ -476,11 +509,7 @@ async function handleProcess() {
 
     if (progressBar) progressBar.style.width = '100%';
 
-    // Export
-    const mimeType =
-      state.file.type === 'image/webp' ? 'image/webp' : 'image/jpeg';
-    // Prefer JPEG for output unless input was WebP or PNG with transparency (though simple masking usually implies opaque background for JPGs)
-    // If input was PNG, output PNG to preserve transparency elsewhere?
+    // Export — preserve the source format for the local blur path.
     const outputType = state.file.type;
 
     canvas.toBlob(
@@ -515,6 +544,216 @@ function loadImage(file: File): Promise<HTMLImageElement> {
     img.onerror = reject;
     img.src = URL.createObjectURL(file);
   });
+}
+
+function loadBlobImage(blob: Blob): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
+/** Show the blur-intensity options only when the local "blur" method is active. */
+function updateMethodVisibility() {
+  const group = document.getElementById('blur-intensity-group');
+  if (group) group.classList.toggle('hidden', state.method !== 'blur');
+}
+
+/** Convert a selection box (canvas coords incl. padding) to source-image pixels. */
+function selectionToSourcePixels(box: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}): { x: number; y: number; w: number; h: number } {
+  const previewCanvas = state.previewCanvas!;
+  const scaledImageWidth = previewCanvas.width - CANVAS_PADDING * 2;
+  const scaledImageHeight = previewCanvas.height - CANVAS_PADDING * 2;
+  const scaleX = state.imgNaturalWidth / scaledImageWidth;
+  const scaleY = state.imgNaturalHeight / scaledImageHeight;
+
+  let x = Math.round((box.x - CANVAS_PADDING) * scaleX);
+  let y = Math.round((box.y - CANVAS_PADDING) * scaleY);
+  let w = Math.round(box.width * scaleX);
+  let h = Math.round(box.height * scaleY);
+
+  x = Math.max(0, x);
+  y = Math.max(0, y);
+  w = Math.min(w, state.imgNaturalWidth - x);
+  h = Math.min(h, state.imgNaturalHeight - y);
+  return { x, y, w, h };
+}
+
+/** Convert a source-pixel box (from server detection) to canvas coords for display. */
+function canvasBoxFromSourceBox(src: {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}): { x: number; y: number; width: number; height: number } {
+  const previewCanvas = state.previewCanvas!;
+  const scaleX =
+    (previewCanvas.width - CANVAS_PADDING * 2) / state.imgNaturalWidth;
+  const scaleY =
+    (previewCanvas.height - CANVAS_PADDING * 2) / state.imgNaturalHeight;
+  return {
+    x: src.x * scaleX + CANVAS_PADDING,
+    y: src.y * scaleY + CANVAS_PADDING,
+    width: src.w * scaleX,
+    height: src.h * scaleY,
+  };
+}
+
+function drawOverlayBox(box: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) {
+  const overlay = document.getElementById(
+    'selection-overlay'
+  ) as HTMLCanvasElement;
+  if (!overlay) return;
+  const ctx = overlay.getContext('2d')!;
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  ctx.fillStyle = 'rgba(255, 165, 0, 0.3)';
+  ctx.strokeStyle = 'rgba(255, 165, 0, 1)';
+  ctx.lineWidth = 2;
+  ctx.fillRect(box.x, box.y, box.width, box.height);
+  ctx.strokeRect(box.x, box.y, box.width, box.height);
+}
+
+/** Ask the server to locate a known watermark and pre-fill the selection. */
+async function handleAutoDetect() {
+  if (!state.file) {
+    showAlert('No File', 'Please select an image first.');
+    return;
+  }
+  const btn = document.getElementById('auto-detect-btn') as HTMLButtonElement;
+  if (btn) btn.disabled = true;
+
+  try {
+    const formData = new FormData();
+    formData.append('file', state.file);
+    const res = await fetch(`${API_BASE_URL}/api/detect-watermark`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res
+        .json()
+        .catch(() => ({ detail: 'Detection failed' }));
+      throw new Error(err.detail || `Server error: ${res.status}`);
+    }
+    const data = await res.json();
+    if (!data.has_templates) {
+      showAlert(
+        'Auto-detect unavailable',
+        'No watermark reference is installed on the server. Draw a selection manually, or add a template under backend/assets/watermark_templates.'
+      );
+      return;
+    }
+    if (!data.detections || data.detections.length === 0) {
+      showAlert(
+        'No watermark found',
+        'Could not detect a known watermark. Please drag to select it manually.'
+      );
+      return;
+    }
+    const d = data.detections[0];
+    const canvasBox = canvasBoxFromSourceBox({
+      x: d.x,
+      y: d.y,
+      w: d.w,
+      h: d.h,
+    });
+    state.selectionBox = canvasBox;
+    drawOverlayBox(canvasBox);
+
+    const processBtn = document.getElementById(
+      'process-btn'
+    ) as HTMLButtonElement;
+    if (processBtn) processBtn.disabled = false;
+  } catch (e) {
+    showAlert(
+      'Auto-detect failed',
+      (e as Error).message || 'Could not reach the server.'
+    );
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/** Composite a replacement logo over a cleaned image and return a PNG blob. */
+async function compositeLogo(
+  blob: Blob,
+  selectionBox: { x: number; y: number; width: number; height: number }
+): Promise<Blob> {
+  const img = await loadBlobImage(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, 0, 0);
+  await addReplacementLogo(
+    ctx,
+    canvas.width,
+    canvas.height,
+    state.logoPreset,
+    selectionBox
+  );
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('Failed to export image'))),
+      'image/png'
+    );
+  });
+}
+
+/** Server-side AI inpainting (LaMa) path. */
+async function runAiRemoval(
+  progressBar: HTMLElement | null,
+  processBtn: HTMLButtonElement | null
+) {
+  try {
+    updateStatus('Uploading...', 'Sending to AI inpainting server');
+    if (progressBar) progressBar.style.width = '20%';
+
+    const region = selectionToSourcePixels(state.selectionBox!);
+    const formData = new FormData();
+    formData.append('file', state.file!);
+    formData.append('regions', JSON.stringify([region]));
+
+    const res = await fetch(`${API_BASE_URL}/api/remove-image-watermark`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(err.detail || `Server error: ${res.status}`);
+    }
+
+    if (progressBar) progressBar.style.width = '70%';
+    let blob = await res.blob();
+
+    if (state.logoPreset !== 'none' && state.selectionBox) {
+      updateStatus('Adding logo...', `Placing ${state.logoPreset} logo`);
+      blob = await compositeLogo(blob, state.selectionBox);
+    }
+
+    state.resultBlob = blob;
+    if (progressBar) progressBar.style.width = '100%';
+    updateStatus('Complete!', 'Watermark removed with AI inpainting');
+    setTimeout(() => showDownloadSection(), 400);
+  } catch (e) {
+    console.error('AI removal error:', e);
+    showErrorSection((e as Error).message || 'Failed to process image');
+  } finally {
+    state.isProcessing = false;
+    if (processBtn) processBtn.disabled = false;
+  }
 }
 
 function updateStatus(text: string, detail: string) {
@@ -772,7 +1011,8 @@ function handleDownload() {
   if (!state.resultBlob || !state.file) return;
 
   const originalName = state.file.name.replace(/\.[^/.]+$/, '');
-  const ext = state.file.name.split('.').pop();
+  // AI inpainting always returns PNG; local blur preserves the source format.
+  const ext = state.method === 'ai' ? 'png' : state.file.name.split('.').pop();
   const downloadName = `${originalName}_no_watermark.${ext}`;
 
   downloadFile(state.resultBlob, downloadName);
@@ -832,4 +1072,11 @@ function resetToUpload() {
   ) as HTMLInputElement;
   if (defaultLogo) defaultLogo.checked = true;
   state.logoPreset = 'none';
+
+  const defaultMethod = document.querySelector(
+    'input[name="removal-method"][value="ai"]'
+  ) as HTMLInputElement;
+  if (defaultMethod) defaultMethod.checked = true;
+  state.method = 'ai';
+  updateMethodVisibility();
 }

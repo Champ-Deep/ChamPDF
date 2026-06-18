@@ -6,11 +6,11 @@ FastAPI backend providing optional AI-powered image and video processing feature
 
 The backend extends ChamPDF with advanced processing capabilities that require server-side computation:
 
-| Feature | Description | Technology |
-|---------|-------------|------------|
-| **Remove Background (AI)** | ML-powered background removal from images | rembg + U2Net model (~176MB) |
-| **Video Logo Remover** | Remove watermarks from videos and rebrand with custom logos | FFmpeg |
-| **Image Watermark Remover** | Content-aware watermark removal from JPG/PNG/WebP | Python + PIL |
+| Feature                     | Description                                                 | Technology                   |
+| --------------------------- | ----------------------------------------------------------- | ---------------------------- |
+| **Remove Background (AI)**  | ML-powered background removal from images                   | rembg + U2Net model (~176MB) |
+| **Video Logo Remover**      | Remove watermarks from videos and rebrand with custom logos | FFmpeg                       |
+| **Image Watermark Remover** | Content-aware watermark removal from JPG/PNG/WebP           | Python + PIL                 |
 
 **Privacy-First:** All processing happens on **your own server** - files are never sent to third parties.
 
@@ -37,6 +37,7 @@ Backend will be available at: `http://localhost:8000`
 ### Local Development (without Docker)
 
 1. **Install System Dependencies:**
+
    ```bash
    # macOS
    brew install ffmpeg
@@ -49,6 +50,7 @@ Backend will be available at: `http://localhost:8000`
    ```
 
 2. **Install Python Dependencies:**
+
    ```bash
    cd backend
    python -m venv venv
@@ -63,6 +65,7 @@ Backend will be available at: `http://localhost:8000`
    - `ampliz.png`
 
 4. **Configure Environment:**
+
    ```bash
    cp .env.example .env
    # Edit .env with your settings
@@ -78,13 +81,16 @@ Backend will be available at: `http://localhost:8000`
 ## API Documentation
 
 ### Base URL
+
 - **Development:** `http://localhost:8000`
 - **Production:** `https://your-backend.railway.app`
 
 ### Authentication
+
 No authentication required (public API with CORS restrictions)
 
 ### Rate Limits
+
 - **Concurrent Jobs:** 2 (configurable via `MAX_CONCURRENT_JOBS`)
 - **File Size Limits:**
   - Images: 10MB
@@ -95,11 +101,13 @@ No authentication required (public API with CORS restrictions)
 ## API Endpoints
 
 ### Health Check
+
 ```http
 GET /health
 ```
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -112,12 +120,14 @@ GET /health
 ---
 
 ### Remove Background (AI)
+
 ```http
 POST /api/remove-background
 Content-Type: multipart/form-data
 ```
 
 **Parameters:**
+
 - `file` (required): Image file (PNG, JPG, JPEG, WebP)
 
 **Response:** PNG image with transparent background
@@ -125,6 +135,7 @@ Content-Type: multipart/form-data
 **Description:** AI-powered background removal using U2Net model (~176MB). Model is pre-downloaded during Docker build to prevent cold starts.
 
 **Example:**
+
 ```bash
 curl -X POST http://localhost:8000/api/remove-background \
   -F "file=@photo.jpg" \
@@ -134,26 +145,35 @@ curl -X POST http://localhost:8000/api/remove-background \
 ---
 
 ### Process Video
+
 ```http
 POST /api/process-video
 Content-Type: multipart/form-data
 ```
 
 **Parameters:**
+
 - `file` (required): Video file (MP4, MOV, WebM, AVI)
 - `logo_preset` (required): Logo to overlay
   - `"lakeb2b"` - Lake B2B logo
   - `"champions"` - Champions logo
   - `"ampliz"` - Ampliz logo
   - `"none"` - No logo overlay
-- `watermark_position` (required): Watermark location
+- `watermark_position` (required): Watermark location (fallback if auto-detect is off/empty)
   - `"bottom-right"` | `"bottom-left"` | `"top-right"` | `"top-left"`
+- `auto_detect` (optional, default `true`): Locate the watermark automatically via
+  template matching (requires a reference template in `assets/watermark_templates/`).
+- `add_captions` (optional, default `false`): Transcribe speech with Whisper and
+  burn subtitles into the output.
+- `caption_language` (optional): Force a language code (e.g. `en`); auto-detected if omitted.
 
 **Response:** Processed MP4 video (H.264 + AAC)
 
-**Description:** Remove watermarks from videos using FFmpeg delogo filter and optionally overlay a custom logo.
+**Description:** Remove watermarks from videos using FFmpeg delogo filter (with optional
+automatic region detection), optionally overlay a custom logo, and optionally burn in captions.
 
 **Example:**
+
 ```bash
 curl -X POST http://localhost:8000/api/process-video \
   -F "file=@video.mp4" \
@@ -163,6 +183,7 @@ curl -X POST http://localhost:8000/api/process-video \
 ```
 
 **Processing Pipeline:**
+
 1. Upload video to temp directory
 2. Detect video resolution and calculate watermark region
 3. Apply FFmpeg `delogo` filter to blur watermark
@@ -173,21 +194,82 @@ curl -X POST http://localhost:8000/api/process-video \
 
 **Watermark Regions** (automatically scaled):
 
-| Resolution | X | Y | Width | Height |
-|------------|---|---|-------|--------|
-| 720p | 1100 | 660 | 180 | 60 |
-| 1080p | 1700 | 1000 | 220 | 80 |
-| 480p | 700 | 440 | 140 | 40 |
-| 4K | 3600 | 2080 | 400 | 160 |
+| Resolution | X    | Y    | Width | Height |
+| ---------- | ---- | ---- | ----- | ------ |
+| 720p       | 1100 | 660  | 180   | 60     |
+| 1080p      | 1700 | 1000 | 220   | 80     |
+| 480p       | 700  | 440  | 140   | 40     |
+| 4K         | 3600 | 2080 | 400   | 160    |
+
+---
+
+### Remove Image Watermark (AI Inpainting)
+
+```http
+POST /api/remove-image-watermark
+Content-Type: multipart/form-data
+```
+
+**Parameters:**
+
+- `file` (required): Image (PNG, JPG, WebP)
+- `regions` (optional): JSON array of pixel boxes `[{"x":..,"y":..,"w":..,"h":..}]` from the UI selection
+- `auto_detect` (optional, default `false`): Locate a known watermark automatically
+
+Provide **either** `regions` or `auto_detect=true`. Uses LaMa (simple-lama-inpainting)
+to reconstruct the masked area. **Response:** PNG image.
+
+### Inpaint (generic)
+
+```http
+POST /api/inpaint
+```
+
+- `file` (required): Image • `mask` (required): 1-channel mask (white = remove). **Response:** PNG.
+
+### Detect Watermark
+
+```http
+POST /api/detect-watermark
+```
+
+- `file` (required): Image. **Response:** `{ "detections": [{x,y,w,h,score,label}], "has_templates": bool }`
+
+### Upscale Image (Real-ESRGAN)
+
+```http
+POST /api/upscale-image
+```
+
+- `file` (required): Image • `scale` (optional, default `4`): `2` or `4` • `output_format` (optional): `png`|`jpg`. **Response:** upscaled image.
+
+### Transcribe Video (Whisper)
+
+```http
+POST /api/transcribe-video
+```
+
+- `file` (required): Video • `language` (optional). **Response:** `.srt` subtitle file.
+
+### Capabilities
+
+```http
+GET /api/capabilities
+```
+
+Returns which AI features are enabled (`inpaint`, `upscale`, `captions`, `watermark_autodetect`, …)
+so the frontend can show/hide tools.
 
 ---
 
 ### Get Logo Presets
+
 ```http
 GET /api/presets
 ```
 
 **Response:**
+
 ```json
 {
   "lakeb2b": true,
@@ -201,11 +283,13 @@ GET /api/presets
 ---
 
 ### Cleanup Temp Files
+
 ```http
 DELETE /api/cleanup
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Cleanup initiated"
@@ -271,6 +355,7 @@ WEB_CONCURRENCY=2        # Number of uvicorn workers
 4. Update frontend `VITE_API_URL` to point to backend
 
 **Deployment Configuration:**
+
 - Dockerfile: `backend/Dockerfile.railway`
 - Build command: Automatic via Docker
 - Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT --workers 2`
@@ -345,6 +430,7 @@ LOG_LEVEL=WARNING  # Less verbose, only warnings/errors
 **Symptom:** `/health` returns 500 or times out
 
 **Solutions:**
+
 1. Check FFmpeg is installed: `ffmpeg -version`
 2. Check logs for errors: `docker logs <container>`
 3. Verify CORS settings in `.env`
@@ -354,6 +440,7 @@ LOG_LEVEL=WARNING  # Less verbose, only warnings/errors
 **Symptom:** First request to `/api/remove-background` times out
 
 **Solutions:**
+
 1. Model should pre-download during Docker build
 2. Check Docker build logs for "Model download complete!"
 3. If using Railway, increase health check timeout to 120s
@@ -363,6 +450,7 @@ LOG_LEVEL=WARNING  # Less verbose, only warnings/errors
 **Symptom:** Browser console shows CORS errors
 
 **Solutions:**
+
 1. Set `ALLOWED_ORIGINS` in environment variables:
    ```bash
    ALLOWED_ORIGINS=https://your-frontend.com,https://www.your-frontend.com
@@ -375,6 +463,7 @@ LOG_LEVEL=WARNING  # Less verbose, only warnings/errors
 **Symptom:** Backend crashes during processing
 
 **Solutions:**
+
 1. Reduce `MAX_CONCURRENT_JOBS` to 1
 2. Reduce `MAX_FILE_SIZE` limits
 3. Upgrade to higher memory tier (Railway: 1GB → 2GB)
@@ -385,6 +474,7 @@ LOG_LEVEL=WARNING  # Less verbose, only warnings/errors
 **Symptom:** Video processing fails with timeout
 
 **Solutions:**
+
 1. Increase `PROCESS_TIMEOUT` (e.g., 600 seconds for large files)
 2. Reduce video file size before upload
 3. Check FFmpeg logs for errors

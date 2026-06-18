@@ -1,20 +1,23 @@
 # Optimized Railway Dockerfile for chamPDF Backend
 FROM python:3.11-slim as builder
 
-# Install build dependencies
+# Install build dependencies (git is needed for the Real-ESRGAN GitHub package)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
     g++ \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy and install Python dependencies
+# Copy and install Python dependencies.
+# CPU-only torch first so simple-lama-inpainting / Real-ESRGAN don't pull CUDA wheels.
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 # Final stage

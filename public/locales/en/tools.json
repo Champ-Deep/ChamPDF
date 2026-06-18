@@ -11,9 +11,18 @@
     "name": "Remove Background",
     "subtitle": "Instantly remove backgrounds from images using AI."
   },
+  "backToTools": "Back to Tools",
   "videoRebrander": {
     "name": "Video Logo Remover",
     "subtitle": "Remove watermarks and rebrand videos."
+  },
+  "replaceLogo": {
+    "name": "Replace Logo",
+    "subtitle": "Replace NotebookLM logo with your company logo."
+  },
+  "upscaleImage": {
+    "name": "AI Image Upscaler",
+    "subtitle": "Enlarge & enhance images 2x/4x with Real-ESRGAN."
   },
   "removeWatermark": {
     "name": "PDF Watermark Remover",

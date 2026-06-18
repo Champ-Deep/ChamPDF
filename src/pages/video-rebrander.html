@@ -306,6 +306,49 @@
             </div>
           </div>
 
+          <!-- AI options -->
+          <div class="space-y-3">
+            <label
+              for="auto-detect"
+              class="flex items-start gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer hover:bg-gray-700 transition-colors"
+            >
+              <input
+                type="checkbox"
+                id="auto-detect"
+                checked
+                class="mt-0.5 h-4 w-4 accent-orange-500"
+              />
+              <span class="text-sm">
+                <span class="block font-medium text-gray-200"
+                  >Auto-detect watermark</span
+                >
+                <span class="block text-gray-400 text-xs"
+                  >Locate the NotebookLM/AI logo automatically. Falls back to
+                  the position above if no match is found.</span
+                >
+              </span>
+            </label>
+            <label
+              for="add-captions"
+              class="flex items-start gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer hover:bg-gray-700 transition-colors"
+            >
+              <input
+                type="checkbox"
+                id="add-captions"
+                class="mt-0.5 h-4 w-4 accent-orange-500"
+              />
+              <span class="text-sm">
+                <span class="block font-medium text-gray-200"
+                  >Burn in captions (Whisper)</span
+                >
+                <span class="block text-gray-400 text-xs"
+                  >Transcribe speech and overlay subtitles. Adds extra
+                  processing time.</span
+                >
+              </span>
+            </label>
+          </div>
+
           <!-- Process Button -->
           <button
             id="process-btn"

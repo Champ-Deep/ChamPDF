@@ -5,6 +5,36 @@ All notable changes to ChamPDF will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🚀 Added - AI Media Upgrades (V2)
+
+- **AI Watermark Removal (LaMa / IOPaint)**: The Image Watermark Remover now offers
+  server-side LaMa inpainting for genuinely clean removal (vs. the previous blur),
+  with a one-click **Auto-detect** for known watermarks (e.g. NotebookLM).
+  - New endpoints: `POST /api/remove-image-watermark`, `POST /api/inpaint`, `POST /api/detect-watermark`
+- **NotebookLM / Video Watermark Auto-Detection**: The Video Logo Remover now locates
+  the watermark automatically via OpenCV template matching (multi-scale, frame-sampled),
+  falling back to the manual position when no template matches.
+- **Video Captions (Whisper)**: Optionally transcribe speech with faster-whisper and
+  burn subtitles into rebranded videos. New endpoint: `POST /api/transcribe-video`.
+- **AI Image Upscaler (Real-ESRGAN)**: New tool + page (`upscale-image.html`) to enlarge
+  and enhance images 2x/4x. New endpoint: `POST /api/upscale-image`.
+- **Capabilities endpoint** (`GET /api/capabilities`) so the frontend can show/hide AI tools.
+- Drop NotebookLM/other watermark reference crops in `backend/assets/watermark_templates/`
+  to enable auto-detection. See `docs/design/CLAUDE_DESIGN_BRIEF.md` for UI design directions.
+
+### 🐛 Fixed - UI / Quality
+
+- Removed duplicate `<title>`/`<meta description>` tags in `replace-logo`, `remove-watermark`
+  and `add-watermark` pages (invalid `<head>`, SEO).
+- Fixed broken homepage "Text to PDF" link (pointed to a non-existent page).
+- Homepage now uses a branded `<title>` and is `index, follow` (was `noindex`).
+- Added missing i18n keys (`simpleMode.*`, `replaceLogo.*`, `upscaleImage.*`, `backToTools`).
+- Test suite green again (was 119 failing): updated stale tool-config assertions, refreshed
+  `pdf-tools` counts, and added a `DOMMatrix` polyfill for the jsdom test environment.
+- ESLint no longer lints vendored `public/` bundles (warnings 11,969 → ~850).
+
 ## [1.16.0] - 2026-01-25
 
 ### 🚀 Added - Major Backend Integration
