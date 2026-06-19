@@ -81,10 +81,12 @@ function initializePage() {
   if (undoBtn) undoBtn.addEventListener('click', undoLastSelection);
 
   const autoDetectBtn = document.getElementById('auto-detect-btn');
-  if (autoDetectBtn) autoDetectBtn.addEventListener('click', autoDetectWatermarks);
+  if (autoDetectBtn)
+    autoDetectBtn.addEventListener('click', autoDetectWatermarks);
 
   setupCanvas();
   setupSettings();
+  setupLogoStep();
 }
 
 function handleFileUpload(e: Event) {
@@ -163,6 +165,7 @@ function resetState() {
   pageState.totalPages = 0;
   pageState.regions = [];
   pdfJsDoc = null;
+  resetLogoStep();
 
   const fileDisplayArea = document.getElementById('file-display-area');
   if (fileDisplayArea) fileDisplayArea.innerHTML = '';
@@ -209,6 +212,9 @@ async function renderPage(pageNum: number) {
   const nextBtn = document.getElementById('next-page') as HTMLButtonElement;
   if (prevBtn) prevBtn.disabled = pageNum <= 1;
   if (nextBtn) nextBtn.disabled = pageNum >= pageState.totalPages;
+
+  // Keep the logo overlay aligned to the (possibly resized) canvas.
+  positionLogoOverlay();
 }
 
 function setupCanvas() {
@@ -545,19 +551,12 @@ async function removeWatermarks() {
       processedCount++;
     }
 
-    // Save the modified PDF
-    const pdfBytes = await pdfLibDoc.save();
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    downloadFile(blob, 'watermark-removed.pdf');
-
-    showAlert(
-      'Success',
-      `Watermarks removed successfully from ${processedCount} page${processedCount !== 1 ? 's' : ''}!`,
-      'success',
-      () => {
-        resetState();
-      }
-    );
+    // Watermarks removed — move to the logo placement step instead of
+    // downloading immediately (issue #41: choose a logo, position + size it,
+    // then apply to all pages).
+    hideLoader();
+    enterLogoStep(processedCount);
+    return;
   } catch (error: any) {
     console.error(error);
     showAlert(
@@ -628,7 +627,13 @@ async function processPageWithInpainting(
   if (options.method === 'gemini') {
     imageBytes = await inpaintWithGemini(tempCanvas, regions, scaleRatio);
   } else {
-    imageBytes = inpaintWithOpenCV(tempCanvas, tempCtx, regions, scaleRatio, options);
+    imageBytes = inpaintWithOpenCV(
+      tempCanvas,
+      tempCtx,
+      regions,
+      scaleRatio,
+      options
+    );
   }
 
   // Replace page in PDF with processed image
@@ -656,7 +661,12 @@ function inpaintWithOpenCV(
 ): Uint8Array {
   const cv = (window as any).cv;
 
-  const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+  const imgData = tempCtx.getImageData(
+    0,
+    0,
+    tempCanvas.width,
+    tempCanvas.height
+  );
   const src = cv.matFromImageData(imgData);
   const mask = new cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
 
@@ -690,8 +700,7 @@ function inpaintWithOpenCV(
   return dataUrlToBytes(tempCanvas.toDataURL('image/jpeg', 0.95));
 }
 
-const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) || '';
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || '';
 
 async function inpaintWithGemini(
   tempCanvas: HTMLCanvasElement,
@@ -739,7 +748,8 @@ async function inpaintWithGemini(
 function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('canvas.toBlob returned null'))),
+      (blob) =>
+        blob ? resolve(blob) : reject(new Error('canvas.toBlob returned null')),
       type
     );
   });
@@ -753,4 +763,332 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Logo placement step (issue #41)
+ * After watermark removal, let the user pick a logo, drag it to position and
+ * size it on the page preview, then stamp it onto every page of the PDF.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+type PdfLogoSource = 'lakeb2b' | 'champions' | 'ampliz' | 'custom' | 'none';
+
+interface PdfLogoState {
+  source: PdfLogoSource;
+  customUrl: string | null; // object URL for custom upload preview
+  widthPct: number; // logo width as a fraction of page width (0-1)
+  xFrac: number; // logo top-left X as a fraction of page width (0-1)
+  yFrac: number; // logo top-left Y as a fraction of page height (0-1)
+  aspect: number; // logo intrinsic width / height
+  dragging: boolean;
+  dragOffsetX: number;
+  dragOffsetY: number;
+}
+
+const logoState: PdfLogoState = {
+  source: 'lakeb2b',
+  customUrl: null,
+  widthPct: 0.15,
+  xFrac: 0.78,
+  yFrac: 0.88,
+  aspect: 1,
+  dragging: false,
+  dragOffsetX: 0,
+  dragOffsetY: 0,
+};
+
+function logoPresetUrl(source: PdfLogoSource): string | null {
+  if (source === 'none' || source === 'custom') return null;
+  return `${import.meta.env.BASE_URL}logos/${source}.png`;
+}
+
+function setupLogoStep() {
+  document
+    .querySelectorAll('input[name="pdf-logo-source"]')
+    .forEach((radio) => {
+      radio.addEventListener('change', (e) => {
+        logoState.source = (e.target as HTMLInputElement)
+          .value as PdfLogoSource;
+        const customInput = document.getElementById(
+          'custom-logo-input'
+        ) as HTMLInputElement | null;
+        customInput?.classList.toggle('hidden', logoState.source !== 'custom');
+        if (logoState.source === 'custom') {
+          if (logoState.customUrl) {
+            void loadLogoPreview(logoState.customUrl);
+          } else {
+            customInput?.click();
+          }
+        } else {
+          void loadLogoPreview(logoPresetUrl(logoState.source));
+        }
+      });
+    });
+
+  const customInput = document.getElementById(
+    'custom-logo-input'
+  ) as HTMLInputElement | null;
+  customInput?.addEventListener('change', (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (logoState.customUrl) URL.revokeObjectURL(logoState.customUrl);
+    logoState.customUrl = URL.createObjectURL(file);
+    void loadLogoPreview(logoState.customUrl);
+  });
+
+  const sizeSlider = document.getElementById(
+    'logo-size'
+  ) as HTMLInputElement | null;
+  const sizeValue = document.getElementById('logo-size-value');
+  sizeSlider?.addEventListener('input', () => {
+    logoState.widthPct = parseInt(sizeSlider.value, 10) / 100;
+    if (sizeValue) sizeValue.textContent = sizeSlider.value;
+    positionLogoOverlay();
+  });
+
+  document
+    .getElementById('apply-logo-btn')
+    ?.addEventListener('click', () => void applyLogoAndDownload());
+  document
+    .getElementById('skip-logo-btn')
+    ?.addEventListener('click', () => downloadProcessedPdf());
+
+  window.addEventListener('resize', positionLogoOverlay);
+
+  setupLogoDrag();
+}
+
+function enterLogoStep(processedCount: number) {
+  // Hide the selection settings; reveal the logo panel.
+  document.getElementById('logo-panel')?.classList.remove('hidden');
+  const processBtn = document.getElementById('process-btn');
+  processBtn?.classList.add('hidden');
+
+  const info = document.getElementById('selection-info');
+  if (info) {
+    info.innerHTML = `<span class="text-sm text-green-400">Watermarks removed from ${processedCount} page${
+      processedCount !== 1 ? 's' : ''
+    }. Now add a logo (optional).</span>`;
+  }
+
+  // Make the canvas non-crosshair during placement.
+  pageState.canvas?.classList.remove('cursor-crosshair');
+
+  // Default to the LakeB2B preset preview.
+  logoState.source = 'lakeb2b';
+  void loadLogoPreview(logoPresetUrl('lakeb2b'));
+  createIcons({ icons });
+}
+
+function resetLogoStep() {
+  if (logoState.customUrl) {
+    URL.revokeObjectURL(logoState.customUrl);
+    logoState.customUrl = null;
+  }
+  logoState.source = 'lakeb2b';
+  logoState.widthPct = 0.15;
+  logoState.xFrac = 0.78;
+  logoState.yFrac = 0.88;
+  logoState.aspect = 1;
+  document.getElementById('logo-panel')?.classList.add('hidden');
+  document.getElementById('logo-overlay')?.classList.add('hidden');
+  document.getElementById('process-btn')?.classList.remove('hidden');
+}
+
+async function loadLogoPreview(url: string | null) {
+  const overlay = document.getElementById(
+    'logo-overlay'
+  ) as HTMLImageElement | null;
+  if (!overlay) return;
+
+  if (!url) {
+    // "None" selected — hide the overlay.
+    overlay.classList.add('hidden');
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    overlay.onload = () => {
+      logoState.aspect =
+        overlay.naturalWidth / Math.max(1, overlay.naturalHeight);
+      resolve();
+    };
+    overlay.onerror = () => resolve();
+    overlay.src = url;
+  });
+
+  overlay.classList.remove('hidden');
+  positionLogoOverlay();
+}
+
+/** Position the draggable overlay over the displayed canvas using fractions. */
+function positionLogoOverlay() {
+  const overlay = document.getElementById(
+    'logo-overlay'
+  ) as HTMLImageElement | null;
+  const canvas = pageState.canvas;
+  if (!overlay || !canvas || overlay.classList.contains('hidden')) return;
+
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  const w = logoState.widthPct * cw;
+  const h = w / (logoState.aspect || 1);
+
+  // Clamp so the logo stays on the page.
+  logoState.xFrac = Math.min(Math.max(logoState.xFrac, 0), 1 - w / cw);
+  logoState.yFrac = Math.min(Math.max(logoState.yFrac, 0), 1 - h / ch);
+
+  overlay.style.width = `${w}px`;
+  overlay.style.height = `${h}px`;
+  overlay.style.left = `${canvas.offsetLeft + logoState.xFrac * cw}px`;
+  overlay.style.top = `${canvas.offsetTop + logoState.yFrac * ch}px`;
+}
+
+function setupLogoDrag() {
+  const overlay = document.getElementById(
+    'logo-overlay'
+  ) as HTMLImageElement | null;
+  if (!overlay) return;
+
+  const start = (clientX: number, clientY: number) => {
+    const rect = overlay.getBoundingClientRect();
+    logoState.dragging = true;
+    logoState.dragOffsetX = clientX - rect.left;
+    logoState.dragOffsetY = clientY - rect.top;
+  };
+
+  const move = (clientX: number, clientY: number) => {
+    if (!logoState.dragging) return;
+    const canvas = pageState.canvas;
+    if (!canvas) return;
+    const cRect = canvas.getBoundingClientRect();
+    const left = clientX - logoState.dragOffsetX - cRect.left;
+    const top = clientY - logoState.dragOffsetY - cRect.top;
+    logoState.xFrac = left / canvas.clientWidth;
+    logoState.yFrac = top / canvas.clientHeight;
+    positionLogoOverlay();
+  };
+
+  const end = () => {
+    logoState.dragging = false;
+  };
+
+  overlay.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    start(e.clientX, e.clientY);
+  });
+  document.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
+  document.addEventListener('mouseup', end);
+
+  overlay.addEventListener(
+    'touchstart',
+    (e) => {
+      const t = e.touches[0];
+      start(t.clientX, t.clientY);
+    },
+    { passive: true }
+  );
+  overlay.addEventListener(
+    'touchmove',
+    (e) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      move(t.clientX, t.clientY);
+    },
+    { passive: false }
+  );
+  overlay.addEventListener('touchend', end);
+}
+
+function downloadProcessedPdf() {
+  if (!pageState.pdfDoc) return;
+  void (async () => {
+    showLoader('Saving PDF...');
+    try {
+      const pdfBytes = await pageState.pdfDoc!.save();
+      const blob = new Blob([pdfBytes as BlobPart], {
+        type: 'application/pdf',
+      });
+      downloadFile(blob, 'watermark-removed.pdf');
+      showAlert('Success', 'Your PDF is ready.', 'success', () => resetState());
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to save PDF.');
+    } finally {
+      hideLoader();
+    }
+  })();
+}
+
+async function getLogoBytes(): Promise<{
+  bytes: Uint8Array;
+  isPng: boolean;
+} | null> {
+  if (logoState.source === 'none') return null;
+
+  let url: string | null;
+  if (logoState.source === 'custom') {
+    url = logoState.customUrl;
+    if (!url) {
+      showAlert('No logo', 'Please upload a logo image first.');
+      return null;
+    }
+  } else {
+    url = logoPresetUrl(logoState.source);
+  }
+  if (!url) return null;
+
+  const res = await fetch(url);
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const isPng = buf[0] === 0x89 && buf[1] === 0x50; // PNG magic bytes
+  return { bytes: buf, isPng };
+}
+
+async function applyLogoAndDownload() {
+  if (!pageState.pdfDoc) return;
+
+  if (logoState.source === 'none') {
+    downloadProcessedPdf();
+    return;
+  }
+
+  showLoader('Applying logo to all pages...');
+  try {
+    const logo = await getLogoBytes();
+    if (!logo) {
+      hideLoader();
+      return;
+    }
+
+    const pdfLibDoc = pageState.pdfDoc;
+    const embedded = logo.isPng
+      ? await pdfLibDoc.embedPng(logo.bytes)
+      : await pdfLibDoc.embedJpg(logo.bytes);
+
+    const pages = pdfLibDoc.getPages();
+    for (const page of pages) {
+      const { width: pw, height: ph } = page.getSize();
+      const lw = logoState.widthPct * pw;
+      const lh = lw / (logoState.aspect || 1);
+      const x = logoState.xFrac * pw;
+      // Canvas Y is top-down; pdf-lib origin is bottom-left.
+      const y = ph - logoState.yFrac * ph - lh;
+      page.drawImage(embedded, { x, y, width: lw, height: lh });
+    }
+
+    const pdfBytes = await pdfLibDoc.save();
+    const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
+    downloadFile(blob, 'watermark-removed-rebranded.pdf');
+
+    showAlert(
+      'Success',
+      `Logo applied to ${pages.length} page${pages.length !== 1 ? 's' : ''} and downloaded.`,
+      'success',
+      () => resetState()
+    );
+  } catch (e: any) {
+    console.error(e);
+    showAlert('Error', e?.message || 'Failed to apply logo.');
+  } finally {
+    hideLoader();
+  }
 }

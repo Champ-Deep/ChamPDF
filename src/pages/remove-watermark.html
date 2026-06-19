@@ -208,6 +208,13 @@
                 id="pdf-canvas"
                 class="max-w-full cursor-crosshair border border-gray-600"
               ></canvas>
+              <img
+                id="logo-overlay"
+                alt="logo preview"
+                draggable="false"
+                class="hidden absolute top-0 left-0 cursor-move select-none"
+                style="touch-action: none"
+              />
             </div>
 
             <div class="mt-4 flex flex-wrap gap-2" id="selection-info">
@@ -297,6 +304,133 @@
             <i data-lucide="eraser" class="w-5 h-5 inline mr-2"></i>
             Remove Watermark
           </button>
+
+          <!-- Logo step (shown after watermark removal) -->
+          <div
+            id="logo-panel"
+            class="hidden mt-6 space-y-4 bg-gray-900 rounded-lg p-4 border border-gray-700"
+          >
+            <h3 class="text-lg font-semibold text-white">
+              <i data-lucide="image-plus" class="w-5 h-5 inline mr-1"></i>
+              Add Your Logo (optional)
+            </h3>
+            <p class="text-sm text-gray-400">
+              Watermarks removed. Pick a logo, <strong>drag it</strong> on the
+              preview to position it, and set its size — it will be applied to
+              <strong>all pages</strong>.
+            </p>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-2"
+                >Logo</label
+              >
+              <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                <label class="relative cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pdf-logo-source"
+                    value="lakeb2b"
+                    class="peer sr-only"
+                    checked
+                  />
+                  <div
+                    class="text-center text-sm p-2 rounded-lg border border-gray-600 peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                  >
+                    LakeB2B
+                  </div>
+                </label>
+                <label class="relative cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pdf-logo-source"
+                    value="champions"
+                    class="peer sr-only"
+                  />
+                  <div
+                    class="text-center text-sm p-2 rounded-lg border border-gray-600 peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                  >
+                    Champions
+                  </div>
+                </label>
+                <label class="relative cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pdf-logo-source"
+                    value="ampliz"
+                    class="peer sr-only"
+                  />
+                  <div
+                    class="text-center text-sm p-2 rounded-lg border border-gray-600 peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                  >
+                    Ampliz
+                  </div>
+                </label>
+                <label class="relative cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pdf-logo-source"
+                    value="custom"
+                    class="peer sr-only"
+                  />
+                  <div
+                    class="text-center text-sm p-2 rounded-lg border border-gray-600 peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                  >
+                    Upload…
+                  </div>
+                </label>
+                <label class="relative cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pdf-logo-source"
+                    value="none"
+                    class="peer sr-only"
+                  />
+                  <div
+                    class="text-center text-sm p-2 rounded-lg border border-gray-600 peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                  >
+                    None
+                  </div>
+                </label>
+              </div>
+              <input
+                type="file"
+                id="custom-logo-input"
+                accept="image/png,image/jpeg"
+                class="hidden mt-2 text-sm text-gray-300"
+              />
+            </div>
+
+            <div id="logo-size-wrap">
+              <label
+                for="logo-size"
+                class="block mb-2 text-sm font-medium text-gray-300"
+                >Logo size: <span id="logo-size-value">15</span>% of page
+                width</label
+              >
+              <input
+                type="range"
+                id="logo-size"
+                min="5"
+                max="40"
+                step="1"
+                value="15"
+                class="w-full h-2 bg-gray-700 rounded-lg cursor-pointer"
+              />
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2">
+              <button id="apply-logo-btn" class="btn-gradient flex-1">
+                <i data-lucide="check" class="w-5 h-5 inline mr-2"></i>
+                Apply Logo to All Pages & Download
+              </button>
+              <button
+                id="skip-logo-btn"
+                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              >
+                Download Without Logo
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
