@@ -163,7 +163,22 @@
               class="absolute top-0 left-0 border-2 border-transparent"
               style="cursor: crosshair"
             ></canvas>
+
+            <!-- Draggable logo preview (shown when a logo is selected) -->
+            <img
+              id="logo-overlay"
+              alt="logo preview"
+              draggable="false"
+              class="hidden absolute top-0 left-0 cursor-move select-none"
+              style="touch-action: none"
+            />
           </div>
+
+          <p id="logo-drag-hint" class="hidden text-sm text-orange-300 mt-3">
+            <i data-lucide="move" class="w-4 h-4 inline"></i>
+            Drag the logo to position it; use the size slider below. It's
+            applied where you place it.
+          </p>
 
           <p class="text-sm text-gray-400 mt-3">
             <i data-lucide="info" class="w-4 h-4 inline"></i>

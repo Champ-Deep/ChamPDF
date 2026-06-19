@@ -21,6 +21,9 @@ interface WatermarkRemoverState {
   blurRadius: number; // 5, 10, 15 for light/medium/heavy
   logoPreset: 'none' | 'lakeb2b' | 'champions' | 'ampliz';
   logoScale: number;
+  // Normalized top-left of the logo within the image area (0-1). null = anchor
+  // to the selection box (legacy behaviour). Set when the user drags the logo.
+  logoPos: { xFrac: number; yFrac: number } | null;
   isProcessing: boolean;
   resultBlob: Blob | null;
   previewCanvas: HTMLCanvasElement | null;
@@ -38,6 +41,7 @@ const state: WatermarkRemoverState = {
   blurRadius: 10, // Default: medium blur
   logoPreset: 'none',
   logoScale: 1.0,
+  logoPos: null,
   isProcessing: false,
   resultBlob: null,
   previewCanvas: null,
@@ -121,6 +125,7 @@ function initializePage() {
     radio.addEventListener('change', (e) => {
       state.logoPreset = (e.target as HTMLInputElement)
         .value as typeof state.logoPreset;
+      void updateLogoOverlay();
     });
   });
 
@@ -133,7 +138,11 @@ function initializePage() {
     const pct = parseInt(logoScaleEl.value, 10) || 100;
     state.logoScale = pct / 100;
     if (logoScaleValueEl) logoScaleValueEl.textContent = `${pct}%`;
+    positionLogoOverlay();
   });
+
+  setupLogoDrag();
+  window.addEventListener('resize', positionLogoOverlay);
 
   // Clear selection button
   document
@@ -251,6 +260,9 @@ function setupCanvasPreview(file: File) {
 
     // Setup selection overlay
     setupSelectionOverlay(canvas);
+
+    // If a logo is already chosen, show its draggable preview.
+    void updateLogoOverlay();
   };
 
   img.src = URL.createObjectURL(file);
@@ -472,6 +484,8 @@ async function handleProcess() {
 
   // Show processing status
   document.getElementById('options-section')?.classList.add('hidden');
+  document.getElementById('logo-overlay')?.classList.add('hidden');
+  document.getElementById('logo-drag-hint')?.classList.add('hidden');
   document.getElementById('processing-status')?.classList.remove('hidden');
 
   const processBtn = document.getElementById(
@@ -944,6 +958,147 @@ function createGaussianKernel(radius: number): number[] {
  * Add replacement logo with smart alignment
  * Aligns logo with bottom of selection box, ensuring it doesn't overflow image
  */
+/* ── Draggable logo overlay (issue #41: move + size the logo) ────────────── */
+
+let logoAspectRatio = 1;
+let logoDragging = false;
+let logoDragDX = 0;
+let logoDragDY = 0;
+
+/** The displayed image area (excluding canvas padding) in client coordinates. */
+function imgAreaRect() {
+  const c = state.previewCanvas!;
+  const r = c.getBoundingClientRect();
+  const s = r.width / c.width; // client px per internal canvas px
+  return {
+    left: r.left + CANVAS_PADDING * s,
+    top: r.top + CANVAS_PADDING * s,
+    w: (c.width - CANVAS_PADDING * 2) * s,
+    h: (c.height - CANVAS_PADDING * 2) * s,
+    s,
+  };
+}
+
+/** Show/hide + (re)load the logo overlay when the preset changes. */
+async function updateLogoOverlay() {
+  const overlay = document.getElementById(
+    'logo-overlay'
+  ) as HTMLImageElement | null;
+  const hint = document.getElementById('logo-drag-hint');
+  if (!overlay) return;
+
+  const url = LOGO_URLS[state.logoPreset];
+  if (!url || !state.previewCanvas) {
+    overlay.classList.add('hidden');
+    hint?.classList.add('hidden');
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    overlay.onload = () => {
+      logoAspectRatio =
+        overlay.naturalWidth / Math.max(1, overlay.naturalHeight);
+      resolve();
+    };
+    overlay.onerror = () => resolve();
+    overlay.src = url;
+  });
+
+  if (!state.logoPos) state.logoPos = { xFrac: 0.62, yFrac: 0.82 };
+  overlay.classList.remove('hidden');
+  hint?.classList.remove('hidden');
+  positionLogoOverlay();
+}
+
+/** Place the overlay over the image area according to logoPos + logoScale. */
+function positionLogoOverlay() {
+  const overlay = document.getElementById(
+    'logo-overlay'
+  ) as HTMLImageElement | null;
+  if (
+    !overlay ||
+    overlay.classList.contains('hidden') ||
+    !state.previewCanvas ||
+    !state.logoPos
+  )
+    return;
+
+  const c = state.previewCanvas;
+  const s = c.clientWidth / c.width;
+  const areaLeft = c.offsetLeft + CANVAS_PADDING * s;
+  const areaTop = c.offsetTop + CANVAS_PADDING * s;
+  const areaW = (c.width - CANVAS_PADDING * 2) * s;
+  const areaH = (c.height - CANVAS_PADDING * 2) * s;
+
+  const logoWidthImg =
+    Math.min(200, state.imgNaturalWidth * 0.15) * state.logoScale;
+  const wClient = logoWidthImg * (areaW / Math.max(1, state.imgNaturalWidth));
+  const hClient = wClient / (logoAspectRatio || 1);
+
+  state.logoPos.xFrac = Math.min(
+    Math.max(state.logoPos.xFrac, 0),
+    Math.max(0, 1 - wClient / areaW)
+  );
+  state.logoPos.yFrac = Math.min(
+    Math.max(state.logoPos.yFrac, 0),
+    Math.max(0, 1 - hClient / areaH)
+  );
+
+  overlay.style.width = `${wClient}px`;
+  overlay.style.height = `${hClient}px`;
+  overlay.style.left = `${areaLeft + state.logoPos.xFrac * areaW}px`;
+  overlay.style.top = `${areaTop + state.logoPos.yFrac * areaH}px`;
+}
+
+function setupLogoDrag() {
+  const overlay = document.getElementById(
+    'logo-overlay'
+  ) as HTMLImageElement | null;
+  if (!overlay) return;
+
+  const start = (x: number, y: number) => {
+    const r = overlay.getBoundingClientRect();
+    logoDragging = true;
+    logoDragDX = x - r.left;
+    logoDragDY = y - r.top;
+  };
+  const move = (x: number, y: number) => {
+    if (!logoDragging || !state.logoPos) return;
+    const area = imgAreaRect();
+    state.logoPos.xFrac = (x - logoDragDX - area.left) / area.w;
+    state.logoPos.yFrac = (y - logoDragDY - area.top) / area.h;
+    positionLogoOverlay();
+  };
+  const end = () => {
+    logoDragging = false;
+  };
+
+  overlay.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    start(e.clientX, e.clientY);
+  });
+  document.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
+  document.addEventListener('mouseup', end);
+  overlay.addEventListener(
+    'touchstart',
+    (e) => {
+      const t = e.touches[0];
+      start(t.clientX, t.clientY);
+    },
+    { passive: true }
+  );
+  overlay.addEventListener(
+    'touchmove',
+    (e) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      move(t.clientX, t.clientY);
+    },
+    { passive: false }
+  );
+  overlay.addEventListener('touchend', end);
+}
+
 async function addReplacementLogo(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -993,9 +1148,17 @@ async function addReplacementLogo(
     const logoWidth = baseLogoWidth * state.logoScale;
     const logoHeight = logoWidth / logoAspect;
 
-    // Align logo with BOTTOM of selection box
-    let x = actualSelection.x;
-    let y = actualSelection.y + actualSelection.height - logoHeight;
+    // Use the dragged position when set (issue #41); otherwise fall back to the
+    // bottom of the selection box.
+    let x: number;
+    let y: number;
+    if (state.logoPos) {
+      x = state.logoPos.xFrac * width;
+      y = state.logoPos.yFrac * height;
+    } else {
+      x = actualSelection.x;
+      y = actualSelection.y + actualSelection.height - logoHeight;
+    }
 
     // Clamp to image bounds
     x = Math.max(0, Math.min(x, width - logoWidth));
@@ -1038,6 +1201,9 @@ function resetToUpload() {
   state.isProcessing = false;
   state.selectionBox = null;
   state.previewCanvas = null;
+  state.logoPos = null;
+  document.getElementById('logo-overlay')?.classList.add('hidden');
+  document.getElementById('logo-drag-hint')?.classList.add('hidden');
 
   // Hide all sections
   document.getElementById('preview-section')?.classList.add('hidden');
