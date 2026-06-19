@@ -120,3 +120,90 @@ curl https://<backend-domain>/health              # if backend is publicly expos
 | CORS error in browser                         | Add the frontend origin to backend `ALLOWED_ORIGINS`                                           |
 | Video tool 502 / long hang                    | First-run model download or under-provisioned memory; raise plan / lower `MAX_CONCURRENT_JOBS` |
 | `/health` shows `"ffmpeg": false`             | ffmpeg missing — only happens outside Docker; the images install it                            |
+
+---
+
+## 4. Connecting a backend compute server (server-side processing)
+
+**How it works.** The browser never calls the backend directly. It calls
+relative `/api/*` paths on the **frontend** origin; the frontend's Nginx
+reverse-proxies every `/api/*` request to whatever `BACKEND_URL` points at:
+
+```
+Browser ──/api/process-video──▶ Frontend (Nginx)  ──proxy_pass $BACKEND_URL──▶ Backend (FastAPI + FFmpeg + torch)
+```
+
+So **connecting a compute server is a single env var**: set `BACKEND_URL` on the
+**frontend** service. No frontend rebuild is needed — it's applied at container
+start. The proxy is already tuned for server-side jobs: **300 s** timeouts,
+request buffering off (true streaming uploads), and `client_max_body_size 100M`.
+
+### Option A — Two Railway services (recommended, easiest)
+
+This is what `railway.toml` already defines (`champdf-frontend` +
+`champdf-backend`). Use Railway's **private networking** so the backend never
+needs a public URL:
+
+1. Deploy both services from the repo (branch `v2`).
+2. On **champdf-frontend**, set:
+   `BACKEND_URL = http://champdf-backend.railway.internal:8000`
+   (private DNS name = the backend service name + `.railway.internal`).
+3. On **champdf-backend**, set `ALLOWED_ORIGINS = https://<frontend-domain>`.
+4. Give the backend **≥ 2 GB RAM** (video + torch). Done — `/api/*` now flows to it.
+
+> `BACKEND_URL` is tolerant: a value with no scheme (e.g. pasted as
+> `champdf-backend.railway.internal:8000`) is auto-prefixed with `http://`, and
+> an empty value falls back to `http://localhost:8000`, so the frontend never
+> crash-loops on a bad value.
+
+### Option B — Bring your own compute box (e.g. a GPU server)
+
+To offload heavy video/AI to a dedicated machine (GPU box, another host, even a
+different Railway project):
+
+1. Run the backend image (`backend/Dockerfile.railway`) anywhere that exposes an
+   HTTPS (or internal HTTP) URL. For GPU: build torch with the CUDA index in the
+   Dockerfile and set `DEVICE=cuda`.
+2. Point the frontend at it: `BACKEND_URL = https://my-compute-box.example.com`.
+   External **HTTPS** backends now work — Nginx sends SNI (`proxy_ssl_server_name on`).
+3. Set the backend's `ALLOWED_ORIGINS` to your frontend domain.
+
+You can swap compute servers any time by changing `BACKEND_URL` and redeploying
+the frontend — the app code never changes.
+
+---
+
+## 5. Verify the Video Logo Remover end-to-end
+
+This is the tool that previously failed on Railway (issue #19). Run these in
+order after deploying:
+
+```bash
+# 1. Backend is up and sees ffmpeg (must be true inside Docker)
+curl https://<frontend-domain>/api/health
+#    → {"status":"healthy","ffmpeg":true}
+
+# 2. The proxy reaches the backend (not the SPA fallback)
+curl https://<frontend-domain>/api/capabilities
+#    → JSON with video_rebrand:true  (if you get HTML, BACKEND_URL is wrong)
+
+# 3. Real video job through the proxy
+curl -X POST https://<frontend-domain>/api/process-video \
+  -F "file=@sample.mp4" -F "logo_preset=none" -F "watermark_position=bottom-right" \
+  -o out.mp4 -D -      # -D - prints response headers
+```
+
+Then in the UI: **Video Logo Remover** → upload a short clip → Process →
+download. Expect 10 s–a few minutes on CPU for the first run (model/ffmpeg warm-up).
+
+### Why it failed before → what's fixed in v2
+
+| Old failure                              | Cause                                              | Fix in v2                                      |
+| ---------------------------------------- | -------------------------------------------------- | ---------------------------------------------- |
+| `413` on `/api/process-video`            | Nginx default ~1 MB body cap                       | `client_max_body_size 100M` on `/api/`         |
+| `504` / "unknown error" after ~60 s      | Nginx default 60 s proxy timeout < processing time | `proxy_*_timeout 300s` + buffering off         |
+| "server-side operation not running"      | Frontend couldn't reach the backend                | `BACKEND_URL` → backend via private networking |
+| Frontend crash-loop on bad `BACKEND_URL` | scheme-less/empty value                            | normalize script auto-fixes it                 |
+
+If `/api/health` returns HTML instead of JSON, `BACKEND_URL` is unset/wrong on
+the frontend service — fix that first; it's the #1 cause of "video doesn't work."

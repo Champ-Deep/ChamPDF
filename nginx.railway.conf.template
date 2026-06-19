@@ -62,6 +62,13 @@ http {
             proxy_buffering off;
             proxy_request_buffering off;
 
+            # Let you point BACKEND_URL at ANY backend, including an external
+            # HTTPS compute box (a separate GPU host, another Railway service,
+            # etc.) — send SNI so TLS to that host succeeds, and don't rewrite
+            # the upstream's redirect/Location headers.
+            proxy_ssl_server_name on;
+            proxy_redirect off;
+
             # Allow large file uploads (100MB for videos)
             client_max_body_size 100M;
         }
