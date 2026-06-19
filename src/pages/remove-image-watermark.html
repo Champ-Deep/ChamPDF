@@ -170,22 +170,75 @@
             Drag to select the watermark area you want to remove
           </p>
 
-          <!-- Clear Selection Button -->
-          <button
-            id="clear-selection-btn"
-            class="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
-          >
-            <i data-lucide="x" class="w-4 h-4"></i>
-            Clear Selection
-          </button>
+          <!-- Selection controls -->
+          <div class="mt-4 flex flex-wrap gap-3">
+            <button
+              id="auto-detect-btn"
+              class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+            >
+              <i data-lucide="scan-search" class="w-4 h-4"></i>
+              Auto-detect watermark
+            </button>
+            <button
+              id="clear-selection-btn"
+              class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+            >
+              <i data-lucide="x" class="w-4 h-4"></i>
+              Clear Selection
+            </button>
+          </div>
         </div>
 
         <!-- Options Section (shown after file selection) -->
         <div id="options-section" class="hidden mt-6 space-y-6">
-          <!-- Blur Intensity -->
+          <!-- Removal Method -->
           <div>
             <h3 class="text-lg font-semibold text-white mb-3">
-              Step 3: Blur Intensity
+              Step 3: Removal Method
+            </h3>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="relative cursor-pointer">
+                <input
+                  type="radio"
+                  name="removal-method"
+                  value="ai"
+                  class="peer sr-only"
+                  checked
+                />
+                <div
+                  class="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-700 hover:border-orange-500/50 transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10"
+                >
+                  <i data-lucide="wand-2" class="w-6 h-6 text-orange-400"></i>
+                  <span class="text-white font-medium">AI Inpaint</span>
+                  <span class="text-xs text-gray-400 text-center"
+                    >Cleanest result (server)</span
+                  >
+                </div>
+              </label>
+              <label class="relative cursor-pointer">
+                <input
+                  type="radio"
+                  name="removal-method"
+                  value="blur"
+                  class="peer sr-only"
+                />
+                <div
+                  class="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-700 hover:border-orange-500/50 transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10"
+                >
+                  <i data-lucide="droplets" class="w-6 h-6 text-orange-400"></i>
+                  <span class="text-white font-medium">Smart Blur</span>
+                  <span class="text-xs text-gray-400 text-center"
+                    >Instant, in your browser</span
+                  >
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Blur Intensity (used by Smart Blur method) -->
+          <div id="blur-intensity-group">
+            <h3 class="text-lg font-semibold text-white mb-3">
+              Blur Intensity
             </h3>
             <div class="grid grid-cols-3 gap-3">
               <label class="relative cursor-pointer">

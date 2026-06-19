@@ -40,6 +40,27 @@ class Settings(BaseSettings):
     HEALTH_CHECK_TIMEOUT: int = 10  # Quick health checks
     PROCESS_TIMEOUT: int = 300    # 5 minutes timeout for FFmpeg/ML tasks
 
+    # ML / Device
+    # "auto" uses CUDA when available and falls back to CPU. Force with "cpu"/"cuda".
+    DEVICE: str = "auto"
+
+    # LaMa inpainting (watermark / object removal)
+    ENABLE_INPAINT: bool = True
+
+    # faster-whisper captions: tiny | base | small | medium | large-v3
+    WHISPER_MODEL_SIZE: str = "base"
+    WHISPER_COMPUTE_TYPE: str = "int8"  # int8 is fast + low-memory on CPU
+    ENABLE_CAPTIONS: bool = True
+
+    # Real-ESRGAN upscaling
+    ENABLE_UPSCALE: bool = True
+    UPSCALE_MAX_SCALE: int = 4       # 2, 4, or 8 supported by the weights
+    UPSCALE_MAX_PIXELS: int = 4_000_000  # reject huge inputs (OOM guard)
+
+    # Watermark auto-detection (OpenCV template matching)
+    WATERMARK_MATCH_THRESHOLD: float = 0.62  # 0-1; higher = stricter match
+    WATERMARK_SAMPLE_FRAMES: int = 12        # frames sampled to locate a video watermark
+
     # Paths - Use system temp by default for better cross-platform support
     BASE_TEMP_DIR: Path = Path(tempfile.gettempdir()) / "champdf-backend"
 
@@ -68,6 +89,19 @@ class Settings(BaseSettings):
 
     # Assets
     LOGO_DIR: Path = Path(__file__).parent / "assets" / "logos"
+    # Drop NotebookLM (and other) watermark reference PNGs here for auto-detection.
+    WATERMARK_TEMPLATE_DIR: Path = Path(__file__).parent / "assets" / "watermark_templates"
+
+    @property
+    def torch_device(self) -> str:
+        """Resolve DEVICE='auto' to an actual torch device string."""
+        if self.DEVICE != "auto":
+            return self.DEVICE
+        try:
+            import torch
+            return "cuda" if torch.cuda.is_available() else "cpu"
+        except Exception:
+            return "cpu"
 
     class Config:
         env_file = ".env"

@@ -39,6 +39,14 @@ from inpaint_processor import (
 )
 from api_v1 import init_db as init_v1_db, router as api_v1_router
 
+# Self-hosted AI engine (our branch): LaMa inpainting, OpenCV template watermark
+# detection, faster-whisper captions, Real-ESRGAN upscaling. These run locally and
+# require no API key (Gemini above stays optional, e.g. for Edit Banana).
+from lama_processor import InpaintProcessor
+from caption_processor import CaptionProcessor
+from upscale_processor import UpscaleProcessor
+from watermark_detector import WatermarkDetector
+
 logger = logging.getLogger(__name__)
 
 # Global semaphore to limit concurrency
@@ -109,8 +117,27 @@ app.include_router(api_v1_router)
 processor = VideoProcessor(logo_dir=settings.LOGO_DIR)
 image_processor = ImageProcessor()
 
+# Self-hosted AI engines (heavy models load lazily on first use, so this is cheap).
+_device = settings.torch_device
+watermark_detector = WatermarkDetector(
+    template_dir=settings.WATERMARK_TEMPLATE_DIR,
+    threshold=settings.WATERMARK_MATCH_THRESHOLD,
+)
+lama_processor = InpaintProcessor(device=_device) if settings.ENABLE_INPAINT else None
+upscale_processor = UpscaleProcessor(device=_device) if settings.ENABLE_UPSCALE else None
+caption_processor = (
+    CaptionProcessor(
+        model_size=settings.WHISPER_MODEL_SIZE,
+        compute_type=settings.WHISPER_COMPUTE_TYPE,
+        device=_device,
+    )
+    if settings.ENABLE_CAPTIONS
+    else None
+)
+
 # Allowed extensions
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".avi"}
+ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
 
 def cleanup_files(*files: Path):
     """Cleanup temporary files after response is sent."""
@@ -566,6 +593,222 @@ async def cleanup_temp_files():
         return {"status": "cleaned"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Self-hosted AI engine endpoints (LaMa inpainting, template detection,
+# Whisper captions, Real-ESRGAN upscaling). No API key required.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/capabilities")
+async def get_capabilities():
+    """Report which self-hosted AI features are enabled (frontend show/hide)."""
+    return {
+        "background_removal": True,
+        "video_rebrand": True,
+        "inpaint": lama_processor is not None,
+        "upscale": upscale_processor is not None,
+        "captions": caption_processor is not None,
+        "watermark_autodetect": watermark_detector.has_templates(),
+        "gemini_inpaint": bool(os.environ.get("GEMINI_API_KEY")),
+    }
+
+
+async def _read_image_upload(file: UploadFile) -> bytes:
+    """Validate + read an uploaded image within the configured size limit."""
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(sorted(ALLOWED_IMAGE_TYPES))}",
+        )
+    contents = await file.read()
+    if len(contents) > settings.MAX_IMAGE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Maximum size is {settings.MAX_IMAGE_SIZE_MB}MB.",
+        )
+    return contents
+
+
+@app.post("/api/detect-watermark")
+async def detect_watermark_template(file: UploadFile = File(...)):
+    """Locate watermark boxes via OpenCV template matching (self-hosted, no key)."""
+    import numpy as np
+    import cv2
+
+    contents = await _read_image_upload(file)
+    arr = cv2.imdecode(np.frombuffer(contents, np.uint8), cv2.IMREAD_COLOR)
+    if arr is None:
+        raise HTTPException(status_code=400, detail="Could not decode image")
+    boxes = await asyncio.to_thread(watermark_detector.detect, arr)
+    return {"detections": boxes, "has_templates": watermark_detector.has_templates()}
+
+
+@app.post("/api/remove-image-watermark")
+async def remove_image_watermark(
+    file: UploadFile = File(...),
+    regions: Optional[str] = Form(None),
+    auto_detect: bool = Form(False),
+):
+    """Remove an image watermark with LaMa inpainting (self-hosted)."""
+    import json
+    import numpy as np
+    import cv2
+
+    if not lama_processor:
+        raise HTTPException(status_code=400, detail="AI inpainting is disabled on this server")
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+
+    contents = await _read_image_upload(file)
+
+    boxes: list = []
+    if regions:
+        try:
+            boxes = [
+                {"x": int(b["x"]), "y": int(b["y"]), "w": int(b["w"]), "h": int(b["h"])}
+                for b in json.loads(regions)
+            ]
+        except (ValueError, KeyError, TypeError) as e:
+            raise HTTPException(status_code=400, detail=f"Invalid regions JSON: {e}")
+    elif auto_detect:
+        arr = cv2.imdecode(np.frombuffer(contents, np.uint8), cv2.IMREAD_COLOR)
+        if arr is None:
+            raise HTTPException(status_code=400, detail="Could not decode image")
+        detections = await asyncio.to_thread(watermark_detector.detect, arr)
+        boxes = [{"x": d["x"], "y": d["y"], "w": d["w"], "h": d["h"]} for d in detections]
+
+    if not boxes:
+        raise HTTPException(
+            status_code=400,
+            detail="No watermark region. Draw a selection or enable auto-detect with a template installed.",
+        )
+
+    try:
+        async with process_semaphore:
+            output = await lama_processor.inpaint_boxes(contents, boxes)
+    except Exception as e:
+        logger.error(f"Inpaint error: {e}")
+        raise HTTPException(status_code=500, detail=f"Processing failed: {e}")
+
+    base = (file.filename or "image").rsplit(".", 1)[0]
+    return StreamingResponse(
+        io.BytesIO(output),
+        media_type="image/png",
+        headers={"Content-Disposition": f"attachment; filename={base}_no_watermark.png"},
+    )
+
+
+@app.post("/api/inpaint")
+async def inpaint_with_mask(file: UploadFile = File(...), mask: UploadFile = File(...)):
+    """Generic LaMa inpainting: image + 1-channel mask (white = remove)."""
+    if not lama_processor:
+        raise HTTPException(status_code=400, detail="AI inpainting is disabled on this server")
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+
+    image_bytes = await _read_image_upload(file)
+    mask_bytes = await mask.read()
+    try:
+        async with process_semaphore:
+            output = await lama_processor.inpaint(image_bytes, mask_bytes)
+    except Exception as e:
+        logger.error(f"Inpaint error: {e}")
+        raise HTTPException(status_code=500, detail=f"Processing failed: {e}")
+
+    base = (file.filename or "image").rsplit(".", 1)[0]
+    return StreamingResponse(
+        io.BytesIO(output),
+        media_type="image/png",
+        headers={"Content-Disposition": f"attachment; filename={base}_inpainted.png"},
+    )
+
+
+@app.post("/api/upscale-image")
+async def upscale_image(
+    file: UploadFile = File(...),
+    scale: int = Form(4),
+    output_format: str = Form("png"),
+):
+    """Upscale an image with Real-ESRGAN (2x / 4x)."""
+    if not upscale_processor:
+        raise HTTPException(status_code=400, detail="Upscaling is disabled on this server")
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+    if scale > settings.UPSCALE_MAX_SCALE:
+        raise HTTPException(status_code=400, detail=f"Max scale is {settings.UPSCALE_MAX_SCALE}x")
+
+    contents = await _read_image_upload(file)
+    from PIL import Image
+    with Image.open(io.BytesIO(contents)) as probe:
+        if probe.width * probe.height > settings.UPSCALE_MAX_PIXELS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Image too large to upscale (>{settings.UPSCALE_MAX_PIXELS // 1_000_000}MP).",
+            )
+
+    try:
+        async with process_semaphore:
+            output = await upscale_processor.upscale(contents, scale=scale, output_format=output_format)
+    except Exception as e:
+        logger.error(f"Upscale error: {e}")
+        raise HTTPException(status_code=500, detail=f"Processing failed: {e}")
+
+    base = (file.filename or "image").rsplit(".", 1)[0]
+    ext = "png" if output_format.lower() == "png" else "jpg"
+    return StreamingResponse(
+        io.BytesIO(output),
+        media_type=f"image/{ext}",
+        headers={"Content-Disposition": f"attachment; filename={base}_upscaled_{scale}x.{ext}"},
+    )
+
+
+@app.post("/api/transcribe-video")
+async def transcribe_video(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    language: Optional[str] = Form(None),
+):
+    """Transcribe a video's speech to an .srt subtitle file (faster-whisper)."""
+    if not caption_processor:
+        raise HTTPException(status_code=400, detail="Captions are disabled on this server")
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+
+    file_ext = Path(file.filename or "").suffix.lower()
+    if file_ext not in ALLOWED_VIDEO_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_VIDEO_EXTENSIONS)}",
+        )
+
+    job_id = str(uuid.uuid4())
+    input_path = settings.UPLOAD_DIR / f"{job_id}{file_ext}"
+    file_size = 0
+    async with aiofiles.open(input_path, "wb") as out_file:
+        while chunk := await file.read(1024 * 1024):
+            file_size += len(chunk)
+            if file_size > settings.MAX_FILE_SIZE:
+                await out_file.close()
+                cleanup_files(input_path)
+                raise HTTPException(status_code=413, detail="File too large")
+            await out_file.write(chunk)
+
+    try:
+        async with process_semaphore:
+            srt_text = await caption_processor.transcribe_video_to_srt(str(input_path), language=language)
+    except Exception as e:
+        cleanup_files(input_path)
+        logger.error(f"Transcription error: {e}")
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
+
+    background_tasks.add_task(cleanup_files, input_path)
+    base = Path(file.filename or "video").stem
+    return StreamingResponse(
+        io.BytesIO(srt_text.encode("utf-8")),
+        media_type="application/x-subrip",
+        headers={"Content-Disposition": f'attachment; filename="{base}.srt"'},
+    )
 
 
 if __name__ == "__main__":

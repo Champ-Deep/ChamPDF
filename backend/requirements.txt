@@ -1,12 +1,37 @@
+# ─── Core API ────────────────────────────────────────────────────────────────
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 aiofiles==23.2.1
-rembg==2.0.59
+pydantic-settings>=2.0.0
+
+# ─── Image pipeline ──────────────────────────────────────────────────────────
 pillow==10.2.0
 numpy<2.0
-pydantic-settings>=2.0.0
-opencv-python-headless>=4.8.0
-yt-dlp>=2024.10.0
-google-genai>=0.3.0
-PyMuPDF>=1.24.0
+rembg==2.0.59                 # AI background removal (U2Net)
+opencv-python-headless>=4.8.0 # OpenCV inpaint + watermark template auto-detection
+
+# ─── v2 features ─────────────────────────────────────────────────────────────
+yt-dlp>=2024.10.0             # Video Downloader
+google-genai>=0.3.0           # Gemini — optional (Edit Banana + optional inpaint enhancement)
+PyMuPDF>=1.24.0               # PDF processing / rendering
+
+# ─── Self-hosted AI watermark / object removal (LaMa inpainting) ─────────────
+# https://github.com/enesmsahin/simple-lama-inpainting (LaMa, WACV 2022)
+# Pulls in torch; first run downloads the LaMa model (~200MB) to the torch cache.
+simple-lama-inpainting==0.1.2
+
+# ─── Video captions (faster-whisper, CTranslate2 backend) ────────────────────
+# https://github.com/SYSTRAN/faster-whisper  — no torch dependency.
+faster-whisper==1.0.3
+
+# ─── Media upscaling (Real-ESRGAN) ───────────────────────────────────────────
+# ai-forever fork: simple .load_weights(download=True) / .predict() API.
+realesrgan-aiforever @ git+https://github.com/ai-forever/Real-ESRGAN.git
+huggingface_hub>=0.20.0
+
+# torch is required by simple-lama-inpainting and Real-ESRGAN.
+# Pin a CPU build in the Dockerfile (--index-url https://download.pytorch.org/whl/cpu)
+# to keep the image small; GPU hosts can install the CUDA build instead.
+torch>=2.1.0
+torchvision>=0.16.0

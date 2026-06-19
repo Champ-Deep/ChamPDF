@@ -1,20 +1,23 @@
 # Optimized Railway Dockerfile for chamPDF Backend
 FROM python:3.11-slim as builder
 
-# Install build dependencies
+# Install build dependencies (git is needed for the Real-ESRGAN GitHub package)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
     g++ \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy and install Python dependencies
+# Copy and install Python dependencies.
+# CPU-only torch first so simple-lama-inpainting / Real-ESRGAN don't pull CUDA wheels.
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 # Final stage
@@ -37,8 +40,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Set working directory
 WORKDIR /app
 
-# Copy application code
+# Copy application code (v2 modules + self-hosted AI engine modules)
 COPY backend/main.py backend/image_processor.py backend/video_processor.py backend/media_downloader.py backend/inpaint_processor.py backend/pdf_processor.py backend/api_v1.py backend/config.py backend/propainter_wrapper.py ./
+COPY backend/lama_processor.py backend/caption_processor.py backend/upscale_processor.py backend/watermark_detector.py ./
 
 # Persistent volume for the v1 API key SQLite store. Override with
 # CHAMPDF_DB_PATH env var if a different path is needed.

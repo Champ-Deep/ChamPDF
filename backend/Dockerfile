@@ -1,8 +1,10 @@
 FROM python:3.11-slim
 
 # Install system dependencies
+# - ffmpeg: video processing / audio extraction
+# - git: required to pip-install the Real-ESRGAN (ai-forever) package from GitHub
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg curl && \
+    apt-get install -y --no-install-recommends ffmpeg curl git && \
     rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -10,7 +12,11 @@ WORKDIR /app
 
 # Copy requirements first for better caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install the CPU-only build of torch first so the default (CUDA) wheels aren't
+# pulled in by simple-lama-inpainting / Real-ESRGAN. GPU hosts can override this
+# with the CUDA index URL.
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Pre-download rembg model (~176MB) to speed up first run
 # This is optional but recommended for production

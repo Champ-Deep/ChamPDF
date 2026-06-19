@@ -12,6 +12,10 @@
     "video": "Video",
     "viewAll": "View all"
   },
+  "simpleMode": {
+    "title": "PDF Tools",
+    "subtitle": "Select a tool to get started"
+  },
   "donation": {
     "message": "Love ChamPDF? Help us keep it free and open source!",
     "button": "Donate"

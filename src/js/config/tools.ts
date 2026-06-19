@@ -168,7 +168,15 @@ export const categories: Category[] = [
         subtitle:
           'Download YouTube or Instagram videos as MP4 or extract MP3 audio.',
         pillar: 'video',
-        keywords: ['youtube', 'instagram', 'reel', 'mp4', 'mp3', 'audio', 'download'],
+        keywords: [
+          'youtube',
+          'instagram',
+          'reel',
+          'mp4',
+          'mp3',
+          'audio',
+          'download',
+        ],
       },
       {
         href: B + 'remove-image-watermark.html',
@@ -184,6 +192,22 @@ export const categories: Category[] = [
           'logo',
           'remove stamp',
           'watermark',
+        ],
+      },
+      {
+        href: B + 'upscale-image.html',
+        name: 'AI Image Upscaler',
+        icon: 'ph-arrows-out',
+        subtitle: 'Enlarge & enhance images 2x/4x with Real-ESRGAN.',
+        pillar: 'images',
+        keywords: [
+          'upscale',
+          'enlarge',
+          'super resolution',
+          'enhance',
+          'real-esrgan',
+          'sharpen',
+          'increase resolution',
         ],
       },
       {
@@ -374,7 +398,7 @@ export const categories: Category[] = [
         pillar: 'documents',
       },
       {
-        href: B + 'text-to-pdf.html',
+        href: B + 'txt-to-pdf.html',
         name: 'Text to PDF',
         icon: 'ph-text-t',
         subtitle: 'Convert plain text to PDF.',
