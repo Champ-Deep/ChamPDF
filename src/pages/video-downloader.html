@@ -21,11 +21,20 @@
       content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
     />
 
-    <link rel="canonical" href="https://www.champdf.com/video-downloader.html" />
+    <link
+      rel="canonical"
+      href="https://www.champdf.com/video-downloader.html"
+    />
 
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.champdf.com/video-downloader" />
-    <meta property="og:title" content="Video Downloader (MP4 & MP3) | ChamPDF" />
+    <meta
+      property="og:url"
+      content="https://www.champdf.com/video-downloader"
+    />
+    <meta
+      property="og:title"
+      content="Video Downloader (MP4 & MP3) | ChamPDF"
+    />
     <meta
       property="og:description"
       content="Paste a YouTube or Instagram link — download as MP4 video or 320 kbps MP3 audio."
@@ -33,7 +42,10 @@
     <meta property="og:site_name" content="ChamPDF" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://www.champdf.com/video-downloader" />
+    <meta
+      name="twitter:url"
+      content="https://www.champdf.com/video-downloader"
+    />
     <meta name="twitter:title" content="Video Downloader (MP4 & MP3)" />
     <meta
       name="twitter:description"
@@ -194,10 +206,85 @@
                 </div>
                 <div class="flex flex-col text-left">
                   <span class="text-sm font-medium">MP3</span>
-                  <span class="text-xs text-gray-400">Audio only, 320 kbps</span>
+                  <span class="text-xs text-gray-400"
+                    >Audio only, 320 kbps</span
+                  >
                 </div>
               </div>
             </label>
+            <label class="relative">
+              <input
+                type="radio"
+                name="output-format"
+                value="transcript"
+                class="peer sr-only"
+              />
+              <div
+                class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+              >
+                <div
+                  class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                >
+                  <i data-lucide="file-text" class="w-4 h-4 text-blue-400"></i>
+                </div>
+                <div class="flex flex-col text-left">
+                  <span class="text-sm font-medium">Transcript</span>
+                  <span class="text-xs text-gray-400"
+                    >Full text for your agents</span
+                  >
+                </div>
+              </div>
+            </label>
+            <label class="relative">
+              <input
+                type="radio"
+                name="output-format"
+                value="summary"
+                class="peer sr-only"
+              />
+              <div
+                class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+              >
+                <div
+                  class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                >
+                  <i data-lucide="sparkles" class="w-4 h-4 text-green-400"></i>
+                </div>
+                <div class="flex flex-col text-left">
+                  <span class="text-sm font-medium"
+                    >Transcript + AI Summary</span
+                  >
+                  <span class="text-xs text-gray-400">Whisper + your LLM</span>
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <!-- Model picker (only shown for AI summary) -->
+          <div id="model-row" class="hidden mt-3">
+            <label
+              for="summary-model"
+              class="block text-sm font-medium text-gray-300 mb-1"
+              >Summarize with</label
+            >
+            <select
+              id="summary-model"
+              class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2.5 text-sm"
+            >
+              <option value="openai/gpt-4o-mini">
+                GPT-4o mini (fast, cheap)
+              </option>
+              <option value="anthropic/claude-3.5-haiku">
+                Claude 3.5 Haiku
+              </option>
+              <option value="google/gemini-flash-1.5">Gemini 1.5 Flash</option>
+              <option value="meta-llama/llama-3.1-70b-instruct">
+                Llama 3.1 70B
+              </option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">
+              Via OpenRouter · needs a server API key
+            </p>
           </div>
         </div>
 
@@ -260,6 +347,65 @@
               Download Another
             </button>
           </div>
+        </div>
+
+        <!-- Transcript / Summary results -->
+        <div id="insights-section" class="hidden mt-6 space-y-4">
+          <div
+            id="summary-block"
+            class="hidden bg-gray-900 rounded-lg p-5 border border-gray-700"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-white font-medium flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4 text-green-400"></i>
+                AI Summary
+              </p>
+              <button
+                data-copy="summary-text"
+                class="copy-btn text-xs px-2 py-1 rounded border border-gray-600 hover:bg-gray-700"
+              >
+                Copy
+              </button>
+            </div>
+            <div
+              id="summary-text"
+              class="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed"
+            ></div>
+          </div>
+
+          <div class="bg-gray-900 rounded-lg p-5 border border-gray-700">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-white font-medium flex items-center gap-2">
+                <i data-lucide="file-text" class="w-4 h-4 text-blue-400"></i>
+                Transcript
+              </p>
+              <div class="flex gap-2">
+                <button
+                  data-copy="transcript-text"
+                  class="copy-btn text-xs px-2 py-1 rounded border border-gray-600 hover:bg-gray-700"
+                >
+                  Copy
+                </button>
+                <button
+                  id="download-transcript-btn"
+                  class="text-xs px-2 py-1 rounded border border-gray-600 hover:bg-gray-700"
+                >
+                  Download .txt
+                </button>
+              </div>
+            </div>
+            <div
+              id="transcript-text"
+              class="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto"
+            ></div>
+          </div>
+
+          <button
+            id="insights-another-btn"
+            class="w-full text-gray-400 hover:text-white transition-colors text-sm"
+          >
+            Do another
+          </button>
         </div>
 
         <!-- Error Section -->
@@ -362,9 +508,7 @@
             3
           </div>
           <div class="flex-1">
-            <h3 class="text-lg font-semibold text-white mb-1">
-              Download
-            </h3>
+            <h3 class="text-lg font-semibold text-white mb-1">Download</h3>
             <p class="text-gray-400">
               We fetch the file on the server and stream it back to your
               browser. Temporary files are deleted right after.
@@ -388,9 +532,9 @@
             <i data-lucide="chevron-down" class="w-5 h-5"></i>
           </summary>
           <p class="mt-3 text-gray-400">
-            YouTube long-form videos and Shorts, plus Instagram posts and
-            Reels. If your link works on those platforms and is publicly
-            viewable, it should work here.
+            YouTube long-form videos and Shorts, plus Instagram posts and Reels.
+            If your link works on those platforms and is publicly viewable, it
+            should work here.
           </p>
         </details>
         <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">

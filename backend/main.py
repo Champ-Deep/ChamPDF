@@ -46,6 +46,12 @@ from lama_processor import InpaintProcessor
 from caption_processor import CaptionProcessor
 from upscale_processor import UpscaleProcessor
 from watermark_detector import WatermarkDetector
+from summarizer import (
+    summarize_transcript,
+    summary_available,
+    SUGGESTED_MODELS,
+    SummarizeError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -611,6 +617,9 @@ async def get_capabilities():
         "captions": caption_processor is not None,
         "watermark_autodetect": watermark_detector.has_templates(),
         "gemini_inpaint": bool(os.environ.get("GEMINI_API_KEY")),
+        "video_transcript": caption_processor is not None,
+        "video_summary": summary_available(),
+        "summary_models": SUGGESTED_MODELS,
     }
 
 
@@ -809,6 +818,107 @@ async def transcribe_video(
         media_type="application/x-subrip",
         headers={"Content-Disposition": f'attachment; filename="{base}.srt"'},
     )
+
+
+class VideoInsightsRequest(BaseModel):
+    url: str
+    transcript: bool = True
+    summary: bool = False
+    language: Optional[str] = None
+    model: Optional[str] = None
+
+
+def _srt_to_text(srt: str) -> str:
+    """Strip SRT indices + timestamps down to plain transcript text."""
+    out = []
+    for block in (srt or "").strip().split("\n\n"):
+        rows = [
+            r.strip()
+            for r in block.splitlines()
+            if "-->" not in r and not r.strip().isdigit() and r.strip()
+        ]
+        if rows:
+            out.append(" ".join(rows))
+    return "\n".join(out)
+
+
+@app.post("/api/video-insights")
+async def video_insights(
+    payload: VideoInsightsRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Take a video URL → download audio → transcribe (Whisper) → optional AI
+    summary (OpenRouter). Returns JSON { transcript, srt, summary?, model? }.
+    """
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+    if not caption_processor:
+        return JSONResponse(
+            status_code=400,
+            content={"code": "disabled", "message": "Transcription is disabled on this server."},
+        )
+
+    url = payload.url.strip()
+    if not (url.startswith("http://") or url.startswith("https://")):
+        return JSONResponse(
+            status_code=400,
+            content={"code": "unsupported_url", "message": "URL must start with http:// or https://."},
+        )
+    if payload.summary and not summary_available():
+        return JSONResponse(
+            status_code=400,
+            content={
+                "code": "summary_unavailable",
+                "message": "AI summary needs OPENROUTER_API_KEY set on the server.",
+            },
+        )
+
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        _check_rate_limit(client_ip)
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content=e.detail)
+
+    work_dir = Path(tempfile.mkdtemp(prefix="champdf_ins_", dir=settings.BASE_TEMP_DIR))
+    background_tasks.add_task(cleanup_work_dir, work_dir)
+    try:
+        async with process_semaphore:
+            # Audio-only download is faster than full video for transcription.
+            audio_path, _ = await asyncio.wait_for(
+                download_media(url, "mp3", work_dir),
+                timeout=DOWNLOAD_TIMEOUT_MP3,
+            )
+            srt = await caption_processor.transcribe_video_to_srt(
+                str(audio_path), language=payload.language
+            )
+
+        transcript_text = _srt_to_text(srt)
+        result = {"transcript": transcript_text, "srt": srt}
+
+        if payload.summary:
+            result["summary"] = await asyncio.to_thread(
+                summarize_transcript, transcript_text, payload.model
+            )
+            result["model"] = payload.model or settings.OPENROUTER_MODEL
+
+        return result
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            status_code=504,
+            content={"code": "timeout", "message": "Processing took too long and was cancelled."},
+        )
+    except MediaDownloadError as e:
+        return JSONResponse(status_code=e.status_code, content={"code": e.code, "message": e.message})
+    except SummarizeError as e:
+        return JSONResponse(status_code=502, content={"code": "summary_failed", "message": str(e)})
+    except Exception as e:
+        logger.error(f"Video insights error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"code": "failed", "message": str(e)[:200] or "Processing failed."},
+        )
 
 
 if __name__ == "__main__":

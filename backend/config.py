@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     WATERMARK_MATCH_THRESHOLD: float = 0.62  # 0-1; higher = stricter match
     WATERMARK_SAMPLE_FRAMES: int = 12        # frames sampled to locate a video watermark
 
+    # LLM summaries via OpenRouter (set OPENROUTER_API_KEY in env to enable).
+    # Powers the Video Downloader's transcript → AI summary step.
+    OPENROUTER_MODEL: str = "openai/gpt-4o-mini"
+    ENABLE_VIDEO_INSIGHTS: bool = True  # transcript + summary from a video URL
+
     # Paths - Use system temp by default for better cross-platform support
     BASE_TEMP_DIR: Path = Path(tempfile.gettempdir()) / "champdf-backend"
 

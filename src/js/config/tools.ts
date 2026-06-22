@@ -105,7 +105,7 @@ export const categories: Category[] = [
     tools: [
       {
         href: B + 'edit-banana.html',
-        name: 'Edit Banana',
+        name: 'AI Image Editor',
         icon: 'ph-sparkle',
         subtitle:
           'Edit any image with a natural-language prompt — remove, replace, restyle, restore.',
@@ -163,10 +163,10 @@ export const categories: Category[] = [
       },
       {
         href: B + 'video-downloader.html',
-        name: 'Video Downloader',
+        name: 'Video Downloader & Transcriber',
         icon: 'ph-download-simple',
         subtitle:
-          'Download YouTube or Instagram videos as MP4 or extract MP3 audio.',
+          'Download as MP4/MP3, or get a full transcript and an AI summary.',
         pillar: 'video',
         keywords: [
           'youtube',
@@ -176,6 +176,12 @@ export const categories: Category[] = [
           'mp3',
           'audio',
           'download',
+          'transcript',
+          'transcribe',
+          'subtitles',
+          'summary',
+          'summarize',
+          'ai',
         ],
       },
       {

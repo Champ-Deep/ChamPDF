@@ -42,7 +42,7 @@ WORKDIR /app
 
 # Copy application code (v2 modules + self-hosted AI engine modules)
 COPY backend/main.py backend/image_processor.py backend/video_processor.py backend/media_downloader.py backend/inpaint_processor.py backend/pdf_processor.py backend/api_v1.py backend/config.py backend/propainter_wrapper.py ./
-COPY backend/lama_processor.py backend/caption_processor.py backend/upscale_processor.py backend/watermark_detector.py ./
+COPY backend/lama_processor.py backend/caption_processor.py backend/upscale_processor.py backend/watermark_detector.py backend/summarizer.py ./
 
 # Persistent volume for the v1 API key SQLite store. Override with
 # CHAMPDF_DB_PATH env var if a different path is needed.

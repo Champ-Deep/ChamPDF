@@ -17,6 +17,43 @@ Design.
 
 ---
 
+## 0. Locked decisions (latest review) — read first
+
+These override anything below if they conflict. They're the product calls made
+after walking the prototype:
+
+- **Hero = "Rebrand Studio", not a PDF toolkit.** The 119 PDF tools are the long
+  tail / SEO. The star is: _drop any asset → get a Champion-branded asset._ Design
+  should make the Studio the centerpiece of the home screen.
+- **Rebrand Studio = one door** that walks: **Clean** (remove watermark) → **Brand**
+  (drop logo, drag + size) → **Edit** (free AI image edit) → **Export**. It unifies
+  these existing tools: Video Logo Remover, PDF Watermark Remover, Image Watermark
+  Remover, and the **AI Image Editor** (the tool formerly shown as "Edit Banana" —
+  renamed; never surface "Edit Banana"/"nano-banana" in the UI). The **Upscaler is
+  NOT** part of the Studio — keep it a standalone tool.
+- **Brand personality = trust / calm baseline.** No mascot, no full "chameleon"
+  gimmick. Premium and gets out of the way. (Per-category hue is fine as a subtle
+  accent, not a theme.)
+- **Privacy story = internal team tool.** This deployment is for our own team and
+  **everything is processed on our own servers → privacy-safe.** Do **not** use the
+  public "100% in your browser" framing or per-tool in-browser/server badges from
+  §3/§6 — that tension no longer applies. One simple "Processed on our private
+  infrastructure" line is enough.
+- **Discovery = search-first + task-first + browse**, and **each tool card should
+  have a small hover micro-animation** that shows what the tool does (e.g., a 1–2s
+  loop: watermark fading out, logo dropping in, pages converting). This is a key
+  ask for the new design — make tool purpose legible on hover.
+- **Header:** no version chip, no Docs/Self-host links (internal tool).
+- **Converters are being de-duplicated** into bidirectional tools (Word⇄PDF,
+  PowerPoint⇄PDF, Images⇄PDF) — design one card per pair with a direction that's
+  auto-detected from the uploaded file.
+- **Video Downloader is now "Video Downloader & Transcriber":** MP4/MP3 **plus**
+  a full transcript (Whisper) and an optional AI summary (OpenRouter, model picker).
+  Design needs a text-results panel (summary block + scrollable transcript + copy /
+  download .txt), not just a file-download success state.
+
+---
+
 ## 1. Personas
 
 | Persona                       | Goal                                                                                       | Pain today                                                        | Success                                                       |
