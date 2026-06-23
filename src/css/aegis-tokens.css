@@ -84,8 +84,33 @@
   }
 }
 .lift {
-  transition: transform 120ms var(--spring);
+  transition:
+    transform 120ms var(--spring),
+    border-color 180ms var(--smooth),
+    box-shadow 180ms var(--smooth);
 }
 .lift:hover {
   transform: translateY(-2px);
+}
+
+/* Search-first homepage */
+body.aegis-home {
+  background: var(--bg);
+}
+.cham-card:hover {
+  border-color: var(--bd3);
+  box-shadow: var(--shadow-md);
+}
+
+/* Make the shared (Tailwind dark) navbar follow the homepage theme toggle.
+   Scoped to [data-theme] which is only set on the homepage this pass. */
+[data-theme='light'] nav.bg-gray-800 {
+  background: var(--s1);
+  border-color: var(--bd1);
+}
+[data-theme='light'] nav.bg-gray-800 .text-white {
+  color: var(--fg);
+}
+[data-theme='light'] nav.bg-gray-800 .text-gray-300 {
+  color: var(--fg2);
 }
