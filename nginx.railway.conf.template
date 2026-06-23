@@ -53,10 +53,16 @@ http {
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
 
-            # Timeouts for ML processing (video/image processing can take time)
-            proxy_connect_timeout 300s;
-            proxy_send_timeout 300s;
-            proxy_read_timeout 300s;
+            # Timeouts for ML + external GPU jobs. The "Best (GPU)" video path
+            # offloads to Replicate (hosted ProPainter): cold-boot plus
+            # per-second processing can run several minutes, and the backend is
+            # idle awaiting the result, so proxy_read_timeout governs. Allow up
+            # to 15 min between upstream bytes; keep connect short (the backend
+            # is reachable fast). Backend GPU_VIDEO_TIMEOUT (840s) stays under
+            # this so it returns a clean error/fallback before Nginx 504s.
+            proxy_connect_timeout 75s;
+            proxy_send_timeout 900s;
+            proxy_read_timeout 900s;
 
             # Disable buffering for streaming responses
             proxy_buffering off;

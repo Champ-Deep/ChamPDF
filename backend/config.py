@@ -75,8 +75,10 @@ class Settings(BaseSettings):
     VIDEO_GPU_PROVIDER: str = "none"  # replicate | none
     # Replicate model slug (owner/name or owner/name:version) for video inpainting.
     REPLICATE_PROPAINTER_MODEL: str = "jd7h/propainter"
-    # Seconds to wait for the external GPU job before giving up.
-    GPU_VIDEO_TIMEOUT: int = 600
+    # Seconds to wait for the external GPU job before giving up. Kept under the
+    # Nginx /api proxy_read_timeout (900s) so the backend returns a clean
+    # error/fallback before the proxy 504s on a long Replicate job.
+    GPU_VIDEO_TIMEOUT: int = 840
     # Reject offloading clips longer than this (cost guard). 0 = no cap.
     GPU_VIDEO_MAX_SECONDS: int = 120
 
