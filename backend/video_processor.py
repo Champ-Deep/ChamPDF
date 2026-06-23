@@ -7,11 +7,14 @@ falls back to FFmpeg delogo filter otherwise.
 import asyncio
 import subprocess
 import json
+import logging
 import os
 import shutil
 import tempfile
 from pathlib import Path
 from typing import Tuple, Optional, Dict
+
+logger = logging.getLogger(__name__)
 
 # Try to import OpenCV for high-quality inpainting
 try:
@@ -507,12 +510,18 @@ class VideoProcessor:
         logo_preset: str = "lakeb2b",
         watermark_position: str = "bottom-right",
         logo_scale: float = 1.0,
+        quality: str = "fast",
     ) -> Tuple[bool, Optional[str]]:
         """
         Process video to remove watermark and optionally add logo.
 
-        Uses OpenCV inpainting (Navier-Stokes + TELEA dual pass) when available
-        for high-quality logo removal. Falls back to FFmpeg delogo filter.
+        Quality:
+          - "best": offload the inpainting to an external GPU provider
+            (hosted ProPainter) for clean results on detailed backgrounds,
+            then re-mux audio + overlay the logo locally. Falls back to the
+            CPU path if the provider is unavailable or fails.
+          - "fast" (default): OpenCV inpainting (Navier-Stokes + TELEA dual
+            pass) when available, else the FFmpeg delogo filter. All local.
 
         Args:
             input_path: Path to input video
@@ -521,6 +530,7 @@ class VideoProcessor:
             watermark_position: Position of original watermark
             logo_scale: User-supplied size multiplier for replacement logo
                 (1.0 = default 120px width). Range 0.5–2.0.
+            quality: "fast" (CPU, local) or "best" (external GPU offload).
 
         Returns:
             Tuple of (success, error_message)
@@ -551,6 +561,31 @@ class VideoProcessor:
             logo_path = self.get_logo_path(logo_preset)
             logo_position = self._get_logo_position(watermark_position)
 
+            # "Best" quality → external GPU inpainting (ProPainter). Falls back
+            # to the local CPU path below if unavailable or if the job fails.
+            if quality == "best":
+                from gpu_video_remover import gpu_removal_available
+                if gpu_removal_available():
+                    success, err = await self._inpaint_video_gpu(
+                        input_path=input_path,
+                        output_path=output_path,
+                        region=region,
+                        logo_path=logo_path,
+                        logo_position=logo_position,
+                        width=width,
+                        height=height,
+                        info=info,
+                        logo_scale=logo_scale,
+                    )
+                    if success:
+                        return True, None
+                    logger.warning(
+                        "GPU video removal failed (%s); falling back to CPU path.",
+                        err,
+                    )
+                else:
+                    logger.info("GPU video removal requested but unavailable; using CPU path.")
+
             # Use OpenCV inpainting for higher quality when available
             if HAS_OPENCV:
                 return await self._inpaint_video_opencv(
@@ -576,3 +611,92 @@ class VideoProcessor:
 
         except Exception as e:
             return False, str(e)
+
+    def _build_mask_png(
+        self,
+        width: int,
+        height: int,
+        region: Dict[str, int],
+        pad: int = 4,
+    ) -> bytes:
+        """Build a PNG mask (white over the watermark box) for the GPU provider.
+
+        Uses PIL so it works even when OpenCV isn't installed. A single static
+        mask is correct for fixed-position watermarks like NotebookLM's.
+        """
+        from PIL import Image, ImageDraw
+        import io as _io
+
+        img = Image.new("L", (width, height), 0)
+        draw = ImageDraw.Draw(img)
+        x1 = max(0, region["x"] - pad)
+        y1 = max(0, region["y"] - pad)
+        x2 = min(width, region["x"] + region["w"] + pad)
+        y2 = min(height, region["y"] + region["h"] + pad)
+        draw.rectangle([x1, y1, x2, y2], fill=255)
+
+        buf = _io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+
+    async def _inpaint_video_gpu(
+        self,
+        input_path: str,
+        output_path: str,
+        region: Dict[str, int],
+        logo_path: Optional[Path],
+        logo_position: str,
+        width: int,
+        height: int,
+        info: Dict,
+        logo_scale: float = 1.0,
+    ) -> Tuple[bool, Optional[str]]:
+        """Offload inpainting to an external GPU provider, then finalize locally.
+
+        Flow: build a static region mask → extract audio → send video + mask to
+        the provider (returns a cleaned MP4 with no audio) → re-mux the original
+        audio and overlay the replacement logo with the existing FFmpeg step.
+        """
+        from gpu_video_remover import remove_watermark, GpuVideoError
+        from config import settings
+
+        # Cost guard: skip very long clips (GPU offload is billed per second).
+        try:
+            duration = float(info.get("format", {}).get("duration", 0) or 0)
+        except (TypeError, ValueError):
+            duration = 0.0
+        max_s = getattr(settings, "GPU_VIDEO_MAX_SECONDS", 0)
+        if max_s and duration and duration > max_s:
+            return False, (
+                f"Clip is {int(duration)}s; GPU removal is capped at {max_s}s. "
+                "Use Fast (CPU) quality or trim the clip."
+            )
+
+        work_dir = tempfile.mkdtemp(prefix="champdf_gpu_")
+        try:
+            mask_png = self._build_mask_png(width, height, region)
+
+            # Pull the audio aside; the provider returns video only.
+            audio_path = os.path.join(work_dir, "audio.aac")
+            has_audio = await self._extract_audio(input_path, audio_path)
+
+            try:
+                cleaned = await remove_watermark(input_path, mask_png)
+            except GpuVideoError as e:
+                return False, str(e)
+
+            cleaned_path = os.path.join(work_dir, "cleaned.mp4")
+            Path(cleaned_path).write_bytes(cleaned)
+
+            return await self._finalize_video(
+                cleaned_path,
+                output_path,
+                audio_path if has_audio else None,
+                logo_path,
+                logo_position,
+                logo_scale,
+            )
+        except Exception as e:
+            return False, str(e)
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)

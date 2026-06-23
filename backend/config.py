@@ -69,6 +69,17 @@ class Settings(BaseSettings):
     # Multimodal YouTube analysis via Gemini (uses GEMINI_API_KEY).
     GEMINI_VIDEO_MODEL: str = "gemini-2.5-flash"
 
+    # GPU video watermark removal (Video Rebrander "Best" quality).
+    # Railway has no GPU, so the heavy inpainting is offloaded to an external
+    # provider. "replicate" runs a hosted ProPainter model; "none" disables it.
+    VIDEO_GPU_PROVIDER: str = "none"  # replicate | none
+    # Replicate model slug (owner/name or owner/name:version) for video inpainting.
+    REPLICATE_PROPAINTER_MODEL: str = "jd7h/propainter"
+    # Seconds to wait for the external GPU job before giving up.
+    GPU_VIDEO_TIMEOUT: int = 600
+    # Reject offloading clips longer than this (cost guard). 0 = no cap.
+    GPU_VIDEO_MAX_SECONDS: int = 120
+
     # Paths - Use system temp by default for better cross-platform support
     BASE_TEMP_DIR: Path = Path(tempfile.gettempdir()) / "champdf-backend"
 

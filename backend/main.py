@@ -53,6 +53,7 @@ from summarizer import (
     SummarizeError,
 )
 from video_analyzer import analyze_youtube, analyze_available, is_youtube_url, AnalyzeError
+from gpu_video_remover import gpu_removal_available
 
 logger = logging.getLogger(__name__)
 
@@ -252,10 +253,14 @@ async def process_video(
     logo_preset: str = Form("lakeb2b"),
     watermark_position: str = Form("bottom-right"),
     logo_scale: float = Form(1.0),
+    quality: str = Form("fast"),
 ):
     """
     Process a video to remove watermarks and optionally add a new logo.
     Protected by concurrency semaphore.
+
+    quality: "fast" (local CPU inpaint) or "best" (external GPU offload via
+    ProPainter, with automatic fallback to CPU when unavailable).
     """
     if not process_semaphore:
         raise HTTPException(status_code=503, detail="Server initializing")
@@ -291,6 +296,13 @@ async def process_video(
             detail="logo_scale must be between 0.5 and 2.0"
         )
 
+    # Validate removal quality
+    if quality not in {"fast", "best"}:
+        raise HTTPException(
+            status_code=400,
+            detail="quality must be 'fast' or 'best'"
+        )
+
     # Generate unique filenames
     job_id = str(uuid.uuid4())
     input_path = settings.UPLOAD_DIR / f"{job_id}{file_ext}"
@@ -320,6 +332,7 @@ async def process_video(
                 logo_preset=logo_preset,
                 watermark_position=watermark_position,
                 logo_scale=logo_scale,
+                quality=quality,
             )
 
         if not success:
@@ -621,6 +634,7 @@ async def get_capabilities():
         "video_transcript": caption_processor is not None,
         "video_summary": summary_available(),
         "video_analyze": analyze_available(),
+        "gpu_video": gpu_removal_available(),
         "summary_models": SUGGESTED_MODELS,
     }
 

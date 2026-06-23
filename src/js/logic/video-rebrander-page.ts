@@ -22,6 +22,7 @@ interface VideoRebraderState {
   logoPreset: 'lakeb2b' | 'champions' | 'ampliz' | 'none';
   watermarkPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
   logoScale: number;
+  quality: 'fast' | 'best';
   isProcessing: boolean;
   downloadUrl: string | null;
   downloadFilename: string;
@@ -32,6 +33,7 @@ const state: VideoRebraderState = {
   logoPreset: 'lakeb2b',
   watermarkPosition: 'bottom-right',
   logoScale: 1.0,
+  quality: 'fast',
   isProcessing: false,
   downloadUrl: null,
   downloadFilename: 'video_rebranded.mp4',
@@ -113,6 +115,17 @@ function initializePage() {
     state.logoScale = pct / 100;
     if (logoScaleValueEl) logoScaleValueEl.textContent = `${pct}%`;
   });
+
+  // Removal quality radio buttons (fast = CPU/local, best = GPU offload)
+  const qualityNote = document.getElementById('quality-note');
+  document
+    .querySelectorAll('input[name="removal-quality"]')
+    .forEach((radio) => {
+      radio.addEventListener('change', (e) => {
+        state.quality = (e.target as HTMLInputElement).value as 'fast' | 'best';
+        qualityNote?.classList.toggle('hidden', state.quality !== 'best');
+      });
+    });
 
   // Process button
   document
@@ -251,11 +264,14 @@ async function handleProcess() {
     formData.append('logo_preset', state.logoPreset);
     formData.append('watermark_position', state.watermarkPosition);
     formData.append('logo_scale', state.logoScale.toString());
+    formData.append('quality', state.quality);
 
     // Update status
     updateStatus(
       'Uploading video...',
-      'Sending to server for AI-powered inpainting'
+      state.quality === 'best'
+        ? 'Offloading to GPU server for high-quality inpainting'
+        : 'Sending to server for AI-powered inpainting'
     );
 
     // Send to API
@@ -388,6 +404,13 @@ function resetToUpload() {
   if (logoScaleEl) logoScaleEl.value = '100';
   if (logoScaleValueEl) logoScaleValueEl.textContent = '100%';
   state.logoScale = 1.0;
+
+  const defaultQuality = document.querySelector(
+    'input[name="removal-quality"][value="fast"]'
+  ) as HTMLInputElement;
+  if (defaultQuality) defaultQuality.checked = true;
+  state.quality = 'fast';
+  document.getElementById('quality-note')?.classList.add('hidden');
 }
 
 function cleanup() {

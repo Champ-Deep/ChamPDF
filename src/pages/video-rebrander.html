@@ -335,6 +335,68 @@
             </p>
           </div>
 
+          <!-- Removal Quality -->
+          <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+              Removal quality
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="cursor-pointer">
+                <input
+                  type="radio"
+                  name="removal-quality"
+                  value="fast"
+                  class="peer sr-only"
+                  checked
+                />
+                <div
+                  class="p-3 rounded-lg border border-gray-600 transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div class="flex items-center gap-2 mb-1">
+                    <i data-lucide="zap" class="w-4 h-4"></i>
+                    <span class="text-sm font-medium">Fast (CPU)</span>
+                  </div>
+                  <p class="text-xs text-gray-400">
+                    Local inpainting. Instant, good for flat backgrounds.
+                  </p>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input
+                  type="radio"
+                  name="removal-quality"
+                  value="best"
+                  class="peer sr-only"
+                />
+                <div
+                  class="p-3 rounded-lg border border-gray-600 transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <div class="flex items-center gap-2 mb-1">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    <span class="text-sm font-medium">Best (GPU)</span>
+                  </div>
+                  <p class="text-xs text-gray-400">
+                    Cleaner on detailed scenes. Runs on a GPU server.
+                  </p>
+                </div>
+              </label>
+            </div>
+            <p
+              id="quality-note"
+              class="hidden text-xs text-amber-400/90 mt-2 flex items-start gap-1.5"
+            >
+              <i
+                data-lucide="info"
+                class="w-3.5 h-3.5 flex-shrink-0 mt-0.5"
+              ></i>
+              <span
+                >Best quality is processed on an external GPU service and can
+                take longer. If it isn't configured, we fall back to Fast
+                automatically.</span
+              >
+            </p>
+          </div>
+
           <!-- Process Button -->
           <button
             id="process-btn"

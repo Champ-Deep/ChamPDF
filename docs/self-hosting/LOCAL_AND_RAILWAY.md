@@ -79,6 +79,12 @@ Nginx) and **champdf-backend** (`backend/Dockerfile.railway`, FastAPI). Nginx pr
 | `WHISPER_MODEL_SIZE` | `base` | `tiny` for speed, `small`/`medium` for accuracy |
 | `MAX_CONCURRENT_JOBS` | `2` | Lower if memory-constrained |
 | `ENABLE_UPSCALE` / `ENABLE_CAPTIONS` / `ENABLE_INPAINT` | `true` | Turn features off to save memory |
+| `GEMINI_API_KEY` | `...` | Optional. Enables AI Image Editor (prompt mode) + multimodal YouTube **Analyze video** |
+| `OPENROUTER_API_KEY` | `sk-or-...` | Optional. Enables the Video Downloader's transcript → **AI summary** |
+| `VIDEO_GPU_PROVIDER` | `replicate` | Optional. Enables **Best (GPU)** video removal. Default `none` |
+| `REPLICATE_API_TOKEN` | `r8_...` | Required when `VIDEO_GPU_PROVIDER=replicate` |
+| `REPLICATE_PROPAINTER_MODEL` | `jd7h/propainter` | Optional. Override the hosted ProPainter model slug |
+| `GPU_VIDEO_TIMEOUT` / `GPU_VIDEO_MAX_SECONDS` | `600` / `120` | Optional. Wait cap and max clip length to offload |
 
 **champdf-frontend**
 | Variable | Value | Notes |
@@ -108,6 +114,37 @@ curl https://<backend-domain>/health              # if backend is publicly expos
 - **GPU:** for much faster inference, deploy the backend on a GPU host and install the
   CUDA torch build (change the `--index-url` in `backend/Dockerfile.railway`) and set
   `DEVICE=cuda`.
+
+### GPU video watermark removal without owning a GPU (Best quality)
+
+Railway has **no GPU**, and the local CPU path (OpenCV/FFmpeg) is only good on flat
+backgrounds. The Video Logo Remover's **Best (GPU)** option offloads the heavy
+inpainting to a hosted GPU provider (Replicate's ProPainter) while Railway stays the
+orchestrator — it extracts the audio, sends the video + a static watermark mask to the
+provider, then re-muxes the audio and overlays your logo locally.
+
+To enable it on **champdf-backend**:
+
+```bash
+VIDEO_GPU_PROVIDER=replicate
+REPLICATE_API_TOKEN=r8_xxx          # from replicate.com/account/api-tokens
+# optional overrides:
+# REPLICATE_PROPAINTER_MODEL=jd7h/propainter
+# GPU_VIDEO_TIMEOUT=600             # seconds to wait for the remote job
+# GPU_VIDEO_MAX_SECONDS=120         # refuse to offload longer clips (cost guard)
+```
+
+Then `curl https://<frontend-domain>/api/capabilities` should show `"gpu_video": true`,
+and the UI's **Best (GPU)** option becomes effective. Notes:
+
+- **Cost + latency:** Replicate bills per second of GPU time and runs asynchronously,
+  so Best is slower (and not free). Keep `GPU_VIDEO_MAX_SECONDS` modest.
+- **Graceful fallback:** if the token is missing or the remote job fails, the backend
+  automatically falls back to the Fast (CPU) path — Best never hard-errors.
+- **Static mask:** one mask is applied to every frame, which is correct for
+  fixed-position marks (NotebookLM, etc.); moving marks are weaker.
+- **Privacy:** only the **Best** path leaves your infrastructure. Fast (CPU) and all
+  other AI tools stay entirely on your own servers.
 
 ---
 

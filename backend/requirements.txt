@@ -15,6 +15,7 @@ opencv-python-headless>=4.8.0 # OpenCV inpaint + watermark template auto-detecti
 yt-dlp>=2024.10.0             # Video Downloader
 google-genai>=0.3.0           # Gemini — optional (Edit Banana + optional inpaint enhancement)
 PyMuPDF>=1.24.0               # PDF processing / rendering
+replicate>=0.32.0             # Optional — GPU video watermark removal (hosted ProPainter)
 
 # ─── Self-hosted AI watermark / object removal (LaMa inpainting) ─────────────
 # https://github.com/enesmsahin/simple-lama-inpainting (LaMa, WACV 2022)
