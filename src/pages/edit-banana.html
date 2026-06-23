@@ -87,16 +87,19 @@
         </button>
 
         <h1 class="text-2xl font-bold text-white mb-2">
-          Edit Banana
+          AI Image Editor
           <span
             class="text-xs font-normal text-orange-300 align-middle ml-2 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/30"
             >AI</span
           >
         </h1>
         <p class="text-gray-400 mb-6">
-          Describe what you want changed and let Gemini's image-editing model
-          ("Nano Banana") do the rest. Remove an object, change a background,
-          restyle a photo, or restore a faded scan — all with a sentence.
+          Two ways to edit.
+          <strong class="text-gray-200">Prompt edit</strong> describes a change
+          in words and lets Gemini's image-editing model do it.
+          <strong class="text-gray-200">Remove (brush)</strong> paints over a
+          watermark, logo, or object and erases it cleanly with our self-hosted
+          inpainting model — no AI watermark added.
         </p>
 
         <div
@@ -129,7 +132,9 @@
             <p class="text-gray-300 font-medium mb-1">
               Drop an image here or click to upload
             </p>
-            <p class="text-xs text-gray-500">PNG, JPEG, or WebP — up to 20 MB</p>
+            <p class="text-xs text-gray-500">
+              PNG, JPEG, or WebP — up to 20 MB
+            </p>
           </div>
           <input
             id="file-input"
@@ -141,7 +146,32 @@
 
         <!-- Step 2: Editor -->
         <div id="editor-section" class="hidden">
-          <div class="grid md:grid-cols-2 gap-6">
+          <!-- Mode toggle -->
+          <div
+            class="inline-flex w-full md:w-auto gap-1 mb-6 bg-gray-900 p-1 rounded-lg border border-gray-700"
+          >
+            <button
+              id="mode-prompt-btn"
+              type="button"
+              data-mode="prompt"
+              class="mode-tab flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-orange-600 text-white"
+            >
+              <i data-lucide="wand-2" class="w-4 h-4"></i>
+              Prompt edit
+            </button>
+            <button
+              id="mode-remove-btn"
+              type="button"
+              data-mode="remove"
+              class="mode-tab flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white"
+            >
+              <i data-lucide="eraser" class="w-4 h-4"></i>
+              Remove (brush)
+            </button>
+          </div>
+
+          <!-- Prompt-edit panel -->
+          <div id="prompt-mode-panel" class="grid md:grid-cols-2 gap-6">
             <div>
               <p class="text-sm text-gray-400 mb-2">Source</p>
               <img
@@ -210,6 +240,69 @@
             </div>
           </div>
 
+          <!-- Remove (brush) panel -->
+          <div id="remove-mode-panel" class="hidden">
+            <div
+              class="bg-blue-900/20 border border-blue-700/50 rounded-lg p-3 mb-4 flex items-start gap-2 text-sm text-blue-300"
+            >
+              <i
+                data-lucide="paintbrush"
+                class="w-5 h-5 flex-shrink-0 mt-0.5"
+              ></i>
+              <p>
+                Paint over the watermark, logo, or object you want gone. Our
+                self-hosted LaMa model reconstructs the area from the
+                surrounding pixels — clean removal, no AI watermark added.
+              </p>
+            </div>
+
+            <div
+              id="brush-canvas-wrap"
+              class="relative inline-block max-w-full rounded-lg overflow-hidden border border-gray-700 bg-gray-900 select-none"
+            >
+              <canvas id="brush-base" class="block"></canvas>
+              <canvas
+                id="brush-overlay"
+                class="absolute top-0 left-0 cursor-crosshair touch-none"
+              ></canvas>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-4 mt-4">
+              <div class="flex items-center gap-2">
+                <label for="brush-size" class="text-sm text-gray-400"
+                  >Brush</label
+                >
+                <input
+                  id="brush-size"
+                  type="range"
+                  min="8"
+                  max="90"
+                  value="30"
+                  class="accent-orange-500"
+                />
+                <span id="brush-size-value" class="text-xs text-gray-500 w-10"
+                  >30px</span
+                >
+              </div>
+              <button
+                id="auto-detect-btn"
+                type="button"
+                class="flex items-center gap-2 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-1.5 rounded-lg"
+              >
+                <i data-lucide="scan-search" class="w-4 h-4"></i>
+                Auto-detect
+              </button>
+              <button
+                id="clear-mask-btn"
+                type="button"
+                class="flex items-center gap-2 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-1.5 rounded-lg"
+              >
+                <i data-lucide="x" class="w-4 h-4"></i>
+                Clear mask
+              </button>
+            </div>
+          </div>
+
           <div class="flex items-center gap-3 mt-6">
             <button
               id="submit-btn"
@@ -235,8 +328,10 @@
             <div class="flex items-center gap-4">
               <div class="solid-spinner"></div>
               <div>
-                <p class="text-white font-medium">Editing your image…</p>
-                <p class="text-gray-400 text-sm">
+                <p id="processing-title" class="text-white font-medium">
+                  Editing your image…
+                </p>
+                <p id="processing-detail" class="text-gray-400 text-sm">
                   Gemini takes 5–20 seconds for most edits.
                 </p>
               </div>
@@ -355,13 +450,11 @@
             1
           </div>
           <div class="flex-1">
-            <h3 class="text-lg font-semibold text-white mb-1">
-              Drop an image
-            </h3>
+            <h3 class="text-lg font-semibold text-white mb-1">Drop an image</h3>
             <p class="text-gray-400">
               PNG, JPEG, or WebP up to 20 MB. Larger images are scaled down to
-              2048px on the longest side before editing — preserves quality
-              for screen use, keeps things fast.
+              2048px on the longest side before editing — preserves quality for
+              screen use, keeps things fast.
             </p>
           </div>
         </div>
@@ -376,9 +469,9 @@
               Describe your edit
             </h3>
             <p class="text-gray-400">
-              Plain English. The model follows specific instructions better
-              than vague ones — say <em>"remove the man in the red shirt"</em>,
-              not <em>"clean it up"</em>.
+              Plain English. The model follows specific instructions better than
+              vague ones — say <em>"remove the man in the red shirt"</em>, not
+              <em>"clean it up"</em>.
             </p>
           </div>
         </div>
@@ -393,8 +486,8 @@
               Review and download
             </h3>
             <p class="text-gray-400">
-              See before/after side by side. If the edit isn't right, tweak
-              the prompt and run again.
+              See before/after side by side. If the edit isn't right, tweak the
+              prompt and run again.
             </p>
           </div>
         </div>
@@ -427,10 +520,11 @@
             <i data-lucide="chevron-down" class="w-5 h-5"></i>
           </summary>
           <p class="mt-3 text-gray-400">
-            The PDF Watermark Remover is mask-based — you draw a rectangle
-            around the watermark and the model only changes that area. Edit
-            Banana is prompt-based — you describe what you want and the model
-            edits anything in the image to match. Different jobs.
+            The PDF Watermark Remover works on PDF pages. The AI Image Editor
+            works on a single image and gives you two tools: a prompt mode
+            (describe any change, Gemini applies it) and a brush "Remove" mode
+            (paint over a watermark or object and our self-hosted LaMa model
+            erases it cleanly). Use whichever fits the job.
           </p>
         </details>
         <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
@@ -441,9 +535,9 @@
             <i data-lucide="chevron-down" class="w-5 h-5"></i>
           </summary>
           <p class="mt-3 text-gray-400">
-            Gemini has safety filters and will refuse some prompts. If a
-            request is declined, the model's reason is shown. Reword the
-            prompt or pick a different image.
+            Gemini has safety filters and will refuse some prompts. If a request
+            is declined, the model's reason is shown. Reword the prompt or pick
+            a different image.
           </p>
         </details>
         <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">
