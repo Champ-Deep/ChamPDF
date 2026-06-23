@@ -118,17 +118,12 @@ async function handleFile(file: File) {
   try {
     const arrayBuffer = await readFileAsArrayBuffer(file);
     redactState.originalPdfBytes = arrayBuffer as ArrayBuffer;
-    // Verify PDF loading
+    // Render with pdf.js for the on-screen editor (pass a copy — pdf.js
+    // transfers/detaches the buffer it's given, so keep originalPdfBytes intact
+    // for the PyMuPDF redaction pass).
     redactState.pdfDoc = await getPDFDocument({
       data: (arrayBuffer as ArrayBuffer).slice(0),
     }).promise;
-
-    // We also need to set the global state for the redact function to work if it uses global state
-    // However, looking at redact.ts, it imports `state` from `../state.js`.
-    // We should update that global state too.
-    const { state } = await import('../state.js');
-    const { PDFDocument } = await import('pdf-lib');
-    state.pdfDoc = await PDFDocument.load(arrayBuffer as ArrayBuffer);
 
     redactState.currentPageNum = 1;
 
@@ -356,6 +351,11 @@ async function performRedaction() {
   // We used a scale of redactState.scale.
   // So if we pass canvasScale = redactState.scale, and our coords are in that scale, it should work.
 
+  if (!redactState.originalPdfBytes) {
+    showAlert('Error', 'Please re-upload the PDF and try again.');
+    return;
+  }
+
   const formattedRedactions = redactState.redactions.map((r) => ({
     pageIndex: r.pageIndex,
     canvasX: r.x,
@@ -364,7 +364,11 @@ async function performRedaction() {
     canvasHeight: r.height,
   }));
 
-  await redact(formattedRedactions, redactState.scale);
+  await redact(
+    redactState.originalPdfBytes,
+    formattedRedactions,
+    redactState.scale
+  );
 }
 
 function resetState() {
