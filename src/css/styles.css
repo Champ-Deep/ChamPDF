@@ -1107,3 +1107,140 @@ input[type='number']::-webkit-outer-spin-button {
 .mobile-pillar-tool-link {
   @apply flex items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors no-underline;
 }
+
+/* ============================================================================
+   AEGIS GLOBAL SKIN  (appended last so it wins the cascade over every legacy
+   gray/red utility and component class). Maps the old palette to the V2
+   ember/ink design tokens so every panel, modal, dropdown, input, button and
+   pill follows the design kit — app-wide, no per-page edits. Danger semantics
+   (text-red-*, bg-red-900 alert frames) are deliberately left untouched.
+   ============================================================================ */
+
+/* ── Surfaces (keep relative depth 900 < 850/800 < 700) ───────────────────── */
+.bg-gray-900 {
+  background-color: var(--bg);
+}
+.bg-gray-850 {
+  background-color: var(--s1);
+}
+.bg-gray-800 {
+  background-color: var(--s1);
+}
+.bg-gray-700 {
+  background-color: var(--s2);
+}
+.bg-gray-600 {
+  background-color: #2a2f3d;
+}
+.hover\:bg-gray-800:hover {
+  background-color: var(--s1);
+}
+.hover\:bg-gray-700:hover {
+  background-color: var(--s2);
+}
+.hover\:bg-gray-600:hover {
+  background-color: #2a2f3d;
+}
+
+/* ── Borders ──────────────────────────────────────────────────────────────── */
+.border-gray-800 {
+  border-color: var(--bd1);
+}
+.border-gray-700 {
+  border-color: var(--bd2);
+}
+.border-gray-600 {
+  border-color: var(--bd2);
+}
+
+/* ── Brand accent: legacy red primary → ember ────────────────────────────── */
+.bg-red-600 {
+  background-color: var(--ember);
+}
+.bg-red-700 {
+  background-color: var(--ember-deep);
+}
+.bg-red-500 {
+  background-color: var(--ember-glow);
+}
+.hover\:bg-red-700:hover {
+  background-color: var(--ember-deep);
+}
+.hover\:bg-red-600:hover {
+  background-color: var(--ember);
+}
+.hover\:bg-red-500:hover {
+  background-color: var(--ember-glow);
+}
+.text-red-500 {
+  color: var(--ember);
+}
+.peer:checked ~ .peer-checked\:bg-red-600 {
+  background-color: var(--ember);
+}
+
+/* Focus rings → ember */
+.focus\:ring-red-500:focus,
+.focus\:ring-red-600:focus {
+  --tw-ring-color: var(--ember);
+}
+.focus\:ring-red-800:focus {
+  --tw-ring-color: var(--ember-deep);
+}
+.focus\:border-red-500:focus {
+  border-color: var(--ember);
+}
+
+/* ── Primary buttons: subtle ember glow on hover (buttons/links only) ─────── */
+button.bg-orange-600,
+a.bg-orange-600,
+button.bg-red-600,
+a.bg-red-600,
+.btn-gradient {
+  transition:
+    background-color 0.18s var(--smooth),
+    box-shadow 0.18s var(--smooth),
+    transform 0.1s var(--spring);
+}
+button.bg-orange-600:hover,
+a.bg-orange-600:hover,
+button.bg-red-600:hover,
+a.bg-red-600:hover {
+  box-shadow: 0 0 22px rgba(255, 107, 53, 0.3);
+}
+
+/* ── Navbar + mega-menu + mobile menu (component classes) ─────────────────── */
+.nav-link:hover,
+.mobile-nav-link:hover,
+.pillar-nav-btn:hover {
+  background-color: var(--s2);
+  color: var(--fg);
+}
+.mega-menu {
+  background-color: var(--s1);
+  border-color: var(--bd2);
+}
+.mega-menu-item:hover {
+  background-color: var(--s2);
+  color: var(--fg);
+}
+#mobile-menu {
+  background-color: var(--s1);
+  border-color: var(--bd1);
+}
+#user-dropdown {
+  background-color: var(--s1);
+  border-color: var(--bd2);
+}
+
+/* ── Inputs ───────────────────────────────────────────────────────────────── */
+input,
+textarea,
+select {
+  color-scheme: dark;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--ember);
+}
