@@ -84,6 +84,41 @@ def _read_output(output) -> bytes:
         return resp.read()
 
 
+def _output_ref(o) -> str:
+    """Best-effort URL/string for an output element, lowercased."""
+    return (getattr(o, "url", None) or (o if isinstance(o, str) else str(o)) or "").lower()
+
+
+def _select_output(output):
+    """Pick the *inpainted* result when a model returns several files.
+
+    `jd7h/propainter` returns two videos — `masked_in.mp4` (a preview of the
+    mask overlay) and `inpaint_out.mp4` (the clean result). Taking the first
+    element would hand back the masked preview, so choose deliberately:
+      - dict  → prefer an inpaint-ish key, else the last value
+      - list  → an element whose URL contains "inpaint", else one that does NOT
+                contain "mask", else the last element
+      - scalar → as-is
+    """
+    if isinstance(output, dict):
+        for key in ("inpaint_out", "inpainted", "output", "video"):
+            if output.get(key):
+                return output[key]
+        vals = [v for v in output.values() if v]
+        return vals[-1] if vals else None
+    if isinstance(output, (list, tuple)):
+        if not output:
+            return None
+        for o in output:
+            if "inpaint" in _output_ref(o):
+                return o
+        for o in output:
+            if "mask" not in _output_ref(o):
+                return o
+        return output[-1]
+    return output
+
+
 def _run_replicate(video_path: str, mask_path: str) -> bytes:
     """Blocking Replicate call — run a hosted ProPainter inpainting model."""
     import replicate
@@ -111,7 +146,10 @@ def _run_replicate(video_path: str, mask_path: str) -> bytes:
             else:
                 raise GpuVideoError(f"Replicate ProPainter failed: {e}")
 
-    data = _read_output(output)
+    chosen = _select_output(output)
+    if chosen is None:
+        raise GpuVideoError("GPU provider returned no usable output")
+    data = _read_output(chosen)
     if not data:
         raise GpuVideoError("GPU provider returned no video data")
     return data
