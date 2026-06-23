@@ -162,6 +162,25 @@ export const categories: Category[] = [
         ],
       },
       {
+        href: B + 'video-background-remover.html',
+        name: 'Video Background Remover',
+        icon: 'ph-scissors',
+        subtitle:
+          'Cut the background from a video — green-screen, alpha matte, or on black.',
+        pillar: 'video',
+        keywords: [
+          'mp4',
+          'matte',
+          'matting',
+          'green screen',
+          'chroma',
+          'background',
+          'remove background',
+          'transparent',
+          'rvm',
+        ],
+      },
+      {
         href: B + 'video-downloader.html',
         name: 'Video Downloader & Transcriber',
         icon: 'ph-download-simple',

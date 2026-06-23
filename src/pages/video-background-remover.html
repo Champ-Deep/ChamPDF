@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Video Background Remover | ChamPDF</title>
+    <meta name="title" content="Video Background Remover | ChamPDF" />
+    <meta
+      name="description"
+      content="Remove the background from a video — green-screen, alpha matte, or subject-on-black. Temporally consistent matting with no per-frame flicker."
+    />
+    <meta
+      name="keywords"
+      content="video background remover, robust video matting, green screen, video matte, remove video background"
+    />
+    <meta name="author" content="ChamPDF" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link
+      rel="canonical"
+      href="https://www.champdf.com/video-background-remover.html"
+    />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Video Background Remover | ChamPDF" />
+    <meta
+      property="og:description"
+      content="Remove the background from a video — green-screen, alpha matte, or subject-on-black."
+    />
+    <meta property="og:site_name" content="ChamPDF" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link href="/src/css/styles.css" rel="stylesheet" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  </head>
+
+  <body class="antialiased bg-gray-900">
+    {{> navbar }}
+
+    <div
+      id="uploader"
+      class="min-h-screen flex flex-col items-center justify-start py-12 p-4 bg-gray-900"
+    >
+      <div
+        id="tool-uploader"
+        class="bg-gray-800 rounded-xl shadow-xl px-4 py-8 md:p-8 max-w-2xl w-full text-gray-200 border border-gray-700"
+      >
+        <button
+          id="back-to-tools"
+          class="flex items-center gap-2 text-orange-400 hover:text-orange-300 mb-6 font-semibold"
+        >
+          <i data-lucide="arrow-left" class="cursor-pointer"></i>
+          <span class="cursor-pointer">Back to Tools</span>
+        </button>
+
+        <h1 class="text-2xl font-bold text-white mb-2">
+          Video Background Remover
+          <span
+            class="text-xs font-normal text-orange-300 align-middle ml-2 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/30"
+            >AI</span
+          >
+        </h1>
+        <p class="text-gray-400 mb-6">
+          Cut the background out of a video with temporally-consistent matting —
+          no per-frame flicker. Get a green-screen, a transparency matte, or
+          your subject on black.
+        </p>
+
+        <!-- Server / privacy notice -->
+        <div
+          class="bg-amber-900/20 border border-amber-700/50 rounded-lg p-3 mb-6 flex items-start gap-3"
+        >
+          <i
+            data-lucide="sparkles"
+            class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5"
+          ></i>
+          <div class="text-sm">
+            <p class="text-amber-300 font-medium">
+              Runs on a GPU server
+              <span class="text-amber-400/70 font-normal">· External GPU</span>
+            </p>
+            <p class="text-amber-400/80">
+              The heavy matting is processed on an external GPU service and can
+              take a few minutes. The file is deleted after processing.
+            </p>
+          </div>
+        </div>
+
+        <!-- Needs-setup banner (shown when the server has no GPU configured) -->
+        <div
+          id="needs-setup"
+          class="hidden bg-gray-900 border border-gray-700 rounded-lg p-3 mb-6 text-sm text-gray-400"
+        >
+          <i data-lucide="info" class="inline w-4 h-4 mr-1 align-middle"></i>
+          This feature isn't enabled on this server yet (no GPU provider
+          configured).
+        </div>
+
+        <!-- Drop Zone -->
+        <div
+          id="drop-zone"
+          class="relative flex flex-col items-center justify-center w-full h-48 md:h-64 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer bg-gray-900 hover:bg-gray-700 transition-colors duration-300"
+        >
+          <div class="flex flex-col items-center justify-center pt-5 pb-6">
+            <i data-lucide="video" class="w-10 h-10 mb-3 text-gray-400"></i>
+            <p class="mb-2 text-sm text-gray-400">
+              <span class="font-semibold">Click to select a video</span>
+              or drag and drop
+            </p>
+            <p class="text-xs text-gray-500">MP4, MOV, WebM, AVI (Max 100MB)</p>
+          </div>
+          <input
+            id="file-input"
+            type="file"
+            class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+            accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,.mp4,.mov,.webm,.avi"
+          />
+        </div>
+
+        <!-- File Display -->
+        <div id="file-display-area" class="mt-4 space-y-2"></div>
+
+        <!-- Options -->
+        <div id="options-section" class="hidden mt-6 space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+              Output
+            </label>
+            <div class="grid grid-cols-3 gap-3">
+              <label class="cursor-pointer">
+                <input
+                  type="radio"
+                  name="matte-mode"
+                  value="green"
+                  class="peer sr-only"
+                  checked
+                />
+                <div
+                  class="p-3 rounded-lg border border-gray-600 text-center transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <span class="text-sm font-medium">Green screen</span>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input
+                  type="radio"
+                  name="matte-mode"
+                  value="alpha"
+                  class="peer sr-only"
+                />
+                <div
+                  class="p-3 rounded-lg border border-gray-600 text-center transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <span class="text-sm font-medium">Alpha matte</span>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input
+                  type="radio"
+                  name="matte-mode"
+                  value="foreground"
+                  class="peer sr-only"
+                />
+                <div
+                  class="p-3 rounded-lg border border-gray-600 text-center transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+                >
+                  <span class="text-sm font-medium">On black</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <button
+            id="process-btn"
+            class="w-full bg-orange-600 hover:bg-orange-500 text-white px-6 py-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <i data-lucide="scissors" class="w-5 h-5"></i>
+            Remove Background
+          </button>
+        </div>
+
+        <!-- Processing -->
+        <div id="processing-status" class="hidden mt-6">
+          <div class="bg-gray-900 rounded-lg p-6 border border-gray-700">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="solid-spinner"></div>
+              <div>
+                <p id="status-text" class="text-white font-medium">
+                  Removing background...
+                </p>
+                <p id="status-detail" class="text-gray-400 text-sm">
+                  Runs on an external GPU and can take a few minutes
+                </p>
+              </div>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-2">
+              <div
+                id="progress-bar"
+                class="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                style="width: 0%"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download -->
+        <div id="download-section" class="hidden mt-6">
+          <div class="bg-green-900/30 border border-green-700 rounded-lg p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <i data-lucide="check-circle" class="w-8 h-8 text-green-400"></i>
+              <div>
+                <p class="text-green-300 font-medium">Background removed!</p>
+                <p class="text-green-400/80 text-sm">
+                  Your video is ready for download
+                </p>
+              </div>
+            </div>
+            <button
+              id="download-btn"
+              class="w-full bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <i data-lucide="download" class="w-5 h-5"></i>
+              Download Video
+            </button>
+            <button
+              id="process-another-btn"
+              class="w-full mt-3 bg-gray-700 hover:bg-gray-600 text-gray-200 px-6 py-3 rounded-lg text-sm font-medium"
+            >
+              Process another
+            </button>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div id="error-section" class="hidden mt-6">
+          <div class="bg-red-900/30 border border-red-700 rounded-lg p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <i data-lucide="alert-circle" class="w-8 h-8 text-red-400"></i>
+              <div>
+                <p class="text-red-300 font-medium">Processing failed</p>
+                <p id="error-message" class="text-red-400/80 text-sm">
+                  Something went wrong.
+                </p>
+              </div>
+            </div>
+            <button
+              id="try-again-btn"
+              class="w-full bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loader Modal -->
+    <div
+      id="loader-modal"
+      class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+    >
+      <div
+        class="bg-gray-800 p-8 rounded-lg flex flex-col items-center gap-4 border border-gray-700 shadow-xl"
+      >
+        <div class="solid-spinner"></div>
+        <p id="loader-text" class="text-white text-lg font-medium">
+          Processing...
+        </p>
+      </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div
+      id="alert-modal"
+      class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 hidden"
+    >
+      <div
+        class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full border border-gray-700"
+      >
+        <h3 id="alert-title" class="text-xl font-bold text-white mb-2">
+          Alert
+        </h3>
+        <p id="alert-message" class="text-gray-300 mb-6"></p>
+        <button
+          id="alert-ok"
+          class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+
+    {{> footer }}
+    <script type="module" src="/src/js/utils/lucide-init.ts"></script>
+    <script type="module" src="/src/js/utils/full-width.ts"></script>
+    <script type="module" src="/src/js/utils/simple-mode-footer.ts"></script>
+    <script type="module" src="/src/version.ts"></script>
+    <script
+      type="module"
+      src="/src/js/logic/video-background-remover-page.ts"
+    ></script>
+    <script type="module" src="/src/js/mobileMenu.ts"></script>
+    <script type="module" src="/src/js/main.ts"></script>
+  </body>
+</html>

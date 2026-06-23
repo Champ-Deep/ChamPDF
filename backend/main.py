@@ -54,6 +54,9 @@ from summarizer import (
 )
 from video_analyzer import analyze_youtube, analyze_available, is_youtube_url, AnalyzeError
 from gpu_video_remover import gpu_removal_available
+from video_matte import matte_video, matte_available
+from gpu_transcribe import transcribe as gpu_transcribe, gpu_transcribe_available
+from replicate_client import ReplicateError
 
 logger = logging.getLogger(__name__)
 
@@ -635,6 +638,8 @@ async def get_capabilities():
         "video_summary": summary_available(),
         "video_analyze": analyze_available(),
         "gpu_video": gpu_removal_available(),
+        "video_matte": matte_available(),
+        "captions_gpu": gpu_transcribe_available(),
         "summary_models": SUGGESTED_MODELS,
     }
 
@@ -793,9 +798,19 @@ async def transcribe_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     language: Optional[str] = Form(None),
+    engine: str = Form("auto"),
 ):
-    """Transcribe a video's speech to an .srt subtitle file (faster-whisper)."""
-    if not caption_processor:
+    """Transcribe a video's speech to an .srt subtitle file.
+
+    engine: "cpu" (local faster-whisper), "gpu" (Replicate Whisper large-v3),
+    or "auto" (GPU when configured, else CPU).
+    """
+    if engine not in {"auto", "cpu", "gpu"}:
+        raise HTTPException(status_code=400, detail="engine must be auto, cpu, or gpu")
+    use_gpu = engine in ("auto", "gpu") and gpu_transcribe_available()
+    if engine == "gpu" and not use_gpu:
+        raise HTTPException(status_code=400, detail="GPU transcription is not configured on this server")
+    if not use_gpu and not caption_processor:
         raise HTTPException(status_code=400, detail="Captions are disabled on this server")
     if not process_semaphore:
         raise HTTPException(status_code=503, detail="Server initializing")
@@ -821,7 +836,19 @@ async def transcribe_video(
 
     try:
         async with process_semaphore:
-            srt_text = await caption_processor.transcribe_video_to_srt(str(input_path), language=language)
+            if use_gpu:
+                try:
+                    result = await gpu_transcribe(str(input_path), language=language)
+                    srt_text = result["srt"]
+                except ReplicateError as ge:
+                    if engine == "gpu" or not caption_processor:
+                        raise
+                    logger.warning("GPU transcription failed, falling back to CPU: %s", ge)
+                    srt_text = await caption_processor.transcribe_video_to_srt(str(input_path), language=language)
+            else:
+                srt_text = await caption_processor.transcribe_video_to_srt(str(input_path), language=language)
+    except HTTPException:
+        raise
     except Exception as e:
         cleanup_files(input_path)
         logger.error(f"Transcription error: {e}")
@@ -833,6 +860,65 @@ async def transcribe_video(
         io.BytesIO(srt_text.encode("utf-8")),
         media_type="application/x-subrip",
         headers={"Content-Disposition": f'attachment; filename="{base}.srt"'},
+    )
+
+
+@app.post("/api/video-matte")
+async def video_matte_endpoint(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    mode: str = Form("green"),
+):
+    """Remove a video's background via Robust Video Matting (GPU, Replicate).
+
+    mode: green (green-screen), alpha (grayscale matte), foreground (on black).
+    """
+    if not matte_available():
+        raise HTTPException(
+            status_code=400,
+            detail="Video background removal is not configured on this server",
+        )
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+    if mode not in {"green", "alpha", "foreground"}:
+        raise HTTPException(status_code=400, detail="mode must be green, alpha, or foreground")
+
+    file_ext = Path(file.filename or "").suffix.lower()
+    if file_ext not in ALLOWED_VIDEO_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_VIDEO_EXTENSIONS)}",
+        )
+
+    job_id = str(uuid.uuid4())
+    input_path = settings.UPLOAD_DIR / f"{job_id}{file_ext}"
+    file_size = 0
+    async with aiofiles.open(input_path, "wb") as out_file:
+        while chunk := await file.read(1024 * 1024):
+            file_size += len(chunk)
+            if file_size > settings.MAX_FILE_SIZE:
+                await out_file.close()
+                cleanup_files(input_path)
+                raise HTTPException(status_code=413, detail="File too large")
+            await out_file.write(chunk)
+
+    try:
+        async with process_semaphore:
+            output = await matte_video(str(input_path), mode=mode)
+    except ReplicateError as e:
+        cleanup_files(input_path)
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        cleanup_files(input_path)
+        logger.error(f"Video matte error: {e}")
+        raise HTTPException(status_code=500, detail=f"Background removal failed: {e}")
+
+    background_tasks.add_task(cleanup_files, input_path)
+    base = Path(file.filename or "video").stem
+    return StreamingResponse(
+        io.BytesIO(output),
+        media_type="video/mp4",
+        headers={"Content-Disposition": f'attachment; filename="{base}_no_bg.mp4"'},
     )
 
 

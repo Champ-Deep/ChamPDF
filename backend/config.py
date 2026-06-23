@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     VIDEO_GPU_PROVIDER: str = "none"  # replicate | none
     # Replicate model slug (owner/name or owner/name:version) for video inpainting.
     REPLICATE_PROPAINTER_MODEL: str = "jd7h/propainter"
+    # Replicate model for video background removal (Robust Video Matting).
+    REPLICATE_RVM_MODEL: str = "arielreplicate/robust_video_matting"
+    # Replicate model for GPU transcription (Whisper large-v3).
+    REPLICATE_WHISPER_MODEL: str = "vaibhavs10/incredibly-fast-whisper"
     # Seconds to wait for the external GPU job before giving up. Kept under the
     # Nginx /api proxy_read_timeout (900s) so the backend returns a clean
     # error/fallback before the proxy 504s on a long Replicate job.
