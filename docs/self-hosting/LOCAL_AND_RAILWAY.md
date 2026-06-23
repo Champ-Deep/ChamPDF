@@ -91,6 +91,7 @@ Nginx) and **champdf-backend** (`backend/Dockerfile.railway`, FastAPI). Nginx pr
 |---|---|---|
 | `BACKEND_URL` | `http://champdf-backend.railway.internal:8000` | Railway private networking; Nginx `proxy_pass` target |
 | (do **not** set `VITE_API_URL`) | — | Leave empty so the app uses relative `/api/...` through the proxy |
+| `VITE_CLERK_PUBLISHABLE_KEY` | `pk_test_…` / `pk_live_…` | Optional. Enables Clerk sign-in. **Build-time** var — Vite bakes it in, so it must be set on the frontend service before the build. Publishable key is public/safe. Unset → falls back to the built-in auth modal. Get it from clerk.com → your app → API keys. |
 
 4. Verify after deploy:
 

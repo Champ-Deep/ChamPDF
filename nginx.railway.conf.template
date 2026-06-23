@@ -83,6 +83,14 @@ http {
         # STATIC FILE SERVING - Frontend assets
         # =================================================================
 
+        # Favicons / brand mark - short cache so a rebrand isn't pinned for a
+        # year (the generic image rule below caches images immutably). Must
+        # come before that rule since regex locations match in source order.
+        location ~* /(favicon[^/]*|apple-touch-icon)\.(svg|png|ico)$ {
+            expires 1h;
+            add_header Cache-Control "public, must-revalidate";
+        }
+
         # HTML files - short cache, require revalidation
         location ~* \.html$ {
             expires 1h;

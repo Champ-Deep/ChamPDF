@@ -25,6 +25,7 @@
 @import 'cropperjs/dist/cropper.css';
 @import 'tailwindcss';
 @import './aegis-tokens.css';
+@import './aegis-skin.css';
 
 /* Prevent marketing content flash - hide sections immediately via CSS */
 .hide-section {

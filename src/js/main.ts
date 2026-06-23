@@ -18,6 +18,7 @@ import {
 import { startBackgroundPreload } from './utils/wasm-preloader.js';
 import { initSignatureLibraryModal } from './utils/signature-library-init.js';
 import { initAuthModal, onProfileChange } from './components/auth-modal.js';
+import { clerkEnabled, initClerkAuth } from './components/clerk-auth.js';
 import { getCurrentProfile } from './utils/profile-manager.js';
 import {
   initToolCardsAnimation,
@@ -452,13 +453,16 @@ const init = async () => {
   // Initialize Signature Library Modal
   initSignatureLibraryModal();
 
-  // Initialize Profile Modal
-  initAuthModal();
-
-  // Log profile changes (for debugging)
-  onProfileChange((profile) => {
-    console.log('Profile changed:', profile?.email || 'guest');
-  });
+  // Sign-in: Clerk when configured (VITE_CLERK_PUBLISHABLE_KEY), else the
+  // legacy in-app auth modal. Either way accounts stay optional (guest-first).
+  if (clerkEnabled()) {
+    void initClerkAuth();
+  } else {
+    initAuthModal();
+    onProfileChange((profile) => {
+      console.log('Profile changed:', profile?.email || 'guest');
+    });
+  }
 
   // Tab switching for settings modal
   const shortcutsTabBtn = document.getElementById('shortcuts-tab-btn');

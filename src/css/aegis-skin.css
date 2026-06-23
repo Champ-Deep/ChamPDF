@@ -1,0 +1,77 @@
+/* =========================================================
+   AEGIS inner-page skin
+   ---------------------------------------------------------
+   Retargets the shared tool-page shell (used by ~130 pages)
+   to the V2 ember/ink design system without editing each
+   page. Selectors are written to win the cascade over the
+   legacy gray Tailwind utilities regardless of source order:
+   IDs beat classes; `html body` and a doubled `.btn-gradient`
+   bump element/class rules. Scoped to the tool shell so
+   modals and unrelated chrome are left alone.
+   ========================================================= */
+
+/* Page canvas → Aegis ink with a soft ember glow at the top.
+   (The homepage keeps its own treatment via body.aegis-home.) */
+html body {
+  background:
+    radial-gradient(
+      900px 380px at 50% -140px,
+      rgba(255, 107, 53, 0.08),
+      transparent
+    ),
+    var(--bg);
+}
+
+/* Primary tool card */
+#tool-uploader,
+#uploader > .bg-gray-800 {
+  background: var(--s1);
+  border-color: var(--bd2);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+}
+
+/* Cards / panels inside the shell */
+#uploader .bg-gray-800 {
+  background: var(--s1);
+  border-color: var(--bd2);
+}
+#uploader .bg-gray-900 {
+  background: var(--bg);
+  border-color: var(--bd1);
+}
+#uploader .bg-gray-700 {
+  background: var(--s2);
+  border-color: var(--bd1);
+}
+
+/* Drop zone */
+#drop-zone,
+#uploader .border-dashed {
+  border-color: var(--bd2);
+  background: var(--s2);
+}
+#drop-zone:hover {
+  background: var(--s1);
+  border-color: var(--ember);
+}
+
+/* Navbar across all pages */
+nav.bg-gray-800 {
+  background: var(--s1);
+  border-color: var(--bd1);
+}
+
+/* Primary button → ember (doubled class beats the legacy red gradient) */
+.btn-gradient.btn-gradient {
+  background-image: linear-gradient(
+    135deg,
+    var(--ember-glow),
+    var(--ember-deep)
+  );
+  box-shadow: 0 0 22px rgba(255, 107, 53, 0.22);
+}
+.btn-gradient.btn-gradient:hover {
+  background-image: linear-gradient(135deg, #ff7a47, #d24a16);
+  box-shadow: 0 0 28px rgba(255, 107, 53, 0.4);
+}

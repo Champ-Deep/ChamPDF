@@ -66,6 +66,7 @@
   "dependencies": {
     "@bentopdf/gs-wasm": "^0.1.1",
     "@bentopdf/pymupdf-wasm": "^0.11.16",
+    "@clerk/clerk-js": "^6.21.0",
     "@fontsource/cedarville-cursive": "^5.2.7",
     "@fontsource/dancing-script": "^5.2.8",
     "@fontsource/dm-sans": "^5.2.8",
