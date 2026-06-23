@@ -188,8 +188,63 @@
               class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2.5"
             />
             <p class="text-xs text-gray-500 mt-1">
-              If provided, usage restrictions will be applied. Leave empty for
+              If provided, the permissions below are enforced. Leave empty for
               no restrictions.
+            </p>
+          </div>
+
+          <!-- Granular permissions (apply when an owner password is set) -->
+          <div
+            id="permissions-block"
+            class="p-4 bg-gray-900 rounded-lg border border-gray-700"
+          >
+            <h3 class="text-sm font-semibold text-white mb-3">
+              Permissions
+              <span class="font-normal text-gray-500"
+                >(need an owner password)</span
+              >
+            </h3>
+            <div class="grid grid-cols-2 gap-2 text-sm text-gray-300">
+              <label class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="perm-print"
+                  class="accent-orange-500"
+                  checked
+                />
+                Allow printing
+              </label>
+              <label class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="perm-copy"
+                  class="accent-orange-500"
+                  checked
+                />
+                Allow copying text
+              </label>
+              <label class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="perm-modify"
+                  class="accent-orange-500"
+                  checked
+                />
+                Allow editing
+              </label>
+              <label class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="perm-annotate"
+                  class="accent-orange-500"
+                  checked
+                />
+                Allow annotations
+              </label>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">
+              Unchecked items are blocked for anyone opening with the user
+              password. Ignored if no owner password is set.
             </p>
           </div>
 
@@ -200,7 +255,7 @@
             <ul class="text-xs text-gray-400 space-y-1 list-disc list-inside">
               <li>256-bit AES encryption (highest security)</li>
               <li>User password required to open PDF</li>
-              <li>Owner password enables usage restrictions</li>
+              <li>Owner password enables the permissions above</li>
               <li>Without owner password: no restrictions applied</li>
             </ul>
           </div>
