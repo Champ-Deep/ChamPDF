@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     OPENROUTER_MODEL: str = "openai/gpt-4o-mini"
     ENABLE_VIDEO_INSIGHTS: bool = True  # transcript + summary from a video URL
 
+    # Multimodal YouTube analysis via Gemini (uses GEMINI_API_KEY).
+    GEMINI_VIDEO_MODEL: str = "gemini-2.5-flash"
+
     # Paths - Use system temp by default for better cross-platform support
     BASE_TEMP_DIR: Path = Path(tempfile.gettempdir()) / "champdf-backend"
 

@@ -258,6 +258,29 @@
                 </div>
               </div>
             </label>
+            <label class="relative">
+              <input
+                type="radio"
+                name="output-format"
+                value="analyze"
+                class="peer sr-only"
+              />
+              <div
+                class="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-500/10 hover:bg-gray-700"
+              >
+                <div
+                  class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center"
+                >
+                  <i data-lucide="brain" class="w-4 h-4 text-pink-400"></i>
+                </div>
+                <div class="flex flex-col text-left">
+                  <span class="text-sm font-medium">Analyze video (AI)</span>
+                  <span class="text-xs text-gray-400"
+                    >Summary, learnings & chapters (YouTube)</span
+                  >
+                </div>
+              </div>
+            </label>
           </div>
 
           <!-- Model picker (only shown for AI summary) -->
@@ -373,7 +396,35 @@
             ></div>
           </div>
 
-          <div class="bg-gray-900 rounded-lg p-5 border border-gray-700">
+          <div
+            id="learnings-block"
+            class="hidden bg-gray-900 rounded-lg p-5 border border-gray-700"
+          >
+            <p class="text-white font-medium flex items-center gap-2 mb-2">
+              <i data-lucide="lightbulb" class="w-4 h-4 text-yellow-400"></i>
+              Key learnings
+            </p>
+            <ul
+              id="learnings-list"
+              class="list-disc pl-5 space-y-1 text-sm text-gray-200"
+            ></ul>
+          </div>
+
+          <div
+            id="chapters-block"
+            class="hidden bg-gray-900 rounded-lg p-5 border border-gray-700"
+          >
+            <p class="text-white font-medium flex items-center gap-2 mb-2">
+              <i data-lucide="list-video" class="w-4 h-4 text-purple-400"></i>
+              Chapters
+            </p>
+            <ul id="chapters-list" class="space-y-1 text-sm text-gray-300"></ul>
+          </div>
+
+          <div
+            id="transcript-block"
+            class="bg-gray-900 rounded-lg p-5 border border-gray-700"
+          >
             <div class="flex items-center justify-between mb-2">
               <p class="text-white font-medium flex items-center gap-2">
                 <i data-lucide="file-text" class="w-4 h-4 text-blue-400"></i>

@@ -9,7 +9,12 @@ import { downloadFile } from '../utils/helpers.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
-type OutputFormat = 'mp4' | 'mp3' | 'transcript' | 'summary';
+type OutputFormat = 'mp4' | 'mp3' | 'transcript' | 'summary' | 'analyze';
+
+interface Chapter {
+  timestamp?: string;
+  title?: string;
+}
 
 interface State {
   format: OutputFormat;
@@ -18,6 +23,8 @@ interface State {
   resultFilename: string;
   transcript: string;
   summary: string;
+  learnings: string[];
+  chapters: Chapter[];
 }
 
 const state: State = {
@@ -27,6 +34,8 @@ const state: State = {
   resultFilename: 'download.mp4',
   transcript: '',
   summary: '',
+  learnings: [],
+  chapters: [],
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -41,6 +50,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   disabled: 'Transcription is disabled on this server.',
   summary_unavailable:
     'AI summary needs an OpenRouter API key on the server (OPENROUTER_API_KEY).',
+  analyze_unavailable:
+    'Video analysis needs a Gemini API key on the server (GEMINI_API_KEY).',
   summary_failed:
     'The AI summary failed. The transcript may still be available.',
   failed: 'Processing failed. Please try again.',
@@ -98,12 +109,26 @@ function initializePage() {
   document
     .getElementById('download-transcript-btn')
     ?.addEventListener('click', () => {
-      const parts = [];
-      if (state.summary) parts.push('# Summary\n\n' + state.summary + '\n\n');
-      parts.push('# Transcript\n\n' + state.transcript);
+      const parts: string[] = [];
+      if (state.summary) parts.push('# Summary\n\n' + state.summary + '\n');
+      if (state.learnings.length)
+        parts.push(
+          '# Key learnings\n\n' +
+            state.learnings.map((l) => `- ${l}`).join('\n') +
+            '\n'
+        );
+      if (state.chapters.length)
+        parts.push(
+          '# Chapters\n\n' +
+            state.chapters
+              .map((c) => `${c.timestamp ?? ''} ${c.title ?? ''}`.trim())
+              .join('\n') +
+            '\n'
+        );
+      if (state.transcript) parts.push('# Transcript\n\n' + state.transcript);
       downloadFile(
-        new Blob([parts.join('')], { type: 'text/plain' }),
-        'transcript.txt'
+        new Blob([parts.join('\n')], { type: 'text/plain' }),
+        'video-notes.txt'
       );
     });
 
@@ -144,6 +169,7 @@ function updateActionLabel() {
     mp3: 'Download MP3',
     transcript: 'Get Transcript',
     summary: 'Get Transcript + Summary',
+    analyze: 'Analyze video',
   };
   label.textContent = labels[state.format];
 }
@@ -196,9 +222,13 @@ async function handleDownload() {
   const url = getValidatedUrl();
   if (!url) return;
 
-  // Transcript / AI-summary go through the insights endpoint (text results),
-  // not the binary file download.
-  if (state.format === 'transcript' || state.format === 'summary') {
+  // Transcript / AI-summary / analyze go through the insights endpoint
+  // (text results), not the binary file download.
+  if (
+    state.format === 'transcript' ||
+    state.format === 'summary' ||
+    state.format === 'analyze'
+  ) {
     await runInsights(url);
     return;
   }
@@ -289,6 +319,8 @@ async function runInsights(url: string) {
   state.isProcessing = true;
   state.transcript = '';
   state.summary = '';
+  state.learnings = [];
+  state.chapters = [];
 
   showProcessing();
   setProgress(8);
@@ -304,6 +336,7 @@ async function runInsights(url: string) {
     setProgress(progress);
   }, 800);
 
+  const wantAnalyze = state.format === 'analyze';
   const wantSummary = state.format === 'summary';
   const model = (
     document.getElementById('summary-model') as HTMLSelectElement | null
@@ -311,8 +344,14 @@ async function runInsights(url: string) {
 
   try {
     updateStatus(
-      wantSummary ? 'Transcribing + summarizing…' : 'Transcribing…',
-      'Downloading audio and running Whisper on the server'
+      wantAnalyze
+        ? 'Analyzing video…'
+        : wantSummary
+          ? 'Transcribing + summarizing…'
+          : 'Transcribing…',
+      wantAnalyze
+        ? 'Gemini is watching and listening to the video'
+        : 'Downloading audio and running Whisper on the server'
     );
 
     const response = await fetch(`${API_BASE_URL}/api/video-insights`, {
@@ -320,8 +359,9 @@ async function runInsights(url: string) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         url,
-        transcript: true,
+        transcript: !wantAnalyze,
         summary: wantSummary,
+        multimodal: wantAnalyze,
         model,
       }),
     });
@@ -349,6 +389,8 @@ async function runInsights(url: string) {
     const data = await response.json();
     state.transcript = data.transcript || '';
     state.summary = data.summary || '';
+    state.learnings = Array.isArray(data.learnings) ? data.learnings : [];
+    state.chapters = Array.isArray(data.chapters) ? data.chapters : [];
     setProgress(100);
     showInsights();
   } catch (err) {
@@ -367,9 +409,7 @@ function showInsights() {
   document.getElementById('error-section')?.classList.add('hidden');
   document.getElementById('insights-section')?.classList.remove('hidden');
 
-  const tEl = document.getElementById('transcript-text');
-  if (tEl) tEl.textContent = state.transcript || '(no speech detected)';
-
+  // Summary
   const summaryBlock = document.getElementById('summary-block');
   const sEl = document.getElementById('summary-text');
   if (state.summary) {
@@ -378,6 +418,48 @@ function showInsights() {
   } else {
     summaryBlock?.classList.add('hidden');
   }
+
+  // Key learnings
+  const learningsBlock = document.getElementById('learnings-block');
+  const lList = document.getElementById('learnings-list');
+  if (state.learnings.length && lList) {
+    lList.innerHTML = '';
+    for (const item of state.learnings) {
+      const li = document.createElement('li');
+      li.textContent = String(item);
+      lList.appendChild(li);
+    }
+    learningsBlock?.classList.remove('hidden');
+  } else {
+    learningsBlock?.classList.add('hidden');
+  }
+
+  // Chapters
+  const chaptersBlock = document.getElementById('chapters-block');
+  const cList = document.getElementById('chapters-list');
+  if (state.chapters.length && cList) {
+    cList.innerHTML = '';
+    for (const ch of state.chapters) {
+      const li = document.createElement('li');
+      const ts = ch.timestamp ? `${ch.timestamp} — ` : '';
+      li.innerHTML = `<span class="text-orange-400 font-medium">${ts}</span>${ch.title ?? ''}`;
+      cList.appendChild(li);
+    }
+    chaptersBlock?.classList.remove('hidden');
+  } else {
+    chaptersBlock?.classList.add('hidden');
+  }
+
+  // Transcript (hidden when the analyze path returned none)
+  const transcriptBlock = document.getElementById('transcript-block');
+  const tEl = document.getElementById('transcript-text');
+  if (state.transcript) {
+    transcriptBlock?.classList.remove('hidden');
+    if (tEl) tEl.textContent = state.transcript;
+  } else {
+    transcriptBlock?.classList.add('hidden');
+  }
+
   createIcons({ icons });
 }
 
@@ -426,6 +508,8 @@ function resetForm() {
   state.resultBlob = null;
   state.transcript = '';
   state.summary = '';
+  state.learnings = [];
+  state.chapters = [];
   state.resultFilename =
     state.format === 'mp4' ? 'download.mp4' : 'download.mp3';
   document.getElementById('processing-status')?.classList.add('hidden');

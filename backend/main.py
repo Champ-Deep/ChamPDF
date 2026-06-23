@@ -52,6 +52,7 @@ from summarizer import (
     SUGGESTED_MODELS,
     SummarizeError,
 )
+from video_analyzer import analyze_youtube, analyze_available, is_youtube_url, AnalyzeError
 
 logger = logging.getLogger(__name__)
 
@@ -619,6 +620,7 @@ async def get_capabilities():
         "gemini_inpaint": bool(os.environ.get("GEMINI_API_KEY")),
         "video_transcript": caption_processor is not None,
         "video_summary": summary_available(),
+        "video_analyze": analyze_available(),
         "summary_models": SUGGESTED_MODELS,
     }
 
@@ -824,6 +826,7 @@ class VideoInsightsRequest(BaseModel):
     url: str
     transcript: bool = True
     summary: bool = False
+    multimodal: bool = False  # analyze the video itself (Gemini) for YouTube links
     language: Optional[str] = None
     model: Optional[str] = None
 
@@ -854,11 +857,6 @@ async def video_insights(
     """
     if not process_semaphore:
         raise HTTPException(status_code=503, detail="Server initializing")
-    if not caption_processor:
-        return JSONResponse(
-            status_code=400,
-            content={"code": "disabled", "message": "Transcription is disabled on this server."},
-        )
 
     url = payload.url.strip()
     if not (url.startswith("http://") or url.startswith("https://")):
@@ -866,7 +864,46 @@ async def video_insights(
             status_code=400,
             content={"code": "unsupported_url", "message": "URL must start with http:// or https://."},
         )
-    if payload.summary and not summary_available():
+
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        _check_rate_limit(client_ip)
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content=e.detail)
+
+    # Multimodal path: hand the YouTube URL straight to Gemini (no download).
+    if payload.multimodal and is_youtube_url(url) and analyze_available():
+        try:
+            async with process_semaphore:
+                analysis = await analyze_youtube(url, payload.model)
+            return {
+                "source": "gemini",
+                "summary": analysis["summary"],
+                "learnings": analysis["learnings"],
+                "chapters": analysis["chapters"],
+            }
+        except AnalyzeError as e:
+            # Fall through to the Whisper path so the user still gets something.
+            logger.warning("Gemini analyze failed, falling back to Whisper: %s", e)
+
+    # Whisper path needs the caption processor.
+    if not caption_processor:
+        return JSONResponse(
+            status_code=400,
+            content={"code": "disabled", "message": "Transcription is disabled on this server."},
+        )
+    # When summary/learnings were requested, we still want a text summary here.
+    want_summary = payload.summary or payload.multimodal
+    if want_summary and not summary_available():
+        if payload.multimodal:
+            # Multimodal asked but neither Gemini nor OpenRouter is configured.
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "code": "analyze_unavailable",
+                    "message": "Video analysis needs GEMINI_API_KEY (or OPENROUTER_API_KEY for a text summary).",
+                },
+            )
         return JSONResponse(
             status_code=400,
             content={
@@ -874,12 +911,6 @@ async def video_insights(
                 "message": "AI summary needs OPENROUTER_API_KEY set on the server.",
             },
         )
-
-    client_ip = request.client.host if request.client else "unknown"
-    try:
-        _check_rate_limit(client_ip)
-    except HTTPException as e:
-        return JSONResponse(status_code=e.status_code, content=e.detail)
 
     work_dir = Path(tempfile.mkdtemp(prefix="champdf_ins_", dir=settings.BASE_TEMP_DIR))
     background_tasks.add_task(cleanup_work_dir, work_dir)
@@ -895,9 +926,9 @@ async def video_insights(
             )
 
         transcript_text = _srt_to_text(srt)
-        result = {"transcript": transcript_text, "srt": srt}
+        result = {"source": "whisper", "transcript": transcript_text, "srt": srt}
 
-        if payload.summary:
+        if want_summary:
             result["summary"] = await asyncio.to_thread(
                 summarize_transcript, transcript_text, payload.model
             )
