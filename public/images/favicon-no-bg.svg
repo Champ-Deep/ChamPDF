@@ -1,7 +1,4 @@
-<svg width="166" height="166" viewBox="0 0 166 166" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g transform="translate(40, 0)">
-<path d="M56.7848 80.9116L0 25.6211L24.8434 1.43151C26.8037 -0.47717 29.9814 -0.47717 31.9414 1.43151L85.177 53.2662L56.7848 80.9116Z" fill="#E88B2D"/>
-<path d="M-1.30805e-05 80.7335L21.2939 101.467L42.5878 80.7335L21.2939 60L-1.30805e-05 80.7335Z" fill="#F5B870"/>
-<path d="M56.7848 83L81.6279 107.19C83.5881 109.098 83.5881 112.192 81.6279 114.101L28.3925 165.936L0 138.29L56.7848 83Z" fill="#C8232C"/>
-</g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-label="ChamPDF">
+  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" fill="#FF6B35"/>
+  <path d="m8.8 12 2 2 4.4-4.4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>

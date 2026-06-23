@@ -1,7 +1,15 @@
-@import '@fontsource/dm-sans/400.css';
-@import '@fontsource/dm-sans/500.css';
-@import '@fontsource/dm-sans/600.css';
-@import '@fontsource/dm-sans/700.css';
+/* Aegis brand fonts (self-hosted via @fontsource — no Google Fonts CDN) */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/600.css';
+@import '@fontsource/space-grotesk/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/fraunces/400-italic.css';
+@import '@fontsource/fraunces/600.css';
 @import '@fontsource/dancing-script/400.css';
 @import '@fontsource/great-vibes/400.css';
 @import '@fontsource/kalam/300.css';
@@ -16,6 +24,7 @@
 @import '@fontsource/cedarville-cursive/400.css';
 @import 'cropperjs/dist/cropper.css';
 @import 'tailwindcss';
+@import './aegis-tokens.css';
 
 /* Prevent marketing content flash - hide sections immediately via CSS */
 .hide-section {
@@ -23,13 +32,32 @@
 }
 
 @theme {
-  --font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  /* Aegis typography: Inter body, Space Grotesk display, JetBrains mono, Fraunces accent */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-accent: 'Fraunces', Georgia, serif;
   --font-dancing: 'Dancing Script', cursive;
   --font-vibes: 'Great Vibes', cursive;
   --font-kalam: 'Kalam', cursive;
   --font-lato: 'Lato', sans-serif;
   --font-merriweather: 'Merriweather', serif;
   --font-cedarville: 'Cedarville Cursive', cursive;
+
+  /* Brand accent: remap Tailwind's `orange` ramp to Champ Ember so every
+     existing `orange-*` utility across the app renders ember with no
+     per-page edits. Buttons default to orange-600 and hover to orange-500,
+     so 600 is a touch deeper than the 500 ember for a lighten-on-hover. */
+  --color-orange-50: #fff3ee;
+  --color-orange-100: #ffe2d6;
+  --color-orange-200: #ffc4ad;
+  --color-orange-300: #ffa07a;
+  --color-orange-400: #ff8c5a;
+  --color-orange-500: #ff7a47;
+  --color-orange-600: #ff6b35;
+  --color-orange-700: #e04e1b;
+  --color-orange-800: #c2410c;
+  --color-orange-900: #7c2d12;
 }
 
 @layer base {
@@ -37,16 +65,14 @@
     @apply antialiased;
     font-family: var(--font-sans);
   }
-}
-
-@theme {
-  --font-sans: 'DM Sans', ui-sans-serif, system-ui;
-  --font-dancing: 'Dancing Script', cursive;
-  --font-vibes: 'Great Vibes', cursive;
-  --font-kalam: 'Kalam', cursive;
-  --font-lato: 'Lato', sans-serif;
-  --font-merriweather: 'Merriweather', serif;
-  --font-cedarville: 'Cedarville Cursive', cursive;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+  }
 }
 
 :root {
@@ -60,7 +86,7 @@ html {
 }
 
 body {
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   background-color: #111827;
   color: #d1d5db;
 }

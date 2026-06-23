@@ -1,0 +1,91 @@
+/* =========================================================
+   AEGIS tokens for ChamPDF V2 (search-first homepage + palette)
+   Ember accent, surface/fg/border layers, privacy-chip colors,
+   motion easings. Dark by default; [data-theme="light"] override
+   is applied on the homepage <html> only this pass.
+   These plain CSS vars let the design-comp markup port verbatim.
+   ========================================================= */
+:root {
+  /* Ember signature */
+  --ember: #ff6b35;
+  --ember-glow: #ff8c5a;
+  --ember-deep: #c2410c;
+
+  /* Surfaces (dark) */
+  --bg: #0b0d12;
+  --s1: #14171f;
+  --s2: #1e222d;
+
+  /* Foreground */
+  --fg: #fafaf7;
+  --fg2: #d1d5db;
+  --fg3: #6b7280;
+
+  /* Borders */
+  --bd1: rgba(255, 255, 255, 0.06);
+  --bd2: rgba(255, 255, 255, 0.1);
+  --bd3: rgba(255, 255, 255, 0.2);
+
+  /* Privacy-chip / signal colors */
+  --green: #10b981;
+  --green-bg: rgba(16, 185, 129, 0.12);
+  --green-bd: rgba(16, 185, 129, 0.3);
+  --amber: #f59e0b;
+  --amber-bg: rgba(245, 158, 11, 0.12);
+  --amber-bd: rgba(245, 158, 11, 0.3);
+
+  /* Motion */
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Shadows */
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme='light'] {
+  --bg: #fafaf7;
+  --s1: #f4f4f0;
+  --s2: #ffffff;
+  --fg: #0b0d12;
+  --fg2: #14171f;
+  --fg3: #6b7280;
+  --bd1: rgba(11, 13, 18, 0.06);
+  --bd2: rgba(11, 13, 18, 0.1);
+  --bd3: rgba(11, 13, 18, 0.2);
+  /* Ember-as-text needs deeper tone for contrast on light surfaces */
+  --ember: #c2410c;
+  --ember-glow: #ff6b35;
+  --green-bg: rgba(16, 185, 129, 0.1);
+  --amber-bg: rgba(245, 158, 11, 0.1);
+  --shadow-md: 0 4px 12px rgba(11, 13, 18, 0.08);
+  --shadow-lg: 0 12px 32px rgba(11, 13, 18, 0.12);
+  --shadow-xl: 0 24px 64px rgba(11, 13, 18, 0.16);
+}
+
+/* Keyframes used by the homepage + palette */
+@keyframes chFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes chRise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.lift {
+  transition: transform 120ms var(--spring);
+}
+.lift:hover {
+  transform: translateY(-2px);
+}
