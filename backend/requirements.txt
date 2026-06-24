@@ -31,6 +31,12 @@ faster-whisper==1.0.3
 realesrgan-aiforever @ git+https://github.com/ai-forever/Real-ESRGAN.git
 huggingface_hub>=0.20.0
 
+# ─── PDF signing + server OCR (optional) ─────────────────────────────────────
+# pyHanko: compliance-grade PAdES signing + verification.
+# ocrmypdf: server-side OCR / PDF-A (needs tesseract-ocr + ghostscript apt pkgs).
+pyHanko>=0.25.0
+ocrmypdf>=16.0.0
+
 # torch is required by simple-lama-inpainting and Real-ESRGAN.
 # Pin a CPU build in the Dockerfile (--index-url https://download.pytorch.org/whl/cpu)
 # to keep the image small; GPU hosts can install the CUDA build instead.

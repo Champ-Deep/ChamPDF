@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verify PDF Signature | ChamPDF</title>
+    <meta
+      name="description"
+      content="Check a PDF's digital signatures — whether the document is intact since signing, who signed it, when, and if it's timestamped."
+    />
+    <meta name="robots" content="index, follow" />
+    <link
+      rel="canonical"
+      href="https://www.champdf.com/verify-pdf-signature.html"
+    />
+    <link href="/src/css/styles.css" rel="stylesheet" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  </head>
+
+  <body class="antialiased bg-gray-900">
+    {{> navbar }}
+
+    <div
+      id="uploader"
+      class="min-h-screen flex flex-col items-center justify-start py-12 p-4 bg-gray-900"
+    >
+      <div
+        id="tool-uploader"
+        class="bg-gray-800 rounded-xl shadow-xl px-4 py-8 md:p-8 max-w-2xl w-full text-gray-200 border border-gray-700"
+      >
+        <button
+          id="back-to-tools"
+          class="flex items-center gap-2 text-orange-400 hover:text-orange-300 mb-6 font-semibold"
+        >
+          <i data-lucide="arrow-left" class="cursor-pointer"></i>
+          <span class="cursor-pointer">Back to Tools</span>
+        </button>
+
+        <h1 class="text-2xl font-bold text-white mb-2">Verify PDF Signature</h1>
+        <p class="text-gray-400 mb-6">
+          Check a signed PDF: is it intact since signing, who signed it, when,
+          and is it timestamped? Verification runs on our server.
+        </p>
+
+        <div
+          id="needs-setup"
+          class="hidden bg-gray-900 border border-gray-700 rounded-lg p-3 mb-6 text-sm text-gray-400"
+        >
+          <i data-lucide="info" class="inline w-4 h-4 mr-1 align-middle"></i>
+          Signature verification isn't enabled on this server yet.
+        </div>
+
+        <div
+          id="drop-zone"
+          class="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer bg-gray-900 hover:bg-gray-700 transition-colors"
+        >
+          <div class="flex flex-col items-center justify-center pt-5 pb-6">
+            <i
+              data-lucide="file-check-2"
+              class="w-10 h-10 mb-3 text-gray-400"
+            ></i>
+            <p class="mb-2 text-sm text-gray-400">
+              <span class="font-semibold">Click to select a PDF</span> or drag
+              and drop
+            </p>
+            <p class="text-xs text-gray-500">Signed PDF document</p>
+          </div>
+          <input
+            id="file-input"
+            type="file"
+            class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+            accept="application/pdf"
+          />
+        </div>
+
+        <div id="file-display-area" class="mt-4 space-y-2"></div>
+
+        <button
+          id="verify-btn"
+          class="hidden w-full mt-6 bg-orange-600 hover:bg-orange-500 text-white px-6 py-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+        >
+          <i data-lucide="shield-check" class="w-5 h-5"></i>
+          Verify Signatures
+        </button>
+
+        <div id="result" class="hidden mt-6 space-y-3"></div>
+
+        <div id="error-section" class="hidden mt-6">
+          <div
+            class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-sm"
+          >
+            <p class="text-red-300 font-medium mb-1">Verification failed</p>
+            <p id="error-message" class="text-red-400/80"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div
+      id="alert-modal"
+      class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 hidden"
+    >
+      <div
+        class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full border border-gray-700"
+      >
+        <h3 id="alert-title" class="text-xl font-bold text-white mb-2">
+          Alert
+        </h3>
+        <p id="alert-message" class="text-gray-300 mb-6"></p>
+        <button
+          id="alert-ok"
+          class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/js/utils/lucide-init.ts"></script>
+    <script type="module" src="/src/js/utils/full-width.ts"></script>
+    <script type="module" src="/src/version.ts"></script>
+    <script
+      type="module"
+      src="/src/js/logic/verify-pdf-signature-page.ts"
+    ></script>
+    <script type="module" src="/src/js/mobileMenu.ts"></script>
+    <script type="module" src="/src/js/main.ts"></script>
+  </body>
+</html>

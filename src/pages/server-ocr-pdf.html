@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Server OCR PDF (PDF/A) | ChamPDF</title>
+    <meta
+      name="description"
+      content="High-accuracy server-side OCR with OCRmyPDF. Produce a fully searchable, archival PDF/A from scanned documents — auto-deskew and page rotation included."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://www.champdf.com/server-ocr-pdf.html" />
+    <link href="/src/css/styles.css" rel="stylesheet" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  </head>
+
+  <body class="antialiased bg-gray-900">
+    {{> navbar }}
+
+    <div
+      id="uploader"
+      class="min-h-screen flex flex-col items-center justify-start py-12 p-4 bg-gray-900"
+    >
+      <div
+        id="tool-uploader"
+        class="bg-gray-800 rounded-xl shadow-xl px-4 py-8 md:p-8 max-w-2xl w-full text-gray-200 border border-gray-700"
+      >
+        <button
+          id="back-to-tools"
+          class="flex items-center gap-2 text-orange-400 hover:text-orange-300 mb-6 font-semibold"
+        >
+          <i data-lucide="arrow-left" class="cursor-pointer"></i>
+          <span class="cursor-pointer">Back to Tools</span>
+        </button>
+
+        <h1 class="text-2xl font-bold text-white mb-2">Server OCR (PDF/A)</h1>
+        <p class="text-gray-400 mb-6">
+          High-accuracy OCR with auto-deskew and page rotation, producing a
+          fully searchable, archival PDF/A. Best for tricky scans where
+          in-browser OCR struggles.
+        </p>
+
+        <div
+          class="bg-blue-900/30 border border-blue-700 rounded-lg p-3 mb-6 flex items-start gap-3"
+        >
+          <i
+            data-lucide="server"
+            class="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5"
+          ></i>
+          <div class="text-sm">
+            <p class="text-blue-300 font-medium">Server-side processing</p>
+            <p class="text-blue-400/80 mt-1">
+              Your PDF is processed on our server and discarded afterwards. For
+              fully in-browser, private OCR, use the
+              <a href="ocr-pdf.html" class="underline">OCR PDF</a> tool instead.
+            </p>
+          </div>
+        </div>
+
+        <div
+          id="needs-setup"
+          class="hidden bg-gray-900 border border-gray-700 rounded-lg p-3 mb-6 text-sm text-gray-400"
+        >
+          <i data-lucide="info" class="inline w-4 h-4 mr-1 align-middle"></i>
+          Server OCR isn't enabled on this server yet.
+        </div>
+
+        <div
+          id="drop-zone"
+          class="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer bg-gray-900 hover:bg-gray-700 transition-colors"
+        >
+          <div class="flex flex-col items-center justify-center pt-5 pb-6">
+            <i data-lucide="scan-text" class="w-10 h-10 mb-3 text-gray-400"></i>
+            <p class="mb-2 text-sm text-gray-400">
+              <span class="font-semibold">Click to select a PDF</span> or drag
+              and drop
+            </p>
+            <p class="text-xs text-gray-500">Scanned PDF document</p>
+          </div>
+          <input
+            id="file-input"
+            type="file"
+            class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+            accept="application/pdf"
+          />
+        </div>
+
+        <div id="file-display-area" class="mt-4 space-y-2"></div>
+
+        <div id="ocr-options" class="hidden mt-6 space-y-4">
+          <div>
+            <label
+              for="ocr-language"
+              class="block text-sm font-medium text-gray-300 mb-1"
+              >Document language</label
+            >
+            <select
+              id="ocr-language"
+              class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2.5 text-sm"
+            >
+              <option value="eng" selected>English</option>
+              <option value="eng+fra">English + French</option>
+              <option value="fra">French</option>
+              <option value="deu">German</option>
+              <option value="spa">Spanish</option>
+              <option value="ita">Italian</option>
+              <option value="por">Portuguese</option>
+              <option value="nld">Dutch</option>
+              <option value="rus">Russian</option>
+              <option value="ara">Arabic</option>
+              <option value="hin">Hindi</option>
+              <option value="chi_sim">Chinese (Simplified)</option>
+              <option value="chi_tra">Chinese (Traditional)</option>
+              <option value="jpn">Japanese</option>
+              <option value="kor">Korean</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">
+              Pick the language(s) present in the document for best accuracy.
+            </p>
+          </div>
+
+          <label
+            class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              id="ocr-pdfa"
+              class="w-4 h-4 rounded text-orange-600 bg-gray-700 border-gray-600"
+              checked
+            />
+            Output archival PDF/A (uncheck for a standard searchable PDF)
+          </label>
+        </div>
+
+        <button
+          id="ocr-btn"
+          class="hidden w-full mt-6 bg-orange-600 hover:bg-orange-500 text-white px-6 py-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <i data-lucide="scan-text" class="w-5 h-5"></i>
+          Run OCR
+        </button>
+
+        <div
+          id="ocr-progress"
+          class="hidden mt-6 p-4 bg-gray-900 border border-gray-700 rounded-lg text-sm text-gray-300 flex items-center gap-3"
+        >
+          <div class="solid-spinner"></div>
+          <span
+            >Running OCR on the server… this can take a minute for long
+            documents.</span
+          >
+        </div>
+
+        <div id="error-section" class="hidden mt-6">
+          <div
+            class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-sm"
+          >
+            <p class="text-red-300 font-medium mb-1">OCR failed</p>
+            <p id="error-message" class="text-red-400/80"></p>
+          </div>
+        </div>
+
+        <div
+          id="success-section"
+          class="hidden mt-6 bg-gray-900 border border-gray-700 rounded-lg p-4 text-sm text-gray-300"
+        >
+          <i
+            data-lucide="check-circle"
+            class="inline w-4 h-4 mr-1 align-middle text-green-400"
+          ></i>
+          Searchable PDF downloaded.
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div
+      id="alert-modal"
+      class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 hidden"
+    >
+      <div
+        class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full border border-gray-700"
+      >
+        <h3 id="alert-title" class="text-xl font-bold text-white mb-2">
+          Alert
+        </h3>
+        <p id="alert-message" class="text-gray-300 mb-6"></p>
+        <button
+          id="alert-ok"
+          class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+
+    {{> footer }}
+
+    <script type="module" src="/src/js/utils/lucide-init.ts"></script>
+    <script type="module" src="/src/js/utils/full-width.ts"></script>
+    <script type="module" src="/src/js/utils/simple-mode-footer.ts"></script>
+    <script type="module" src="/src/version.ts"></script>
+    <script type="module" src="/src/js/logic/server-ocr-pdf-page.ts"></script>
+    <script type="module" src="/src/js/mobileMenu.ts"></script>
+    <script type="module" src="/src/js/main.ts"></script>
+  </body>
+</html>

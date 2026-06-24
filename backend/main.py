@@ -57,6 +57,8 @@ from gpu_video_remover import gpu_removal_available
 from video_matte import matte_video, matte_available
 from gpu_transcribe import transcribe as gpu_transcribe, gpu_transcribe_available
 from replicate_client import ReplicateError
+from ocr_processor import ocr_pdf, ocr_available, OcrError
+from pdf_signer import sign_pdf, verify_pdf, sign_available, default_tsa_url, SignError
 
 logger = logging.getLogger(__name__)
 
@@ -640,6 +642,9 @@ async def get_capabilities():
         "gpu_video": gpu_removal_available(),
         "video_matte": matte_available(),
         "captions_gpu": gpu_transcribe_available(),
+        "ocr_server": ocr_available(),
+        "pdf_sign_advanced": sign_available(),
+        "pdf_verify": sign_available(),
         "summary_models": SUGGESTED_MODELS,
     }
 
@@ -752,6 +757,96 @@ async def inpaint_with_mask(file: UploadFile = File(...), mask: UploadFile = Fil
         media_type="image/png",
         headers={"Content-Disposition": f"attachment; filename={base}_inpainted.png"},
     )
+
+
+@app.post("/api/ocr-pdf")
+async def ocr_pdf_endpoint(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    language: str = Form("eng"),
+    pdfa: bool = Form(True),
+):
+    """Server-side OCR (OCRmyPDF) → searchable / PDF-A PDF."""
+    if not ocr_available():
+        raise HTTPException(status_code=400, detail="Server OCR is not configured on this server")
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+
+    contents = await file.read()
+    if len(contents) > settings.MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File too large")
+    try:
+        async with process_semaphore:
+            output = await ocr_pdf(contents, language=language, pdfa=pdfa)
+    except OcrError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"OCR error: {e}")
+        raise HTTPException(status_code=500, detail=f"OCR failed: {e}")
+
+    base = (file.filename or "document").rsplit(".", 1)[0]
+    return StreamingResponse(
+        io.BytesIO(output),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{base}_ocr.pdf"'},
+    )
+
+
+@app.post("/api/sign-pdf")
+async def sign_pdf_endpoint(
+    file: UploadFile = File(...),
+    cert: UploadFile = File(...),
+    passphrase: str = Form(""),
+    reason: Optional[str] = Form(None),
+    location: Optional[str] = Form(None),
+    field_name: str = Form("Signature1"),
+    timestamp: bool = Form(True),
+):
+    """Cryptographically sign a PDF (PAdES, optional TSA timestamp) via pyHanko."""
+    if not sign_available():
+        raise HTTPException(status_code=400, detail="PDF signing is not enabled on this server")
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+
+    pdf_bytes = await file.read()
+    p12_bytes = await cert.read()
+    if len(pdf_bytes) > settings.MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File too large")
+
+    tsa = default_tsa_url() if timestamp else None
+    try:
+        async with process_semaphore:
+            output = await sign_pdf(
+                pdf_bytes, p12_bytes, passphrase,
+                field_name=field_name, reason=reason, location=location, tsa_url=tsa,
+            )
+    except SignError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Sign error: {e}")
+        raise HTTPException(status_code=500, detail=f"Signing failed: {e}")
+
+    base = (file.filename or "document").rsplit(".", 1)[0]
+    return StreamingResponse(
+        io.BytesIO(output),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{base}_signed.pdf"'},
+    )
+
+
+@app.post("/api/verify-signature")
+async def verify_signature_endpoint(file: UploadFile = File(...)):
+    """Verify the signatures in a PDF → integrity / signer report (pyHanko)."""
+    if not sign_available():
+        raise HTTPException(status_code=400, detail="Signature verification is not enabled on this server")
+    pdf_bytes = await file.read()
+    try:
+        return await verify_pdf(pdf_bytes)
+    except SignError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Verify error: {e}")
+        raise HTTPException(status_code=500, detail=f"Verification failed: {e}")
 
 
 @app.post("/api/upscale-image")

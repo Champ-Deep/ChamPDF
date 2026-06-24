@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Compliance Sign PDF (PAdES) | ChamPDF</title>
+    <meta
+      name="description"
+      content="Apply a compliance-grade PAdES digital signature with a trusted RFC-3161 timestamp. Server-side signing for long-term, standards-compliant validity."
+    />
+    <meta name="robots" content="index, follow" />
+    <link
+      rel="canonical"
+      href="https://www.champdf.com/compliance-sign-pdf.html"
+    />
+    <link href="/src/css/styles.css" rel="stylesheet" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  </head>
+
+  <body class="antialiased bg-gray-900">
+    {{> navbar }}
+
+    <div
+      id="uploader"
+      class="min-h-screen flex flex-col items-center justify-start py-12 p-4 bg-gray-900"
+    >
+      <div
+        id="tool-uploader"
+        class="bg-gray-800 rounded-xl shadow-xl px-4 py-8 md:p-8 max-w-2xl w-full text-gray-200 border border-gray-700"
+      >
+        <button
+          id="back-to-tools"
+          class="flex items-center gap-2 text-orange-400 hover:text-orange-300 mb-6 font-semibold"
+        >
+          <i data-lucide="arrow-left" class="cursor-pointer"></i>
+          <span class="cursor-pointer">Back to Tools</span>
+        </button>
+
+        <h1 class="text-2xl font-bold text-white mb-2">
+          Compliance Sign (PAdES)
+        </h1>
+        <p class="text-gray-400 mb-6">
+          Apply a standards-compliant PAdES digital signature with an optional
+          trusted RFC-3161 timestamp, for long-term verifiable validity.
+        </p>
+
+        <div
+          class="bg-blue-900/30 border border-blue-700 rounded-lg p-3 mb-6 flex items-start gap-3"
+        >
+          <i
+            data-lucide="server"
+            class="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5"
+          ></i>
+          <div class="text-sm">
+            <p class="text-blue-300 font-medium">Server-side signing</p>
+            <p class="text-blue-400/80 mt-1">
+              Your PDF and certificate are processed on our server to produce a
+              PAdES-compliant signature, then discarded. For fully in-browser
+              signing, use the
+              <a href="digital-sign-pdf.html" class="underline"
+                >Digital Signature</a
+              >
+              tool instead.
+            </p>
+          </div>
+        </div>
+
+        <div
+          id="needs-setup"
+          class="hidden bg-gray-900 border border-gray-700 rounded-lg p-3 mb-6 text-sm text-gray-400"
+        >
+          <i data-lucide="info" class="inline w-4 h-4 mr-1 align-middle"></i>
+          Compliance signing isn't enabled on this server yet.
+        </div>
+
+        <div
+          id="drop-zone"
+          class="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer bg-gray-900 hover:bg-gray-700 transition-colors"
+        >
+          <div class="flex flex-col items-center justify-center pt-5 pb-6">
+            <i
+              data-lucide="file-signature"
+              class="w-10 h-10 mb-3 text-gray-400"
+            ></i>
+            <p class="mb-2 text-sm text-gray-400">
+              <span class="font-semibold">Click to select a PDF</span> or drag
+              and drop
+            </p>
+            <p class="text-xs text-gray-500">PDF document to sign</p>
+          </div>
+          <input
+            id="file-input"
+            type="file"
+            class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+            accept="application/pdf"
+          />
+        </div>
+
+        <div id="file-display-area" class="mt-4 space-y-2"></div>
+
+        <div id="sign-options" class="hidden mt-6 space-y-4">
+          <div>
+            <h2 class="text-sm font-semibold text-gray-300 mb-2">
+              Certificate (PKCS#12)
+            </h2>
+            <div
+              id="cert-drop-zone"
+              class="relative flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer bg-gray-900 hover:bg-gray-700 transition-colors"
+            >
+              <div class="flex flex-col items-center justify-center py-3">
+                <i data-lucide="key" class="w-7 h-7 mb-1 text-gray-400"></i>
+                <p class="text-xs text-gray-400">
+                  Upload certificate (.pfx, .p12)
+                </p>
+              </div>
+              <input
+                id="cert-input"
+                type="file"
+                class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+                accept=".pfx,.p12"
+              />
+            </div>
+            <div id="cert-display-area" class="mt-2 space-y-2"></div>
+          </div>
+
+          <div>
+            <label
+              for="cert-password"
+              class="block text-sm font-medium text-gray-300 mb-1"
+              >Certificate Password</label
+            >
+            <input
+              type="password"
+              id="cert-password"
+              class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Enter PKCS#12 password"
+            />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label
+                for="sign-reason"
+                class="block text-sm font-medium text-gray-300 mb-1"
+                >Reason (optional)</label
+              >
+              <input
+                type="text"
+                id="sign-reason"
+                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="e.g., I approve this document"
+              />
+            </div>
+            <div>
+              <label
+                for="sign-location"
+                class="block text-sm font-medium text-gray-300 mb-1"
+                >Location (optional)</label
+              >
+              <input
+                type="text"
+                id="sign-location"
+                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="e.g., London, UK"
+              />
+            </div>
+          </div>
+
+          <label
+            class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              id="sign-timestamp"
+              class="w-4 h-4 rounded text-orange-600 bg-gray-700 border-gray-600"
+              checked
+            />
+            Add trusted RFC-3161 timestamp (PAdES B-T)
+          </label>
+        </div>
+
+        <button
+          id="sign-btn"
+          class="hidden w-full mt-6 bg-orange-600 hover:bg-orange-500 text-white px-6 py-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <i data-lucide="file-signature" class="w-5 h-5"></i>
+          Sign PDF
+        </button>
+
+        <div id="error-section" class="hidden mt-6">
+          <div
+            class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-sm"
+          >
+            <p class="text-red-300 font-medium mb-1">Signing failed</p>
+            <p id="error-message" class="text-red-400/80"></p>
+          </div>
+        </div>
+
+        <div
+          id="success-section"
+          class="hidden mt-6 bg-gray-900 border border-gray-700 rounded-lg p-4 text-sm text-gray-300"
+        >
+          <i
+            data-lucide="check-circle"
+            class="inline w-4 h-4 mr-1 align-middle text-green-400"
+          ></i>
+          PDF signed and downloaded. Verify it with the
+          <a href="verify-pdf-signature.html" class="text-orange-400 underline"
+            >Verify Signature</a
+          >
+          tool.
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div
+      id="alert-modal"
+      class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 hidden"
+    >
+      <div
+        class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full border border-gray-700"
+      >
+        <h3 id="alert-title" class="text-xl font-bold text-white mb-2">
+          Alert
+        </h3>
+        <p id="alert-message" class="text-gray-300 mb-6"></p>
+        <button
+          id="alert-ok"
+          class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+
+    {{> footer }}
+
+    <script type="module" src="/src/js/utils/lucide-init.ts"></script>
+    <script type="module" src="/src/js/utils/full-width.ts"></script>
+    <script type="module" src="/src/js/utils/simple-mode-footer.ts"></script>
+    <script type="module" src="/src/version.ts"></script>
+    <script
+      type="module"
+      src="/src/js/logic/compliance-sign-pdf-page.ts"
+    ></script>
+    <script type="module" src="/src/js/mobileMenu.ts"></script>
+    <script type="module" src="/src/js/main.ts"></script>
+  </body>
+</html>

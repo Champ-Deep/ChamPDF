@@ -78,6 +78,14 @@ export const categories: Category[] = [
         pillar: 'documents',
       },
       {
+        href: B + 'server-ocr-pdf.html',
+        name: 'Server OCR (PDF/A)',
+        icon: 'ph-scan',
+        subtitle: 'High-accuracy server OCR with archival PDF/A output.',
+        pillar: 'documents',
+        keywords: ['ocrmypdf', 'pdfa', 'archival', 'deskew', 'searchable'],
+      },
+      {
         href: B + 'compare-pdfs.html',
         name: 'Compare PDFs',
         icon: 'ph-git-diff',
@@ -833,6 +841,22 @@ export const categories: Category[] = [
         icon: 'ph-seal-check',
         subtitle: 'Verify digital signatures on a PDF.',
         pillar: 'documents',
+      },
+      {
+        href: B + 'compliance-sign-pdf.html',
+        name: 'Compliance Sign (PAdES)',
+        icon: 'ph-certificate',
+        subtitle: 'PAdES signature with a trusted RFC-3161 timestamp.',
+        pillar: 'documents',
+        keywords: ['pades', 'pyhanko', 'timestamp', 'tsa', 'long-term', 'ltv'],
+      },
+      {
+        href: B + 'verify-pdf-signature.html',
+        name: 'Verify Signature (Server)',
+        icon: 'ph-shield-check',
+        subtitle: 'Compliance-grade PAdES verification on the server.',
+        pillar: 'documents',
+        keywords: ['pades', 'pyhanko', 'integrity', 'timestamp', 'trust'],
       },
       {
         href: B + 'encrypt-pdf.html',

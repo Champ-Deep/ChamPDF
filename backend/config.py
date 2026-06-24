@@ -86,6 +86,11 @@ class Settings(BaseSettings):
     # Reject offloading clips longer than this (cost guard). 0 = no cap.
     GPU_VIDEO_MAX_SECONDS: int = 120
 
+    # Compliance PDF signing (pyHanko). Needs the user's .p12/.pfx at sign time.
+    ENABLE_PDF_SIGN: bool = True
+    # Trusted timestamp authority for PAdES B-T (RFC 3161). Empty = no timestamp.
+    PDF_TSA_URL: str = "http://timestamp.digicert.com"
+
     # Paths - Use system temp by default for better cross-platform support
     BASE_TEMP_DIR: Path = Path(tempfile.gettempdir()) / "champdf-backend"
 
