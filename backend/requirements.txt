@@ -31,7 +31,9 @@ faster-whisper==1.0.3
 
 # ─── Media upscaling (Real-ESRGAN) ───────────────────────────────────────────
 # ai-forever fork: simple .load_weights(download=True) / .predict() API.
-realesrgan-aiforever @ git+https://github.com/ai-forever/Real-ESRGAN.git
+# NOTE: the fork's setup.py declares its name as `realesrgan`; pip enforces that
+# the name left of `@` matches package metadata, so this MUST stay `realesrgan`.
+realesrgan @ git+https://github.com/ai-forever/Real-ESRGAN.git
 huggingface_hub>=0.20.0
 
 # ─── PDF signing + server OCR (optional) ─────────────────────────────────────
