@@ -136,8 +136,11 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
 # Run with configurable workers (default 2 for Railway)
+# Bind :: (dual-stack) so Railway's IPv6-only private network can reach this
+# service via <name>.railway.internal. 0.0.0.0 is IPv4-only and unreachable
+# over Railway internal DNS, which makes the frontend /api proxy hang.
 CMD uvicorn main:app \
-    --host 0.0.0.0 \
+    --host :: \
     --port ${PORT:-8000} \
     --workers ${WEB_CONCURRENCY:-2} \
     --log-level ${LOG_LEVEL:-info} \

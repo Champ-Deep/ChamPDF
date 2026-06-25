@@ -3,8 +3,13 @@ FROM python:3.11-slim
 # Install system dependencies
 # - ffmpeg: video processing / audio extraction
 # - git: required to pip-install the Real-ESRGAN (ai-forever) package from GitHub
+# - tesseract-ocr + ghostscript: required by ocrmypdf for the server OCR / PDF-A
+#   feature. Without these, /api/ocr-pdf reports unavailable.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg curl git && \
+    apt-get install -y --no-install-recommends \
+        ffmpeg curl git \
+        tesseract-ocr tesseract-ocr-fra tesseract-ocr-deu tesseract-ocr-spa \
+        ghostscript && \
     rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -39,4 +44,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Bind to :: (dual-stack) so Railway's IPv6-only private network can reach the
+# service via <name>.railway.internal. --host 0.0.0.0 is IPv4-only and is NOT
+# reachable over Railway internal DNS, which makes the frontend /api proxy hang.
+CMD ["uvicorn", "main:app", "--host", "::", "--port", "8000"]
