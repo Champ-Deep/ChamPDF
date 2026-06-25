@@ -4,6 +4,9 @@ uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 aiofiles==23.2.1
 pydantic-settings>=2.0.0
+# Verifies Clerk session JWTs for self-serve API keys (optional, env-gated).
+# The [crypto] extra pulls in `cryptography` for RS256/JWKS verification.
+PyJWT[crypto]>=2.8.0
 
 # ─── Image pipeline ──────────────────────────────────────────────────────────
 pillow==10.2.0

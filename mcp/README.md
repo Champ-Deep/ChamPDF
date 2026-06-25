@@ -18,8 +18,10 @@ What you get:
 
 You need:
 
-1. A ChamPDF API key — formatted `champdf_live_<32 hex>`. Get one from
-   the ChamPDF backend admin endpoint (`POST /api/v1/admin/keys`).
+1. A ChamPDF API key — formatted `champdf_live_<32 hex>`. Sign in at
+   champdf.com and open the account menu → **API** to generate one
+   (self-serve), or mint one server-side via the admin endpoint
+   (`POST /api/v1/admin/keys`).
 2. A ChamPDF backend URL. Defaults to `https://api.champdf.com`; set
    `CHAMPDF_API_BASE_URL` to point at a self-hosted instance.
 
@@ -77,10 +79,10 @@ Example agent prompt: _"Remove the watermark from `/Users/alex/Downloads/noteboo
 
 ## Environment variables
 
-| Var                     | Required | Default                       | Purpose                                              |
-| ----------------------- | -------- | ----------------------------- | ---------------------------------------------------- |
-| `CHAMPDF_API_KEY`       | yes      | —                             | Your `champdf_live_...` key.                         |
-| `CHAMPDF_API_BASE_URL`  | no       | `https://api.champdf.com`     | Override when self-hosting the ChamPDF backend.      |
+| Var                    | Required | Default                   | Purpose                                         |
+| ---------------------- | -------- | ------------------------- | ----------------------------------------------- |
+| `CHAMPDF_API_KEY`      | yes      | —                         | Your `champdf_live_...` key.                    |
+| `CHAMPDF_API_BASE_URL` | no       | `https://api.champdf.com` | Override when self-hosting the ChamPDF backend. |
 
 ## Smoke test
 
@@ -117,11 +119,11 @@ Deploy it once and point clients at the URL.
 The repo's `railway.toml` defines a third service `champdf-mcp` that builds
 from `mcp/Dockerfile.railway`. Set:
 
-| Env var                   | Required | Notes                                                                |
-| ------------------------- | -------- | -------------------------------------------------------------------- |
-| `CHAMPDF_API_KEY`         | yes      | A v1 API key the MCP server uses to call the backend.                |
-| `CHAMPDF_API_BASE_URL`    | yes      | Internal backend URL, e.g. `http://champdf-backend.railway.internal`. |
-| `CHAMPDF_MCP_AUTH_TOKEN`  | rec.     | Bearer token clients must pass. If unset, the URL is open to anyone. |
+| Env var                  | Required | Notes                                                                 |
+| ------------------------ | -------- | --------------------------------------------------------------------- |
+| `CHAMPDF_API_KEY`        | yes      | A v1 API key the MCP server uses to call the backend.                 |
+| `CHAMPDF_API_BASE_URL`   | yes      | Internal backend URL, e.g. `http://champdf-backend.railway.internal`. |
+| `CHAMPDF_MCP_AUTH_TOKEN` | rec.     | Bearer token clients must pass. If unset, the URL is open to anyone.  |
 
 Healthcheck path is `/healthz`. The MCP endpoint is `POST /mcp`.
 

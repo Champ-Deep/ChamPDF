@@ -37,7 +37,11 @@ from inpaint_processor import (
     edit_image_with_prompt,
     inpaint_image,
 )
-from api_v1 import init_db as init_v1_db, router as api_v1_router
+from api_v1 import (
+    init_db as init_v1_db,
+    router as api_v1_router,
+    self_serve_keys_available,
+)
 
 # Self-hosted AI engine (our branch): LaMa inpainting, OpenCV template watermark
 # detection, faster-whisper captions, Real-ESRGAN upscaling. These run locally and
@@ -645,6 +649,7 @@ async def get_capabilities():
         "ocr_server": ocr_available(),
         "pdf_sign_advanced": sign_available(),
         "pdf_verify": sign_available(),
+        "api_self_serve_keys": self_serve_keys_available(),
         "summary_models": SUGGESTED_MODELS,
     }
 

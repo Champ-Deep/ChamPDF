@@ -99,6 +99,15 @@ def init_db() -> None:
             )
             """
         )
+        # Migration: bind keys to a Clerk user for self-serve issuance. Guarded
+        # so existing databases upgrade in place without a separate migration.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(api_keys)")}
+        if "clerk_user_id" not in cols:
+            conn.execute("ALTER TABLE api_keys ADD COLUMN clerk_user_id TEXT")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_api_keys_clerk_user "
+            "ON api_keys(clerk_user_id)"
+        )
         conn.commit()
 
 
@@ -110,8 +119,16 @@ def _current_month_bucket() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
-def create_key(label: str, monthly_quota: int = DEFAULT_MONTHLY_QUOTA) -> Dict[str, Any]:
-    """Issue a new API key. Returns the raw key (only shown once) + metadata."""
+def create_key(
+    label: str,
+    monthly_quota: int = DEFAULT_MONTHLY_QUOTA,
+    clerk_user_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Issue a new API key. Returns the raw key (only shown once) + metadata.
+
+    clerk_user_id binds the key to a signed-in Clerk user (self-serve flow);
+    None for admin-issued keys.
+    """
     raw = API_KEY_PREFIX + secrets.token_hex(KEY_RANDOM_BYTES)
     hashed = _hash_key(raw)
     now = datetime.now(timezone.utc).isoformat()
@@ -119,10 +136,11 @@ def create_key(label: str, monthly_quota: int = DEFAULT_MONTHLY_QUOTA) -> Dict[s
         cur = conn.execute(
             """
             INSERT INTO api_keys
-                (key_hash, label, monthly_quota, month_bucket, requests_used, created_at)
-            VALUES (?, ?, ?, ?, 0, ?)
+                (key_hash, label, monthly_quota, month_bucket, requests_used,
+                 created_at, clerk_user_id)
+            VALUES (?, ?, ?, ?, 0, ?, ?)
             """,
-            (hashed, label, monthly_quota, _current_month_bucket(), now),
+            (hashed, label, monthly_quota, _current_month_bucket(), now, clerk_user_id),
         )
         conn.commit()
         key_id = cur.lastrowid
@@ -133,6 +151,21 @@ def create_key(label: str, monthly_quota: int = DEFAULT_MONTHLY_QUOTA) -> Dict[s
         "monthly_quota": monthly_quota,
         "created_at": now,
     }
+
+
+def get_active_key_for_clerk_user(clerk_user_id: str) -> Optional[Dict[str, Any]]:
+    """Return the user's current (non-revoked) key record, or None."""
+    with sqlite3.connect(_db_path()) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            """
+            SELECT * FROM api_keys
+            WHERE clerk_user_id = ? AND disabled_at IS NULL
+            ORDER BY id DESC LIMIT 1
+            """,
+            (clerk_user_id,),
+        ).fetchone()
+        return dict(row) if row else None
 
 
 def get_key_by_hash(hashed: str) -> Optional[Dict[str, Any]]:
@@ -281,6 +314,57 @@ def _require_admin(x_admin_token: Optional[str] = Header(None)) -> None:
         raise HTTPException(status_code=401, detail="Invalid admin token")
 
 
+def self_serve_keys_available() -> bool:
+    """True iff signed-in users can mint their own keys (Clerk configured)."""
+    from clerk_auth import clerk_configured
+
+    return clerk_configured()
+
+
+async def require_clerk_user(
+    authorization: Optional[str] = Header(None),
+) -> Dict[str, Any]:
+    """
+    Authenticate the caller via their Clerk session JWT (Authorization: Bearer
+    <clerk_token>) and enforce the optional email-domain allowlist. Returns
+    {"sub": <clerk_user_id>, "email": <str|None>, "claims": {...}}.
+
+    Distinct from require_api_key: this gate is for the browser self-serve key
+    UI, not for calling tool endpoints.
+    """
+    from clerk_auth import (
+        ClerkAuthError,
+        check_domain_allowed,
+        clerk_configured,
+        resolve_email,
+        verify_clerk_token,
+    )
+
+    if not clerk_configured():
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Self-serve API keys are not enabled on this server "
+                "(CLERK_ISSUER not set)."
+            ),
+        )
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Authorization: Bearer <clerk_session_token> header",
+        )
+    token = authorization[7:].strip()
+    try:
+        claims = verify_clerk_token(token)
+        check_domain_allowed(claims)
+    except ClerkAuthError as e:
+        # 403 for the domain gate (authenticated but not permitted), 401 otherwise.
+        status = 403 if "not permitted" in str(e) or "restricted" in str(e) else 401
+        raise HTTPException(status_code=status, detail=str(e))
+
+    return {"sub": claims["sub"], "email": resolve_email(claims), "claims": claims}
+
+
 # --------------------------------------------------------------------------
 # Routes
 # --------------------------------------------------------------------------
@@ -341,6 +425,109 @@ def revoke_key_endpoint(key_id: int) -> Dict[str, Any]:
     if not revoke_key(key_id):
         raise HTTPException(status_code=404, detail="Key not found or already revoked")
     return {"id": key_id, "revoked": True}
+
+
+# --------------------------------------------------------------------------
+# Self-serve keys — a signed-in Clerk user manages their own API key.
+# Authenticated by the Clerk session JWT (not the admin token). Dormant until
+# CLERK_ISSUER is configured; see clerk_auth.py.
+# --------------------------------------------------------------------------
+
+
+class SelfKeyStatus(BaseModel):
+    has_key: bool
+    label: Optional[str] = None
+    monthly_quota: Optional[int] = None
+    requests_used: Optional[int] = None
+    created_at: Optional[str] = None
+    last_used_at: Optional[str] = None
+    email: Optional[str] = None
+
+
+class SelfKeyCreated(BaseModel):
+    key: str = Field(description="Full API key — shown only once, store it now.")
+    label: str
+    monthly_quota: int
+    created_at: str
+
+
+def _self_key_label(user: Dict[str, Any]) -> str:
+    """Human-friendly label for a self-serve key (email if known, else user id)."""
+    email = user.get("email")
+    if email:
+        return email
+    return f"clerk:{user['sub'][:16]}"
+
+
+@router.get(
+    "/keys/me",
+    response_model=SelfKeyStatus,
+    summary="Get the signed-in user's API key status",
+)
+async def get_my_key(user: Dict[str, Any] = Depends(require_clerk_user)) -> Dict[str, Any]:
+    """Return metadata about the user's active key. Never returns the raw key
+    (it's hashed at rest — only shown once at creation/rotation)."""
+    rec = get_active_key_for_clerk_user(user["sub"])
+    if not rec:
+        return {"has_key": False, "email": user.get("email")}
+    used = rec["requests_used"] if rec["month_bucket"] == _current_month_bucket() else 0
+    return {
+        "has_key": True,
+        "label": rec["label"],
+        "monthly_quota": rec["monthly_quota"],
+        "requests_used": used,
+        "created_at": rec["created_at"],
+        "last_used_at": rec["last_used_at"],
+        "email": user.get("email"),
+    }
+
+
+@router.post(
+    "/keys/me",
+    response_model=SelfKeyCreated,
+    summary="Create the signed-in user's API key",
+)
+async def create_my_key(user: Dict[str, Any] = Depends(require_clerk_user)) -> Dict[str, Any]:
+    """Mint a key for the user. 409 if one already exists (use rotate)."""
+    if get_active_key_for_clerk_user(user["sub"]):
+        raise HTTPException(
+            status_code=409,
+            detail="You already have an active API key. Rotate it to get a new one.",
+        )
+    return create_key(
+        label=_self_key_label(user),
+        monthly_quota=DEFAULT_MONTHLY_QUOTA,
+        clerk_user_id=user["sub"],
+    )
+
+
+@router.post(
+    "/keys/me/rotate",
+    response_model=SelfKeyCreated,
+    summary="Rotate (revoke + reissue) the signed-in user's API key",
+)
+async def rotate_my_key(user: Dict[str, Any] = Depends(require_clerk_user)) -> Dict[str, Any]:
+    """Revoke the existing key (if any) and issue a fresh one."""
+    existing = get_active_key_for_clerk_user(user["sub"])
+    if existing:
+        revoke_key(existing["id"])
+    return create_key(
+        label=_self_key_label(user),
+        monthly_quota=DEFAULT_MONTHLY_QUOTA,
+        clerk_user_id=user["sub"],
+    )
+
+
+@router.delete(
+    "/keys/me",
+    summary="Revoke the signed-in user's API key",
+)
+async def delete_my_key(user: Dict[str, Any] = Depends(require_clerk_user)) -> Dict[str, Any]:
+    existing = get_active_key_for_clerk_user(user["sub"])
+    if not existing:
+        raise HTTPException(status_code=404, detail="No active API key to revoke")
+    revoke_key(existing["id"])
+    return {"revoked": True}
 
 
 # --------------------------------------------------------------------------

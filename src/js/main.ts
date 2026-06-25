@@ -457,6 +457,10 @@ const init = async () => {
   // legacy in-app auth modal. Either way accounts stay optional (guest-first).
   if (clerkEnabled()) {
     void initClerkAuth();
+    // Self-serve API-key panel (opened from the navbar "API" pill).
+    void import('./components/api-access-panel.js').then((m) =>
+      m.initApiAccessPanel()
+    );
   } else {
     initAuthModal();
     onProfileChange((profile) => {
