@@ -23,7 +23,13 @@ replicate>=0.32.0             # Optional — GPU video watermark removal (hosted
 # ─── Self-hosted AI watermark / object removal (LaMa inpainting) ─────────────
 # https://github.com/enesmsahin/simple-lama-inpainting (LaMa, WACV 2022)
 # Pulls in torch; first run downloads the LaMa model (~200MB) to the torch cache.
-simple-lama-inpainting==0.1.2
+#
+# NOTE: simple-lama-inpainting==0.1.2 caps `pillow<10.0.0`, which is mutually
+# exclusive with ocrmypdf>=16 (`pillow>=10.0.1`) — pip cannot resolve both, so
+# the build fails with ResolutionImpossible. The cap is over-conservative (LaMa
+# runs fine on Pillow 10), so it is installed with `--no-deps` in the Dockerfile
+# instead of here. Its only dependency not already pinned above is `fire`.
+fire>=0.5.0,<0.6.0           # simple-lama-inpainting dep (it is installed --no-deps)
 
 # ─── Video captions (faster-whisper, CTranslate2 backend) ────────────────────
 # https://github.com/SYSTRAN/faster-whisper  — no torch dependency.

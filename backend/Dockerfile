@@ -16,7 +16,8 @@ COPY requirements.txt .
 # pulled in by simple-lama-inpainting / Real-ESRGAN. GPU hosts can override this
 # with the CUDA index URL.
 RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir --no-deps simple-lama-inpainting==0.1.2
 
 # Pre-download rembg model (~176MB) to speed up first run
 # This is optional but recommended for production
