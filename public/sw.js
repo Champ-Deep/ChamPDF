@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'champdf-v8';
+const CACHE_VERSION = 'champdf-v9';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {
@@ -50,9 +50,11 @@ self.addEventListener('install', (event) => {
         return cacheInBatches(cache, CRITICAL_ASSETS, 5);
       })
       .then(() => {
-        // console.log('✅ [ServiceWorker] All critical assets cached successfully!');
-        // console.log('⏭️  [ServiceWorker] Skipping waiting, activating immediately...');
-        return self.skipWaiting();
+        // Intentionally do NOT skipWaiting here. A freshly installed worker
+        // stays in "waiting" until the user accepts the update (postMessage
+        // SKIP_WAITING via the reload prompt) or every tab closes. Auto-
+        // activating mid-session forced a reload that flashed the old skin
+        // then the new one ("switching between design languages").
       })
       .catch((error) => {
         console.error('[ServiceWorker] Cache installation failed:', error);
