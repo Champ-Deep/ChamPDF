@@ -28,6 +28,15 @@ RUN npm config set fetch-retries 5 && \
 # Copy source files
 COPY . .
 
+# Vite inlines import.meta.env.VITE_* at BUILD time, so these must be present as
+# build args (Railway passes matching service variables in automatically).
+# Without VITE_CLERK_PUBLISHABLE_KEY here, clerkEnabled() is false and the app
+# falls back to the legacy email sign-in modal instead of Clerk.
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build production bundle
 # Uses VITE_USE_CDN=true and builds with docs
 RUN npm run build:production

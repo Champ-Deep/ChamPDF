@@ -29,6 +29,11 @@ ENV VITE_API_URL=$VITE_API_URL
 ARG VITE_USE_CDN=true
 ENV VITE_USE_CDN=$VITE_USE_CDN
 
+# Clerk publishable key must be inlined at build time (Vite). Without it the app
+# falls back to the legacy sign-in modal instead of Clerk.
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+
 # global arg to local arg
 ARG BASE_URL
 ENV BASE_URL=$BASE_URL
