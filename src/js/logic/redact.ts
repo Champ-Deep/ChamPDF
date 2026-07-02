@@ -1,6 +1,6 @@
 import { showLoader, hideLoader, showAlert } from '../ui.js';
 import { downloadFile } from '../utils/helpers.js';
-import { PyMuPDF } from '@bentopdf/pymupdf-wasm';
+import { PyMuPDF } from '../utils/mupdf-engine.js';
 import { getWasmBaseUrl } from '../config/wasm-cdn-config.js';
 
 /**
