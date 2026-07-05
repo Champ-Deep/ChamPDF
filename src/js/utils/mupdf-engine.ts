@@ -9,16 +9,15 @@
  * redaction fidelity is identical while load + reliability improve massively.
  *
  * This module mirrors the subset of the old `PyMuPDF` API the tools use, so a
- * tool migrates by only changing its import. mupdf is lazy-imported: the ~10MB
- * wasm is fetched the first time a tool actually calls load()/open(), never at
- * page load.
+ * tool migrates by only changing its import. mupdf (and pdf-lib, used to
+ * assemble image/text PDFs) are lazy-imported: the wasm is fetched the first
+ * time a tool actually runs, never at page load.
  *
  * Table detection (findTables) is intentionally NOT here — MuPDF core has no
  * table finder (it was a PyMuPDF Python-layer feature). Those tools call the
  * backend /api/extract-tables (server-side PyMuPDF) instead.
  */
 
-// mupdf ships ESM with top-level await; import() it lazily.
 type Mupdf = typeof import('mupdf');
 let _mupdf: Mupdf | null = null;
 let _loading: Promise<Mupdf> | null = null;
@@ -45,27 +44,58 @@ export interface SaveOptions {
   deflate?: boolean;
   clean?: boolean;
 }
+export interface ExtractedImage {
+  data: Uint8Array;
+  ext: string;
+}
 
-function toBytes(
+async function toBytes(
   src: Blob | ArrayBuffer | Uint8Array
-): Promise<Uint8Array> | Uint8Array {
+): Promise<Uint8Array> {
   if (src instanceof Uint8Array) return src;
   if (src instanceof ArrayBuffer) return new Uint8Array(src);
-  return src.arrayBuffer().then((b) => new Uint8Array(b));
+  return new Uint8Array(await src.arrayBuffer());
 }
 
 function saveOptsToString(o?: SaveOptions): string {
-  const parts: string[] = [];
-  parts.push(`garbage=${o?.garbage ?? 3}`);
+  const parts = [`garbage=${o?.garbage ?? 3}`];
   if (o?.deflate !== false) parts.push('compress=yes');
   if (o?.clean) parts.push('sanitize=yes');
   return parts.join(',');
 }
 
+/** Render every page of an opened mupdf document to a fresh image-only PDF. */
+async function renderDocToImagePdf(
+  m: Mupdf,
+  doc: any,
+  dpi: number
+): Promise<Uint8Array> {
+  const { PDFDocument } = await import('pdf-lib');
+  const out = await PDFDocument.create();
+  const scale = dpi / 72;
+  const n = doc.countPages();
+  for (let i = 0; i < n; i++) {
+    const page = doc.loadPage(i);
+    const pix = page.toPixmap(
+      m.Matrix.scale(scale, scale),
+      m.ColorSpace.DeviceRGB,
+      false
+    );
+    const png = pix.asPNG();
+    pix.destroy?.();
+    page.destroy?.();
+    const img = await out.embedPng(png);
+    const p = out.addPage([img.width, img.height]);
+    p.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+  }
+  return out.save();
+}
+
 class MuPage {
+  private _imageCache: ExtractedImage[] | null = null;
+
   constructor(
     private m: Mupdf,
-    /** underlying mupdf PDFPage */
     public readonly _page: any
   ) {}
 
@@ -85,7 +115,6 @@ class MuPage {
       this._page.setRotation(angle);
   }
 
-  /** text | json — matches the formats the tools request. */
   getText(format: 'text' | 'json' = 'text'): string {
     const st = this._page.toStructuredText('preserve-whitespace');
     try {
@@ -106,16 +135,30 @@ class MuPage {
     return buf.asString();
   }
 
-  /** Render at `scale` (1 = 72dpi) to PNG bytes. */
-  toPNG(scale = 2): Uint8Array {
-    const pix = this._page.toPixmap(
-      this.m.Matrix.scale(scale, scale),
-      this.m.ColorSpace.DeviceRGB,
-      false
-    );
-    const png = pix.asPNG();
-    pix.destroy?.();
-    return png;
+  /** Embedded images on the page, extracted as PNG. */
+  getImages(): { xref: number }[] {
+    if (!this._imageCache) {
+      const cache: ExtractedImage[] = [];
+      const st = this._page.toStructuredText('preserve-images');
+      st.walk({
+        onImageBlock: (_bbox: any, _transform: any, image: any) => {
+          try {
+            const pix = image.toPixmap();
+            cache.push({ data: pix.asPNG(), ext: 'png' });
+            pix.destroy?.();
+          } catch {
+            /* skip undecodable image */
+          }
+        },
+      });
+      st.destroy?.();
+      this._imageCache = cache;
+    }
+    return this._imageCache.map((_, i) => ({ xref: i }));
+  }
+
+  extractImage(xref: number): ExtractedImage | null {
+    return this._imageCache?.[xref] ?? null;
   }
 
   addRedaction(rect: Rect, _text?: string, _fill?: Color): void {
@@ -132,10 +175,12 @@ class MuPage {
 class MuDocument {
   constructor(
     private m: Mupdf,
-    /** underlying mupdf PDFDocument */
     public readonly _doc: any
   ) {}
 
+  get pageCount(): number {
+    return this._doc.countPages();
+  }
   getPageCount(): number {
     return this._doc.countPages();
   }
@@ -145,8 +190,7 @@ class MuDocument {
   }
 
   save(options?: SaveOptions): Uint8Array {
-    const buf = this._doc.saveToBuffer(saveOptsToString(options));
-    return buf.asUint8Array();
+    return this._doc.saveToBuffer(saveOptsToString(options)).asUint8Array();
   }
 
   close(): void {
@@ -159,9 +203,9 @@ class MuDocument {
 }
 
 export class PyMuPDF {
-  // baseUrl is accepted for API compatibility but unused: mupdf.js locates its
+  // Options are accepted for API compatibility but unused: mupdf.js locates its
   // own wasm through the bundler, so there is no manual asset path to get wrong.
-  constructor(_baseUrl?: string) {}
+  constructor(_opts?: unknown) {}
 
   async load(): Promise<void> {
     await loadMupdf();
@@ -170,8 +214,10 @@ export class PyMuPDF {
   /** Open a PDF for reading/editing. */
   async open(src: Blob | ArrayBuffer | Uint8Array): Promise<MuDocument> {
     const m = await loadMupdf();
-    const bytes = await toBytes(src);
-    const doc = m.PDFDocument.openDocument(bytes, 'application/pdf');
+    const doc = m.PDFDocument.openDocument(
+      await toBytes(src),
+      'application/pdf'
+    );
     return new MuDocument(m, doc);
   }
 
@@ -180,9 +226,31 @@ export class PyMuPDF {
     const doc = await this.open(file);
     try {
       const out: string[] = [];
-      const n = doc.getPageCount();
-      for (let i = 0; i < n; i++) out.push(doc.getPage(i).getText('text'));
+      for (let i = 0; i < doc.getPageCount(); i++)
+        out.push(doc.getPage(i).getText('text'));
       return out.join('\n');
+    } finally {
+      doc.close();
+    }
+  }
+
+  /**
+   * Basic Markdown extraction. MuPDF core has no rich markdown exporter
+   * (PyMuPDF's was a Python add-on), so this emits paragraph-separated text —
+   * good enough for LLM ingestion; layout-heavy tables are best via the backend.
+   */
+  async pdfToMarkdown(
+    file: Blob,
+    _opts?: { includeImages?: boolean }
+  ): Promise<string> {
+    const doc = await this.open(file);
+    try {
+      const parts: string[] = [];
+      for (let i = 0; i < doc.getPageCount(); i++) {
+        parts.push(`<!-- page ${i + 1} -->`);
+        parts.push(doc.getPage(i).getText('text').trim());
+      }
+      return parts.join('\n\n');
     } finally {
       doc.close();
     }
@@ -198,19 +266,28 @@ export class PyMuPDF {
     }
   }
 
-  /**
-   * Open ANY MuPDF-supported format (epub, xps, cbz, fb2, mobi, svg, images…)
-   * and write it out as a PDF. `filename` drives format auto-detection.
-   */
-  async convertToPdf(src: Blob & { name?: string }): Promise<Uint8Array> {
+  /** Rasterize a PDF: render each page to an image and rebuild as an image PDF. */
+  async rasterizePdf(file: Blob, opts?: { dpi?: number }): Promise<Blob> {
     const m = await loadMupdf();
-    const bytes = await toBytes(src);
-    const magic = (src as any).name || 'document';
-    const doc = m.Document.openDocument(bytes, magic);
+    const doc = m.Document.openDocument(await toBytes(file), 'application/pdf');
+    const bytes = await renderDocToImagePdf(m, doc, opts?.dpi ?? 150);
+    return new Blob([bytes as BlobPart], { type: 'application/pdf' });
+  }
+
+  /**
+   * Open ANY MuPDF-supported format (epub, xps, cbz, fb2, mobi, svg…) and write
+   * it out as a PDF. `filetype`/filename drives format auto-detection.
+   */
+  async convertToPdf(
+    src: Blob & { name?: string },
+    opts?: { filetype?: string }
+  ): Promise<Blob> {
+    const m = await loadMupdf();
+    const magic = opts?.filetype || (src as any).name || 'document';
+    const doc = m.Document.openDocument(await toBytes(src), magic);
     const buf = new m.Buffer();
     const writer = new m.DocumentWriter(buf, 'pdf', '');
-    const n = doc.countPages();
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < doc.countPages(); i++) {
       const page = doc.loadPage(i);
       const dev = writer.beginPage(page.getBounds());
       page.run(dev, m.Matrix.identity);
@@ -219,7 +296,79 @@ export class PyMuPDF {
       page.destroy?.();
     }
     writer.close();
-    return buf.asUint8Array();
+    return new Blob([buf.asUint8Array() as BlobPart], {
+      type: 'application/pdf',
+    });
+  }
+
+  /**
+   * Build a PDF from one or more images (png/jpg/webp/psd/gif/bmp/tiff…). Each
+   * image is decoded by MuPDF, rendered, and placed on its own page.
+   */
+  async imagesToPdf(files: (Blob & { name?: string })[]): Promise<Blob> {
+    const m = await loadMupdf();
+    const { PDFDocument } = await import('pdf-lib');
+    const out = await PDFDocument.create();
+    for (const f of files) {
+      const magic = (f as any).name || 'image.png';
+      const doc = m.Document.openDocument(await toBytes(f), magic);
+      const page = doc.loadPage(0);
+      const pix = page.toPixmap(
+        m.Matrix.identity,
+        m.ColorSpace.DeviceRGB,
+        false
+      );
+      const png = pix.asPNG();
+      pix.destroy?.();
+      const img = await out.embedPng(png);
+      const p = out.addPage([img.width, img.height]);
+      p.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+    }
+    return new Blob([(await out.save()) as BlobPart], {
+      type: 'application/pdf',
+    });
+  }
+
+  /** Single-image variant of imagesToPdf. */
+  async imageToPdf(
+    file: Blob & { name?: string },
+    _opts?: { imageType?: string }
+  ): Promise<Blob> {
+    return this.imagesToPdf([file]);
+  }
+
+  /** Lay plain text out into a simple multi-page PDF. */
+  async textToPdf(text: string, opts?: { fontSize?: number }): Promise<Blob> {
+    const { PDFDocument, StandardFonts } = await import('pdf-lib');
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Courier);
+    const size = opts?.fontSize ?? 11;
+    const margin = 48;
+    const [pw, ph] = [595, 842]; // A4 pt
+    const maxChars = Math.floor((pw - margin * 2) / (size * 0.6));
+    const lineH = size * 1.4;
+    const wrapped: string[] = [];
+    for (const raw of text.split(/\r?\n/)) {
+      if (raw.length <= maxChars) {
+        wrapped.push(raw);
+        continue;
+      }
+      for (let i = 0; i < raw.length; i += maxChars)
+        wrapped.push(raw.slice(i, i + maxChars));
+    }
+    let page = doc.addPage([pw, ph]);
+    let y = ph - margin;
+    for (const line of wrapped) {
+      if (y < margin) {
+        page = doc.addPage([pw, ph]);
+        y = ph - margin;
+      }
+      page.drawText(line, { x: margin, y, size, font });
+      y -= lineH;
+    }
+    return new Blob([(await doc.save()) as BlobPart], {
+      type: 'application/pdf',
+    });
   }
 }
 
