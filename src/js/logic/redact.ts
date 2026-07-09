@@ -1,7 +1,6 @@
 import { showLoader, hideLoader, showAlert } from '../ui.js';
 import { downloadFile } from '../utils/helpers.js';
 import { PyMuPDF } from '../utils/mupdf-engine.js';
-import { getWasmBaseUrl } from '../config/wasm-cdn-config.js';
 
 /**
  * True redaction — removes the underlying text/images inside each rectangle,
@@ -22,7 +21,7 @@ let pymupdf: PyMuPDF | null = null;
 
 async function ensurePyMuPDF(): Promise<PyMuPDF> {
   if (!pymupdf) {
-    pymupdf = new PyMuPDF(getWasmBaseUrl('pymupdf'));
+    pymupdf = new PyMuPDF();
     await pymupdf.load();
   }
   return pymupdf;

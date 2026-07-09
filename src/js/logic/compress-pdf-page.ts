@@ -8,8 +8,7 @@ import {
 import { state } from '../state.js';
 import { createIcons, icons } from 'lucide';
 import { PDFDocument } from 'pdf-lib';
-import { PyMuPDF } from '@bentopdf/pymupdf-wasm';
-import { getWasmBaseUrl } from '../config/wasm-cdn-config.js';
+import { PyMuPDF } from '../utils/mupdf-engine.js';
 import * as pdfjsLib from 'pdfjs-dist';
 import { initDropZoneAnimation } from '../animations/tool-page-animations.js';
 
@@ -61,7 +60,7 @@ async function performCondenseCompression(
     removeThumbnails?: boolean;
   }
 ) {
-  const pymupdf = new PyMuPDF(getWasmBaseUrl('pymupdf'));
+  const pymupdf = new PyMuPDF();
   await pymupdf.load();
 
   const preset =
@@ -121,7 +120,9 @@ async function performCondenseCompression(
       return { ...result, usedFallback: true };
     }
 
-    throw new Error(`PDF compression failed: ${errorMessage}`);
+    throw new Error(`PDF compression failed: ${errorMessage}`, {
+      cause: error,
+    });
   }
 }
 

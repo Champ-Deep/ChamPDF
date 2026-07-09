@@ -1,4 +1,4 @@
-import { PyMuPDF } from '@bentopdf/pymupdf-wasm';
+import { PyMuPDF } from '../utils/mupdf-engine.js';
 import { createIcons, icons } from 'lucide';
 import { downloadFile } from '../utils/helpers';
 
@@ -14,9 +14,7 @@ let pymupdf: PyMuPDF | null = null;
 
 function initPyMuPDF(): PyMuPDF {
   if (!pymupdf) {
-    pymupdf = new PyMuPDF({
-      assetPath: import.meta.env.BASE_URL + 'pymupdf-wasm/',
-    });
+    pymupdf = new PyMuPDF();
   }
   return pymupdf;
 }

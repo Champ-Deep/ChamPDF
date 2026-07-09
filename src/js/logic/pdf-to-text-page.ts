@@ -2,7 +2,6 @@ import { createIcons, icons } from 'lucide';
 import { showAlert, showLoader, hideLoader } from '../ui.js';
 import { downloadFile, formatBytes } from '../utils/helpers.js';
 import { PyMuPDF } from '../utils/mupdf-engine.js';
-import { getWasmBaseUrl } from '../config/wasm-cdn-config.js';
 
 let files: File[] = [];
 let pymupdf: PyMuPDF | null = null;
@@ -158,7 +157,7 @@ function updateUI() {
 
 async function ensurePyMuPDF(): Promise<PyMuPDF> {
   if (!pymupdf) {
-    pymupdf = new PyMuPDF(getWasmBaseUrl('pymupdf'));
+    pymupdf = new PyMuPDF();
     await pymupdf.load();
   }
   return pymupdf;

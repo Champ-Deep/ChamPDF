@@ -257,10 +257,23 @@ export class PyMuPDF {
   }
 
   /** Recompress / garbage-collect a PDF to shrink it. */
-  async compressPdf(file: Blob): Promise<Uint8Array> {
+  async compressPdf(
+    file: Blob,
+    opts?: {
+      save?: { garbage?: number; deflate?: boolean; clean?: boolean };
+    }
+  ): Promise<{ blob: Blob; compressedSize: number }> {
     const doc = await this.open(file);
     try {
-      return doc.save({ garbage: 4, deflate: true, clean: true });
+      const bytes = doc.save({
+        garbage: opts?.save?.garbage ?? 4,
+        deflate: opts?.save?.deflate ?? true,
+        clean: opts?.save?.clean ?? true,
+      });
+      return {
+        blob: new Blob([bytes as BlobPart], { type: 'application/pdf' }),
+        compressedSize: bytes.length,
+      };
     } finally {
       doc.close();
     }
@@ -338,14 +351,54 @@ export class PyMuPDF {
   }
 
   /** Lay plain text out into a simple multi-page PDF. */
-  async textToPdf(text: string, opts?: { fontSize?: number }): Promise<Blob> {
-    const { PDFDocument, StandardFonts } = await import('pdf-lib');
+  async textToPdf(
+    text: string,
+    opts?: {
+      fontSize?: number;
+      pageSize?: 'a4' | 'letter' | 'legal' | 'a3' | 'a5';
+      fontName?: 'helv' | 'tiro' | 'cour' | 'times';
+      textColor?: { r: number; g: number; b: number } | string;
+      margins?: number;
+    }
+  ): Promise<Blob> {
+    const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
     const doc = await PDFDocument.create();
-    const font = await doc.embedFont(StandardFonts.Courier);
+
+    const FONTS: Record<
+      string,
+      (typeof StandardFonts)[keyof typeof StandardFonts]
+    > = {
+      helv: StandardFonts.Helvetica,
+      tiro: StandardFonts.TimesRoman,
+      times: StandardFonts.TimesRoman,
+      cour: StandardFonts.Courier,
+    };
+    const font = await doc.embedFont(
+      FONTS[opts?.fontName ?? 'cour'] ?? StandardFonts.Courier
+    );
+
+    const PAGE_SIZES: Record<string, [number, number]> = {
+      a4: [595, 842],
+      letter: [612, 792],
+      legal: [612, 1008],
+      a3: [842, 1191],
+      a5: [420, 595],
+    };
+    const [pw, ph] = PAGE_SIZES[opts?.pageSize ?? 'a4'] ?? PAGE_SIZES.a4;
+
     const size = opts?.fontSize ?? 11;
-    const margin = 48;
-    const [pw, ph] = [595, 842]; // A4 pt
-    const maxChars = Math.floor((pw - margin * 2) / (size * 0.6));
+    const margin = opts?.margins ?? 48;
+    const color =
+      typeof opts?.textColor === 'object' && opts.textColor
+        ? rgb(
+            opts.textColor.r / 255,
+            opts.textColor.g / 255,
+            opts.textColor.b / 255
+          )
+        : rgb(0, 0, 0);
+
+    const avgCharWidth = font.widthOfTextAtSize('M', size);
+    const maxChars = Math.max(1, Math.floor((pw - margin * 2) / avgCharWidth));
     const lineH = size * 1.4;
     const wrapped: string[] = [];
     for (const raw of text.split(/\r?\n/)) {
@@ -356,6 +409,7 @@ export class PyMuPDF {
       for (let i = 0; i < raw.length; i += maxChars)
         wrapped.push(raw.slice(i, i + maxChars));
     }
+
     let page = doc.addPage([pw, ph]);
     let y = ph - margin;
     for (const line of wrapped) {
@@ -363,13 +417,164 @@ export class PyMuPDF {
         page = doc.addPage([pw, ph]);
         y = ph - margin;
       }
-      page.drawText(line, { x: margin, y, size, font });
+      page.drawText(line, { x: margin, y, size, font, color });
       y -= lineH;
     }
     return new Blob([(await doc.save()) as BlobPart], {
       type: 'application/pdf',
     });
   }
+
+  /**
+   * Detect and correct page skew via a projection-profile heuristic: render
+   * each candidate rotation angle's horizontal-row darkness variance and pick
+   * the angle that maximizes it (text lines align into sharp dark bands when
+   * deskewed). Coarse pass (1deg steps) then fine pass (0.1deg) around the
+   * best candidate.
+   */
+  async deskewPdf(
+    file: Blob,
+    opts?: { threshold?: number; dpi?: number; maxAngle?: number }
+  ): Promise<{ pdf: Blob; result: DeskewResult }> {
+    const m = await loadMupdf();
+    const srcDoc = await this.open(file);
+    // openDocument's overloads type this as the base Document; it's actually
+    // a PDFDocument for a PDF input (matches every other _doc/_page use of
+    // `any` in this file for the same reason — the .d.ts doesn't narrow it).
+    const outDoc: any = m.PDFDocument.openDocument(
+      await toBytes(file),
+      'application/pdf'
+    );
+    const threshold = opts?.threshold ?? 0.5;
+    const dpi = Math.min(opts?.dpi ?? 150, 150); // cap: skew detection doesn't need high-res
+    const maxAngle = opts?.maxAngle ?? 5;
+
+    const angles: number[] = [];
+    const corrected: boolean[] = [];
+    let correctedPages = 0;
+    const n = srcDoc.getPageCount();
+
+    for (let i = 0; i < n; i++) {
+      // angle = the correction rotation applied to straighten the page
+      // (e.g. a page baked with +7deg skew detects/reports as -7deg here).
+      const angle = detectSkewAngle(m, srcDoc.getPage(i)._page, dpi, maxAngle);
+      angles.push(angle);
+      const shouldCorrect = Math.abs(angle) >= threshold;
+      corrected.push(shouldCorrect);
+      if (shouldCorrect) {
+        correctedPages++;
+        rotatePageContent(m, outDoc, i, angle);
+      }
+    }
+
+    const bytes = outDoc.saveToBuffer(saveOptsToString({})).asUint8Array();
+    srcDoc.close();
+    return {
+      pdf: new Blob([bytes as BlobPart], { type: 'application/pdf' }),
+      result: { totalPages: n, correctedPages, angles, corrected },
+    };
+  }
+}
+
+export interface DeskewResult {
+  totalPages: number;
+  correctedPages: number;
+  angles: number[];
+  corrected: boolean[];
+}
+
+/** Row-darkness-variance projection profile: sharpest at the true deskew angle. */
+function rowVariance(
+  m: Mupdf,
+  page: any,
+  dpi: number,
+  angleDeg: number
+): number {
+  const scale = dpi / 72;
+  const rot = m.Matrix.rotate(angleDeg);
+  const mat = m.Matrix.concat(m.Matrix.scale(scale, scale), rot);
+  const pix = page.toPixmap(mat, m.ColorSpace.DeviceGray, false);
+  const w = pix.getWidth();
+  const h = pix.getHeight();
+  const stride = pix.getStride();
+  const px = pix.getPixels();
+  const rowSums = new Float64Array(h);
+  for (let y = 0; y < h; y++) {
+    let sum = 0;
+    const base = y * stride;
+    for (let x = 0; x < w; x++) sum += 255 - px[base + x];
+    rowSums[y] = sum;
+  }
+  pix.destroy?.();
+  let mean = 0;
+  for (let y = 0; y < h; y++) mean += rowSums[y];
+  mean /= h;
+  let variance = 0;
+  for (let y = 0; y < h; y++) variance += (rowSums[y] - mean) ** 2;
+  return variance / h;
+}
+
+function detectSkewAngle(
+  m: Mupdf,
+  page: any,
+  dpi: number,
+  maxAngle: number
+): number {
+  let best = 0;
+  let bestScore = -Infinity;
+  for (let a = -maxAngle; a <= maxAngle; a += 1) {
+    const score = rowVariance(m, page, dpi, a);
+    if (score > bestScore) {
+      bestScore = score;
+      best = a;
+    }
+  }
+  let fineBest = best;
+  let fineScore = bestScore;
+  for (let a = best - 0.9; a <= best + 0.9; a += 0.1) {
+    const score = rowVariance(m, page, dpi, a);
+    if (score > fineScore) {
+      fineScore = score;
+      fineBest = a;
+    }
+  }
+  return Math.round(fineBest * 10) / 10;
+}
+
+/** Rewrite page `index` of `outDoc` in place, rotated by `-angleDeg` to correct skew. */
+function rotatePageContent(
+  m: Mupdf,
+  outDoc: any,
+  index: number,
+  angleDeg: number
+): void {
+  const page = outDoc.loadPage(index);
+  const bounds = page.getBounds();
+  const w = bounds[2] - bounds[0];
+  const h = bounds[3] - bounds[1];
+  const buf = new m.Buffer();
+  const writer = new m.DocumentWriter(buf, 'pdf', '');
+  // `angleDeg` is the same rotation that maximized row-variance during
+  // detection (detectSkewAngle), i.e. the CTM rotation that renders the page
+  // straight — so the correction applies it directly, not negated.
+  const toOrigin = m.Matrix.translate(-w / 2, -h / 2);
+  const rotate = m.Matrix.rotate(angleDeg);
+  const back = m.Matrix.translate(w / 2, h / 2);
+  const mat = m.Matrix.concat(m.Matrix.concat(toOrigin, rotate), back);
+  const dev = writer.beginPage(bounds);
+  page.run(dev, mat);
+  writer.endPage();
+  writer.close();
+  dev.destroy?.();
+  // PDFDocument has no insertPdf; graft the rewritten page from a throwaway
+  // PDFDocument (DocumentWriter only emits Document, not PDFDocument) into
+  // outDoc at `index`, replacing the original.
+  const rotated = m.PDFDocument.openDocument(
+    buf.asUint8Array(),
+    'application/pdf'
+  );
+  outDoc.deletePage(index);
+  outDoc.graftPage(index, rotated, 0);
 }
 
 export type { MuDocument, MuPage };

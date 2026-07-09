@@ -63,6 +63,7 @@ from gpu_transcribe import transcribe as gpu_transcribe, gpu_transcribe_availabl
 from replicate_client import ReplicateError
 from ocr_processor import ocr_pdf, ocr_available, OcrError
 from pdf_signer import sign_pdf, verify_pdf, sign_available, default_tsa_url, SignError
+from table_extractor import extract_tables, table_extraction_available, TableExtractionError
 
 logger = logging.getLogger(__name__)
 
@@ -649,6 +650,7 @@ async def get_capabilities():
         "ocr_server": ocr_available(),
         "pdf_sign_advanced": sign_available(),
         "pdf_verify": sign_available(),
+        "table_extraction": table_extraction_available(),
         "api_self_serve_keys": self_serve_keys_available(),
         "summary_models": SUGGESTED_MODELS,
     }
@@ -1150,6 +1152,30 @@ async def video_insights(
             status_code=500,
             content={"code": "failed", "message": str(e)[:200] or "Processing failed."},
         )
+
+
+@app.post("/api/extract-tables")
+async def extract_tables_endpoint(file: UploadFile = File(...)):
+    """Find tables in a PDF (PyMuPDF find_tables — no client-side equivalent
+    in mupdf.js). Powers extract-tables, pdf-to-csv, pdf-to-excel."""
+    if not table_extraction_available():
+        raise HTTPException(status_code=400, detail="Server table extraction is not configured on this server")
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+
+    contents = await file.read()
+    if len(contents) > settings.MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File too large")
+    try:
+        async with process_semaphore:
+            tables = await extract_tables(contents)
+    except TableExtractionError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Table extraction error: {e}")
+        raise HTTPException(status_code=500, detail=f"Table extraction failed: {e}")
+
+    return {"tables": tables}
 
 
 if __name__ == "__main__":

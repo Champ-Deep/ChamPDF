@@ -263,26 +263,6 @@ export default defineConfig(() => {
 
   const staticCopyTargets = [
     {
-      src: 'node_modules/@bentopdf/pymupdf-wasm/assets/*.wasm',
-      dest: 'pymupdf-wasm',
-    },
-    {
-      src: 'node_modules/@bentopdf/pymupdf-wasm/assets/*.js',
-      dest: 'pymupdf-wasm',
-    },
-    {
-      src: 'node_modules/@bentopdf/pymupdf-wasm/assets/*.whl',
-      dest: 'pymupdf-wasm',
-    },
-    {
-      src: 'node_modules/@bentopdf/pymupdf-wasm/assets/*.zip',
-      dest: 'pymupdf-wasm',
-    },
-    {
-      src: 'node_modules/@bentopdf/pymupdf-wasm/assets/*.json',
-      dest: 'pymupdf-wasm',
-    },
-    {
       src: 'node_modules/@bentopdf/gs-wasm/assets/*.wasm',
       dest: 'ghostscript-wasm',
     },

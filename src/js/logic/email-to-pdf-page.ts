@@ -3,8 +3,7 @@ import { downloadFile, formatBytes } from '../utils/helpers.js';
 import { state } from '../state.js';
 import { createIcons, icons } from 'lucide';
 import { parseEmailFile, renderEmailToHtml } from './email-to-pdf.js';
-import { PyMuPDF } from '@bentopdf/pymupdf-wasm';
-import { getWasmBaseUrl } from '../config/wasm-cdn-config.js';
+import { PyMuPDF } from '../utils/mupdf-engine.js';
 
 const EXTENSIONS = ['.eml', '.msg'];
 const TOOL_NAME = 'Email';
@@ -109,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const includeAttachments = includeAttachmentsCheckbox?.checked ?? true;
 
       showLoader('Loading PDF engine...');
-      const pymupdf = new PyMuPDF(getWasmBaseUrl('pymupdf'));
+      const pymupdf = new PyMuPDF();
       await pymupdf.load();
 
       if (state.files.length === 1) {
