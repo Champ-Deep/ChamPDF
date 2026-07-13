@@ -87,12 +87,13 @@ document.addEventListener('DOMContentLoaded', () => {
         closeDropdown(menu, btn, 120)
       );
 
+      // Always open (not toggle) on click. A real mouse click fires
+      // `mouseenter` on the wrapper first (opening the menu via hover), then
+      // the `click` event — toggling would immediately close what hover just
+      // opened, making the dropdown appear broken/unclickable. Closing is
+      // handled by mouseleave, click-outside, and Escape below.
       btn.addEventListener('click', () => {
-        if (menu.classList.contains('open')) {
-          closeDropdown(menu, btn);
-        } else {
-          openDropdown(menu, btn);
-        }
+        openDropdown(menu, btn);
       });
 
       btn.addEventListener('keydown', (e) => {
