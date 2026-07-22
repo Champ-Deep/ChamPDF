@@ -20,7 +20,7 @@ The frontend already knows how to talk to a remote backend via one env var
    **Public Repository** (or the GitHub app if you've connected the
    `Champ-Deep` org).
 2. Repository: `https://github.com/Champ-Deep/ChamPDF`, branch: **`v2`**
-   (or the working branch `claude/v2-salesforce-api-962swb` until it's merged).
+   (the enterprise document API is merged in — this is the branch to deploy).
 3. **Build Pack: Dockerfile.**
    - Dockerfile location: `backend/Dockerfile.railway`
    - Build context: `/` (repo root — the Dockerfile copies `backend/...` and
@@ -37,18 +37,18 @@ all issued API keys.
 
 Set these in the app's Environment tab:
 
-| Variable                | Value                                                     | Required?               |
-| ----------------------- | --------------------------------------------------------- | ----------------------- |
-| `CHAMPDF_ADMIN_TOKEN`   | a long random secret (`openssl rand -hex 32`)             | **Yes** — enables key issuance |
-| `ALLOWED_ORIGINS`       | `https://<your-app>.vercel.app,https://champpdf.com`      | **Yes** — CORS for the frontend |
-| `PORT`                  | `8000`                                                    | Recommended             |
-| `WEB_CONCURRENCY`       | `2`                                                       | Optional (uvicorn workers) |
-| `GEMINI_API_KEY`        | your Gemini key                                           | Optional — AI image edit/inpaint/detect |
-| `REPLICATE_API_TOKEN`   | your Replicate token                                      | Optional — GPU video offload |
-| `OPENROUTER_API_KEY`    | your OpenRouter key                                       | Optional — video summaries |
-| `CLERK_ISSUER`          | your Clerk Frontend API URL                               | Optional — self-serve API keys |
-| `CHAMPDF_API_KEY_EMAIL_DOMAINS` | `championsmail.com`                               | Optional — lock key minting to your team |
-| `PDF_TSA_URL`           | (default `http://timestamp.digicert.com`)                 | Optional — signing timestamps |
+| Variable                        | Value                                                | Required?                                |
+| ------------------------------- | ---------------------------------------------------- | ---------------------------------------- |
+| `CHAMPDF_ADMIN_TOKEN`           | a long random secret (`openssl rand -hex 32`)        | **Yes** — enables key issuance           |
+| `ALLOWED_ORIGINS`               | `https://<your-app>.vercel.app,https://champpdf.com` | **Yes** — CORS for the frontend          |
+| `PORT`                          | `8000`                                               | Recommended                              |
+| `WEB_CONCURRENCY`               | `2`                                                  | Optional (uvicorn workers)               |
+| `GEMINI_API_KEY`                | your Gemini key                                      | Optional — AI image edit/inpaint/detect  |
+| `REPLICATE_API_TOKEN`           | your Replicate token                                 | Optional — GPU video offload             |
+| `OPENROUTER_API_KEY`            | your OpenRouter key                                  | Optional — video summaries               |
+| `CLERK_ISSUER`                  | your Clerk Frontend API URL                          | Optional — self-serve API keys           |
+| `CHAMPDF_API_KEY_EMAIL_DOMAINS` | `championsmail.com`                                  | Optional — lock key minting to your team |
+| `PDF_TSA_URL`                   | (default `http://timestamp.digicert.com`)            | Optional — signing timestamps            |
 
 Everything optional degrades cleanly: unset ⇒ that feature reports
 unavailable via `/api/v1/capabilities`, everything else works.
@@ -130,7 +130,7 @@ Salesforce talks to the **backend only**, server-to-server (no CORS):
    `monthly_quota`.
 2. In Salesforce Setup, create a **Named Credential** pointing at
    `https://<your-backend-domain>` with an `Authorization: Bearer
-   champdf_live_...` header (or add the domain to Remote Site Settings).
+champdf_live_...` header (or add the domain to Remote Site Settings).
 3. Call the document endpoints from Apex/Flow: `convert/to-pdf`,
    `pdf/merge`, `pdf/sign`, `pdf/watermark`, `pdf/to-text`,
    `pdf/extract-tables`, ... Full endpoint table + a working Apex multipart
@@ -144,11 +144,11 @@ teams — Salesforce Named Credentials shouldn't chase changing hosts.
 
 ## Troubleshooting
 
-| Symptom                                   | Fix                                                                        |
-| ----------------------------------------- | -------------------------------------------------------------------------- |
-| Frontend tool says backend unreachable    | `VITE_API_URL` wrong/missing at build time (it's baked in — rebuild), or the browser console shows a CORS error ⇒ add the frontend origin to `ALLOWED_ORIGINS` and restart the backend. |
-| API keys disappear after redeploy         | The `/app/data` volume isn't mounted.                                      |
-| `/api/v1/admin/keys` returns 503          | `CHAMPDF_ADMIN_TOKEN` not set on the backend.                              |
-| `convert/to-pdf` returns 503              | Image built from an old Dockerfile without LibreOffice — redeploy from `v2`. |
-| Build OOMs on Vercel                      | Set `NODE_OPTIONS=--max-old-space-size=4096`.                              |
-| Backend container OOMs                    | Give it ≥2GB RAM or set `WEB_CONCURRENCY=1`.                               |
+| Symptom                                | Fix                                                                                                                                                                                     |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend tool says backend unreachable | `VITE_API_URL` wrong/missing at build time (it's baked in — rebuild), or the browser console shows a CORS error ⇒ add the frontend origin to `ALLOWED_ORIGINS` and restart the backend. |
+| API keys disappear after redeploy      | The `/app/data` volume isn't mounted.                                                                                                                                                   |
+| `/api/v1/admin/keys` returns 503       | `CHAMPDF_ADMIN_TOKEN` not set on the backend.                                                                                                                                           |
+| `convert/to-pdf` returns 503           | Image built from an old Dockerfile without LibreOffice — redeploy from `v2`.                                                                                                            |
+| Build OOMs on Vercel                   | Set `NODE_OPTIONS=--max-old-space-size=4096`.                                                                                                                                           |
+| Backend container OOMs                 | Give it ≥2GB RAM or set `WEB_CONCURRENCY=1`.                                                                                                                                            |
