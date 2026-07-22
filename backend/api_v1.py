@@ -965,6 +965,473 @@ async def v1_video_remove_logo(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# --------------------------------------------------------------------------
+# Document endpoints — the enterprise surface (Salesforce & co).
+# Merge / split / compress / rotate / watermark / rasterize / text, plus
+# compliance signing (pyHanko), OCR (OCRmyPDF), table extraction, and
+# Office ↔ PDF conversion (LibreOffice / pdf2docx).
+# --------------------------------------------------------------------------
+
+MAX_PDF_BYTES = 50 * 1024 * 1024
+MAX_OFFICE_BYTES = 50 * 1024 * 1024
+
+
+def _meter(key: Dict[str, Any], endpoint: str, started: float, status: int = 200) -> None:
+    _record_request(
+        key_id=key["id"],
+        endpoint=endpoint,
+        status=status,
+        latency_ms=int((time.monotonic() - started) * 1000),
+    )
+
+
+def _stream_pdf(data: bytes, filename: str = "output.pdf") -> StreamingResponse:
+    return StreamingResponse(
+        io.BytesIO(data),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+async def _read_pdf_upload(file: UploadFile, max_bytes: int = MAX_PDF_BYTES) -> bytes:
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="file is required")
+    if len(data) > max_bytes:
+        raise HTTPException(
+            status_code=413, detail=f"File too large ({max_bytes // (1024 * 1024)}MB max)"
+        )
+    return data
+
+
+@router.get(
+    "/capabilities",
+    summary="Which optional features are enabled on this server",
+)
+async def v1_capabilities(key: Dict[str, Any] = Depends(require_api_key)) -> Dict[str, Any]:
+    from doc_converter import office_to_pdf_available, pdf_to_docx_available
+    from ocr_processor import ocr_available
+    from pdf_signer import sign_available
+    from table_extractor import table_extraction_available
+
+    return {
+        "pdf_core": True,  # merge/split/compress/rotate/watermark/images/text
+        "pdf_sign": sign_available(),
+        "pdf_ocr": ocr_available(),
+        "pdf_tables": table_extraction_available(),
+        "office_to_pdf": office_to_pdf_available(),
+        "pdf_to_docx": pdf_to_docx_available(),
+        "gemini_image_tools": bool(os.environ.get("GEMINI_API_KEY")),
+    }
+
+
+@router.post("/pdf/merge", summary="Merge multiple PDFs into one")
+async def v1_pdf_merge(
+    files: list[UploadFile] = File(..., description="Two or more PDFs, in merge order"),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_ops import PdfOpsError, merge_pdfs
+
+    started = time.monotonic()
+    pdfs = [await _read_pdf_upload(f) for f in files]
+    try:
+        out = await merge_pdfs(pdfs)
+    except PdfOpsError as e:
+        _meter(key, "pdf/merge", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/merge", started)
+    return _stream_pdf(out, "merged.pdf")
+
+
+@router.post(
+    "/pdf/split",
+    summary="Extract a page range into a new PDF",
+    description=(
+        "Keeps only the pages in `pages` (1-based spec like '1-3,7,9-'; "
+        "order is preserved, so this also reorders). Use /pdf/delete-pages "
+        "for the inverse."
+    ),
+)
+async def v1_pdf_split(
+    file: UploadFile = File(...),
+    pages: str = Form(..., description="Page spec, e.g. '1-3,7' or '2-'"),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_ops import PdfOpsError, extract_pages
+
+    started = time.monotonic()
+    data = await _read_pdf_upload(file)
+    try:
+        out = await extract_pages(data, pages)
+    except PdfOpsError as e:
+        _meter(key, "pdf/split", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/split", started)
+    return _stream_pdf(out, "split.pdf")
+
+
+@router.post("/pdf/delete-pages", summary="Delete pages from a PDF")
+async def v1_pdf_delete_pages(
+    file: UploadFile = File(...),
+    pages: str = Form(..., description="Pages to remove, e.g. '2,5-6'"),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_ops import PdfOpsError, delete_pages
+
+    started = time.monotonic()
+    data = await _read_pdf_upload(file)
+    try:
+        out = await delete_pages(data, pages)
+    except PdfOpsError as e:
+        _meter(key, "pdf/delete-pages", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/delete-pages", started)
+    return _stream_pdf(out, "pages-deleted.pdf")
+
+
+@router.post("/pdf/rotate", summary="Rotate pages")
+async def v1_pdf_rotate(
+    file: UploadFile = File(...),
+    angle: int = Form(..., description="90, 180, or 270 (clockwise)"),
+    pages: str = Form("all", description="Page spec, default all"),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_ops import PdfOpsError, rotate_pages
+
+    started = time.monotonic()
+    data = await _read_pdf_upload(file)
+    try:
+        out = await rotate_pages(data, angle, pages)
+    except PdfOpsError as e:
+        _meter(key, "pdf/rotate", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/rotate", started)
+    return _stream_pdf(out, "rotated.pdf")
+
+
+@router.post(
+    "/pdf/compress",
+    summary="Compress a PDF",
+    description="Structural clean-up plus embedded-image downsampling. Never returns a file larger than the input.",
+)
+async def v1_pdf_compress(
+    file: UploadFile = File(...),
+    image_dpi: int = Form(150, ge=50, le=300, description="Target DPI for embedded images"),
+    image_quality: int = Form(70, ge=10, le=95, description="JPEG quality for recompressed images"),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_ops import PdfOpsError, compress_pdf
+
+    started = time.monotonic()
+    data = await _read_pdf_upload(file)
+    try:
+        out = await compress_pdf(data, image_dpi=image_dpi, image_quality=image_quality)
+    except PdfOpsError as e:
+        _meter(key, "pdf/compress", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/compress", started)
+    return _stream_pdf(out, "compressed.pdf")
+
+
+@router.post("/pdf/watermark", summary="Stamp a text watermark on pages")
+async def v1_pdf_watermark(
+    file: UploadFile = File(...),
+    text: str = Form(..., min_length=1, max_length=200),
+    opacity: float = Form(0.15, ge=0.02, le=1.0),
+    font_size: int = Form(48, ge=8, le=144),
+    color: str = Form("888888", description="6-digit hex, no '#'"),
+    angle: int = Form(45, ge=-90, le=90),
+    pages: str = Form("all"),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_ops import PdfOpsError, add_watermark
+
+    started = time.monotonic()
+    data = await _read_pdf_upload(file)
+    try:
+        out = await add_watermark(
+            data, text, opacity=opacity, font_size=font_size,
+            color=color, angle=angle, spec=pages,
+        )
+    except PdfOpsError as e:
+        _meter(key, "pdf/watermark", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/watermark", started)
+    return _stream_pdf(out, "watermarked.pdf")
+
+
+@router.post("/pdf/info", summary="Inspect a PDF (page count, metadata, size)")
+async def v1_pdf_info(
+    file: UploadFile = File(...),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_ops import PdfOpsError, pdf_info
+
+    started = time.monotonic()
+    data = await _read_pdf_upload(file)
+    try:
+        info = await pdf_info(data)
+    except PdfOpsError as e:
+        _meter(key, "pdf/info", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/info", started)
+    return info
+
+
+@router.post("/pdf/to-text", summary="Extract text per page (JSON)")
+async def v1_pdf_to_text(
+    file: UploadFile = File(...),
+    pages: str = Form("all"),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_ops import PdfOpsError, pdf_to_text
+
+    started = time.monotonic()
+    data = await _read_pdf_upload(file)
+    try:
+        result = await pdf_to_text(data, pages)
+    except PdfOpsError as e:
+        _meter(key, "pdf/to-text", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/to-text", started)
+    return {"pages": result}
+
+
+@router.post(
+    "/pdf/to-images",
+    summary="Rasterize pages to PNG/JPEG (returns a ZIP)",
+)
+async def v1_pdf_to_images(
+    file: UploadFile = File(...),
+    pages: str = Form("all"),
+    dpi: int = Form(150, ge=30, le=600),
+    format: str = Form("png", pattern="^(png|jpeg)$"),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_ops import PdfOpsError, pdf_to_images
+
+    started = time.monotonic()
+    data = await _read_pdf_upload(file)
+    try:
+        zip_bytes, n = await pdf_to_images(data, spec=pages, dpi=dpi, fmt=format)
+    except PdfOpsError as e:
+        _meter(key, "pdf/to-images", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/to-images", started)
+    return StreamingResponse(
+        io.BytesIO(zip_bytes),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": 'attachment; filename="pages.zip"',
+            "X-Page-Count": str(n),
+        },
+    )
+
+
+@router.post("/pdf/from-images", summary="Combine images into a PDF")
+async def v1_pdf_from_images(
+    files: list[UploadFile] = File(..., description="PNG/JPEG/WebP images, in page order"),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_ops import PdfOpsError, images_to_pdf
+
+    started = time.monotonic()
+    images = []
+    for f in files:
+        data = await f.read()
+        if not data:
+            raise HTTPException(status_code=400, detail="Empty image upload")
+        if len(data) > 20 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Image too large (20MB max)")
+        images.append(data)
+    try:
+        out = await images_to_pdf(images)
+    except PdfOpsError as e:
+        _meter(key, "pdf/from-images", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/from-images", started)
+    return _stream_pdf(out, "images.pdf")
+
+
+@router.post(
+    "/pdf/sign",
+    summary="Digitally sign a PDF (PAdES via pyHanko)",
+    description=(
+        "Compliance-grade digital signature. Provide the PDF and the signer's "
+        ".p12/.pfx certificate + password. `timestamp=true` adds a trusted "
+        "timestamp (PAdES B-T) from the configured TSA."
+    ),
+)
+async def v1_pdf_sign(
+    file: UploadFile = File(..., description="PDF to sign"),
+    cert: UploadFile = File(..., description="Signer certificate (.p12/.pfx)"),
+    passphrase: str = Form("", description="Certificate password"),
+    reason: Optional[str] = Form(None, max_length=200),
+    location: Optional[str] = Form(None, max_length=200),
+    field_name: str = Form("Signature1", max_length=100),
+    timestamp: bool = Form(True),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_signer import SignError, default_tsa_url, sign_available, sign_pdf
+
+    started = time.monotonic()
+    if not sign_available():
+        raise HTTPException(status_code=503, detail="PDF signing is not enabled on this server")
+    pdf_bytes = await _read_pdf_upload(file)
+    p12_bytes = await cert.read()
+    if not p12_bytes:
+        raise HTTPException(status_code=400, detail="cert is required")
+
+    tsa = default_tsa_url() if timestamp else None
+    try:
+        out = await sign_pdf(
+            pdf_bytes, p12_bytes, passphrase,
+            field_name=field_name, reason=reason, location=location, tsa_url=tsa,
+        )
+    except SignError as e:
+        _meter(key, "pdf/sign", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/sign", started)
+    return _stream_pdf(out, "signed.pdf")
+
+
+@router.post(
+    "/pdf/verify-signature",
+    summary="Verify digital signatures in a PDF (JSON report)",
+)
+async def v1_pdf_verify(
+    file: UploadFile = File(...),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from pdf_signer import SignError, sign_available, verify_pdf
+
+    started = time.monotonic()
+    if not sign_available():
+        raise HTTPException(
+            status_code=503, detail="Signature verification is not enabled on this server"
+        )
+    pdf_bytes = await _read_pdf_upload(file)
+    try:
+        report = await verify_pdf(pdf_bytes)
+    except SignError as e:
+        _meter(key, "pdf/verify-signature", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/verify-signature", started)
+    return report
+
+
+@router.post(
+    "/pdf/ocr",
+    summary="OCR a scanned PDF → searchable PDF / PDF-A (OCRmyPDF)",
+)
+async def v1_pdf_ocr(
+    file: UploadFile = File(...),
+    language: str = Form("eng", max_length=20),
+    pdfa: bool = Form(True, description="Also convert to archival PDF/A"),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from ocr_processor import OcrError, ocr_available, ocr_pdf
+
+    started = time.monotonic()
+    if not ocr_available():
+        raise HTTPException(status_code=503, detail="Server OCR is not enabled on this server")
+    pdf_bytes = await _read_pdf_upload(file)
+    try:
+        out = await ocr_pdf(pdf_bytes, language=language, pdfa=pdfa)
+    except OcrError as e:
+        _meter(key, "pdf/ocr", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/ocr", started)
+    return _stream_pdf(out, "ocr.pdf")
+
+
+@router.post(
+    "/pdf/extract-tables",
+    summary="Extract tables from a PDF (JSON rows)",
+)
+async def v1_pdf_extract_tables(
+    file: UploadFile = File(...),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from table_extractor import TableExtractionError, extract_tables, table_extraction_available
+
+    started = time.monotonic()
+    if not table_extraction_available():
+        raise HTTPException(
+            status_code=503, detail="Table extraction is not enabled on this server"
+        )
+    pdf_bytes = await _read_pdf_upload(file)
+    try:
+        tables = await extract_tables(pdf_bytes)
+    except TableExtractionError as e:
+        _meter(key, "pdf/extract-tables", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/extract-tables", started)
+    return {"tables": tables}
+
+
+@router.post(
+    "/convert/to-pdf",
+    summary="Convert an Office document to PDF (LibreOffice)",
+    description=(
+        "Accepts doc/docx/odt/rtf/txt, xls/xlsx/ods/csv, ppt/pptx/odp, html. "
+        "503 when LibreOffice is not installed on the server."
+    ),
+)
+async def v1_convert_to_pdf(
+    file: UploadFile = File(...),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from doc_converter import ConvertError, office_to_pdf, office_to_pdf_available
+
+    started = time.monotonic()
+    if not office_to_pdf_available():
+        raise HTTPException(
+            status_code=503, detail="Office-to-PDF conversion is not enabled on this server"
+        )
+    data = await _read_pdf_upload(file, MAX_OFFICE_BYTES)
+    try:
+        out = await office_to_pdf(data, file.filename or "")
+    except ConvertError as e:
+        _meter(key, "convert/to-pdf", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "convert/to-pdf", started)
+    base = (file.filename or "document").rsplit(".", 1)[0]
+    return _stream_pdf(out, f"{base}.pdf")
+
+
+@router.post(
+    "/convert/pdf-to-docx",
+    summary="Convert a PDF to an editable Word document (pdf2docx)",
+)
+async def v1_convert_pdf_to_docx(
+    file: UploadFile = File(...),
+    key: Dict[str, Any] = Depends(require_api_key),
+):
+    from doc_converter import ConvertError, pdf_to_docx, pdf_to_docx_available
+
+    started = time.monotonic()
+    if not pdf_to_docx_available():
+        raise HTTPException(
+            status_code=503, detail="PDF-to-DOCX conversion is not enabled on this server"
+        )
+    data = await _read_pdf_upload(file)
+    try:
+        out = await pdf_to_docx(data)
+    except ConvertError as e:
+        _meter(key, "convert/pdf-to-docx", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "convert/pdf-to-docx", started)
+    base = (file.filename or "document").rsplit(".", 1)[0]
+    return StreamingResponse(
+        io.BytesIO(out),
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ),
+        headers={"Content-Disposition": f'attachment; filename="{base}.docx"'},
+    )
+
+
 @router.get("/whoami", summary="Inspect the authenticated key")
 async def v1_whoami(key: Dict[str, Any] = Depends(require_api_key)) -> Dict[str, Any]:
     """Useful smoke test: confirms the key works without consuming heavy quota."""

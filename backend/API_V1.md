@@ -19,8 +19,84 @@ All under `/api/v1`. Auth: `Authorization: Bearer <api_key>`.
 | POST   | `/video/remove-logo`       | multipart `file` + `logo_preset` + `watermark_position` + `logo_scale` → MP4.   |
 | POST   | `/pdf/remove-watermark`    | multipart `file` + `regions` (JSON) + `method` (telea/ns/gemini) → cleaned PDF. |
 
+### Document endpoints (enterprise / Salesforce surface)
+
+All API-key authenticated, same as above. PDFs up to 50MB.
+
+| Method | Path                     | What                                                                                       |
+| ------ | ------------------------ | ------------------------------------------------------------------------------------------ |
+| GET    | `/capabilities`          | Which optional features are enabled on this server (sign, OCR, conversion, ...).           |
+| POST   | `/pdf/merge`             | multipart `files` (2+) → single merged PDF, in upload order.                               |
+| POST   | `/pdf/split`             | `file` + `pages` spec (`"1-3,7,9-"`, 1-based) → PDF of just those pages (also reorders).   |
+| POST   | `/pdf/delete-pages`      | `file` + `pages` → PDF without those pages.                                                |
+| POST   | `/pdf/rotate`            | `file` + `angle` (90/180/270) + optional `pages` → rotated PDF.                            |
+| POST   | `/pdf/compress`          | `file` + optional `image_dpi`/`image_quality` → smaller PDF (never larger than input).     |
+| POST   | `/pdf/watermark`         | `file` + `text` (+ `opacity`, `font_size`, `color`, `angle`, `pages`) → stamped PDF.       |
+| POST   | `/pdf/info`              | `file` → JSON: page count, metadata, encryption, page size.                                |
+| POST   | `/pdf/to-text`           | `file` (+ `pages`) → JSON `{pages: [{page, text}]}`.                                       |
+| POST   | `/pdf/to-images`         | `file` (+ `pages`, `dpi`, `format` png/jpeg) → ZIP of page images.                         |
+| POST   | `/pdf/from-images`       | multipart `files` (PNG/JPEG) → one PDF, one page per image.                                |
+| POST   | `/pdf/sign`              | `file` + `cert` (.p12/.pfx) + `passphrase` (+ `reason`, `location`, `field_name`, `timestamp`) → PAdES-signed PDF (pyHanko). |
+| POST   | `/pdf/verify-signature`  | `file` → JSON signature report (integrity, signer, timestamps).                            |
+| POST   | `/pdf/ocr`               | `file` (+ `language`, `pdfa`) → searchable PDF / PDF-A (OCRmyPDF). 503 if not installed.   |
+| POST   | `/pdf/extract-tables`    | `file` → JSON tables (rows + markdown).                                                    |
+| POST   | `/convert/to-pdf`        | Office doc (doc/docx/odt/rtf/txt/xls/xlsx/ods/csv/ppt/pptx/odp/html) → PDF (LibreOffice).  |
+| POST   | `/convert/pdf-to-docx`   | `file` (PDF) → editable Word .docx (pdf2docx).                                             |
+
+Optional features degrade cleanly: if the backing engine isn't installed
+(LibreOffice, OCRmyPDF, pyHanko, pdf2docx), the endpoint returns **503** and
+`/api/v1/capabilities` reports it as `false` — clients can feature-detect.
+
 Auto-generated docs at `GET /docs` (Swagger UI) and `GET /openapi.json`.
 v1 endpoints show under the **v1** tag.
+
+## Salesforce integration
+
+Salesforce calls the API server-to-server from Apex — no CORS involved.
+
+1. **Named Credential** (Setup → Named Credentials → External Credential,
+   Custom auth): base URL `https://<your-backend-domain>`, and add an
+   `Authorization` header of `Bearer champdf_live_...` via a custom header on
+   the Named Credential. Add the domain to **Remote Site Settings** if you use
+   plain endpoints instead.
+2. **Apex callout** (multipart example — sign a Quote PDF):
+
+```apex
+HttpRequest req = new HttpRequest();
+req.setEndpoint('callout:ChamPDF/api/v1/pdf/watermark');
+req.setMethod('POST');
+req.setTimeout(120000);
+
+String boundary = '----champdf' + String.valueOf(Crypto.getRandomInteger());
+req.setHeader('Content-Type', 'multipart/form-data; boundary=' + boundary);
+
+// contentDoc.VersionData is the PDF blob from a Quote / ContentVersion
+String head = '--' + boundary + '\r\n'
+  + 'Content-Disposition: form-data; name="file"; filename="quote.pdf"\r\n'
+  + 'Content-Type: application/pdf\r\n\r\n';
+String fields = '\r\n--' + boundary + '\r\n'
+  + 'Content-Disposition: form-data; name="text"\r\n\r\nAPPROVED'
+  + '\r\n--' + boundary + '--\r\n';
+Blob body = EncodingUtil.base64Decode(
+  EncodingUtil.base64Encode(Blob.valueOf(head))
+  + EncodingUtil.base64Encode(contentDoc.VersionData).replaceAll('=', '')
+  + EncodingUtil.base64Encode(Blob.valueOf(fields)));
+req.setBodyAsBlob(body);
+
+HttpResponse res = new Http().send(req);
+// res.getBodyAsBlob() is the stamped PDF — save as a new ContentVersion
+```
+
+   (For production use, the community `HttpFormBuilder` pattern handles
+   base64 padding across part boundaries robustly.)
+
+3. **Typical flows**: `convert/to-pdf` for turning generated .docx quotes
+   into PDFs, `pdf/merge` to assemble contract packets, `pdf/sign` for
+   compliance signatures with your org's .p12, `pdf/to-text` /
+   `pdf/extract-tables` to index incoming documents into Salesforce fields.
+4. **Quotas**: issue one key per team via `/api/v1/admin/keys` with an
+   appropriate `monthly_quota`; usage is visible via `/whoami` and the admin
+   key list.
 
 ## Admin endpoints
 
@@ -150,10 +226,10 @@ account menu (**API** pill) — no admin token needed.
 
 ## What's NOT in v1
 
-Browser-only tools (LibreOffice WASM driven Office-to-PDF converters, the
-client-side PDF Editor, OCR, Crop, Rotate, Compare). They could come in v2
-if there's demand — most are tractable server-side with pdfium / poppler
-but it would inflate the backend image significantly.
+The interactive client-side PDF Editor, Crop, and Compare remain
+browser-only. Everything else the browser tools cover — Office→PDF
+conversion, OCR, rotate, merge/split, signing — now has a server-side v1
+equivalent (see the document endpoints table above).
 
 ## Phase 2: MCP server
 

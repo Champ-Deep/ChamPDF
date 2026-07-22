@@ -9,7 +9,9 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ffmpeg curl git \
         tesseract-ocr tesseract-ocr-fra tesseract-ocr-deu tesseract-ocr-spa \
-        ghostscript && \
+        ghostscript \
+        libreoffice-writer libreoffice-calc libreoffice-impress \
+        fonts-liberation fonts-dejavu-core && \
     rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -22,7 +24,8 @@ COPY requirements.txt .
 # with the CUDA index URL.
 RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir --no-deps simple-lama-inpainting==0.1.2
+    pip install --no-cache-dir --no-deps simple-lama-inpainting==0.1.2 && \
+    pip install --no-cache-dir --no-deps pdf2docx==0.5.8
 
 # Pre-download rembg model (~176MB) to speed up first run
 # This is optional but recommended for production
