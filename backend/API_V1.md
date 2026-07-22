@@ -23,25 +23,25 @@ All under `/api/v1`. Auth: `Authorization: Bearer <api_key>`.
 
 All API-key authenticated, same as above. PDFs up to 50MB.
 
-| Method | Path                     | What                                                                                       |
-| ------ | ------------------------ | ------------------------------------------------------------------------------------------ |
-| GET    | `/capabilities`          | Which optional features are enabled on this server (sign, OCR, conversion, ...).           |
-| POST   | `/pdf/merge`             | multipart `files` (2+) → single merged PDF, in upload order.                               |
-| POST   | `/pdf/split`             | `file` + `pages` spec (`"1-3,7,9-"`, 1-based) → PDF of just those pages (also reorders).   |
-| POST   | `/pdf/delete-pages`      | `file` + `pages` → PDF without those pages.                                                |
-| POST   | `/pdf/rotate`            | `file` + `angle` (90/180/270) + optional `pages` → rotated PDF.                            |
-| POST   | `/pdf/compress`          | `file` + optional `image_dpi`/`image_quality` → smaller PDF (never larger than input).     |
-| POST   | `/pdf/watermark`         | `file` + `text` (+ `opacity`, `font_size`, `color`, `angle`, `pages`) → stamped PDF.       |
-| POST   | `/pdf/info`              | `file` → JSON: page count, metadata, encryption, page size.                                |
-| POST   | `/pdf/to-text`           | `file` (+ `pages`) → JSON `{pages: [{page, text}]}`.                                       |
-| POST   | `/pdf/to-images`         | `file` (+ `pages`, `dpi`, `format` png/jpeg) → ZIP of page images.                         |
-| POST   | `/pdf/from-images`       | multipart `files` (PNG/JPEG) → one PDF, one page per image.                                |
-| POST   | `/pdf/sign`              | `file` + `cert` (.p12/.pfx) + `passphrase` (+ `reason`, `location`, `field_name`, `timestamp`) → PAdES-signed PDF (pyHanko). |
-| POST   | `/pdf/verify-signature`  | `file` → JSON signature report (integrity, signer, timestamps).                            |
-| POST   | `/pdf/ocr`               | `file` (+ `language`, `pdfa`) → searchable PDF / PDF-A (OCRmyPDF). 503 if not installed.   |
-| POST   | `/pdf/extract-tables`    | `file` → JSON tables (rows + markdown).                                                    |
-| POST   | `/convert/to-pdf`        | Office doc (doc/docx/odt/rtf/txt/xls/xlsx/ods/csv/ppt/pptx/odp/html) → PDF (LibreOffice).  |
-| POST   | `/convert/pdf-to-docx`   | `file` (PDF) → editable Word .docx (pdf2docx).                                             |
+| Method | Path                    | What                                                                                                                         |
+| ------ | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/capabilities`         | Which optional features are enabled on this server (sign, OCR, conversion, ...).                                             |
+| POST   | `/pdf/merge`            | multipart `files` (2+) → single merged PDF, in upload order.                                                                 |
+| POST   | `/pdf/split`            | `file` + `pages` spec (`"1-3,7,9-"`, 1-based) → PDF of just those pages (also reorders).                                     |
+| POST   | `/pdf/delete-pages`     | `file` + `pages` → PDF without those pages.                                                                                  |
+| POST   | `/pdf/rotate`           | `file` + `angle` (90/180/270) + optional `pages` → rotated PDF.                                                              |
+| POST   | `/pdf/compress`         | `file` + optional `image_dpi`/`image_quality` → smaller PDF (never larger than input).                                       |
+| POST   | `/pdf/watermark`        | `file` + `text` (+ `opacity`, `font_size`, `color`, `angle`, `pages`) → stamped PDF.                                         |
+| POST   | `/pdf/info`             | `file` → JSON: page count, metadata, encryption, page size.                                                                  |
+| POST   | `/pdf/to-text`          | `file` (+ `pages`) → JSON `{pages: [{page, text}]}`.                                                                         |
+| POST   | `/pdf/to-images`        | `file` (+ `pages`, `dpi`, `format` png/jpeg) → ZIP of page images.                                                           |
+| POST   | `/pdf/from-images`      | multipart `files` (PNG/JPEG) → one PDF, one page per image.                                                                  |
+| POST   | `/pdf/sign`             | `file` + `cert` (.p12/.pfx) + `passphrase` (+ `reason`, `location`, `field_name`, `timestamp`) → PAdES-signed PDF (pyHanko). |
+| POST   | `/pdf/verify-signature` | `file` → JSON signature report (integrity, signer, timestamps).                                                              |
+| POST   | `/pdf/ocr`              | `file` (+ `language`, `pdfa`) → searchable PDF / PDF-A (OCRmyPDF). 503 if not installed.                                     |
+| POST   | `/pdf/extract-tables`   | `file` → JSON tables (rows + markdown).                                                                                      |
+| POST   | `/convert/to-pdf`       | Office doc (doc/docx/odt/rtf/txt/xls/xlsx/ods/csv/ppt/pptx/odp/html) → PDF (LibreOffice).                                    |
+| POST   | `/convert/pdf-to-docx`  | `file` (PDF) → editable Word .docx (pdf2docx).                                                                               |
 
 Optional features degrade cleanly: if the backing engine isn't installed
 (LibreOffice, OCRmyPDF, pyHanko, pdf2docx), the endpoint returns **503** and
@@ -87,8 +87,8 @@ HttpResponse res = new Http().send(req);
 // res.getBodyAsBlob() is the stamped PDF — save as a new ContentVersion
 ```
 
-   (For production use, the community `HttpFormBuilder` pattern handles
-   base64 padding across part boundaries robustly.)
+(For production use, the community `HttpFormBuilder` pattern handles
+base64 padding across part boundaries robustly.)
 
 3. **Typical flows**: `convert/to-pdf` for turning generated .docx quotes
    into PDFs, `pdf/merge` to assemble contract packets, `pdf/sign` for
@@ -150,6 +150,39 @@ can look it up (otherwise issuance fails closed). Non-permitted accounts get 403
 API keys look like `champdf_live_<32 hex chars>`. The raw value is shown
 **only at creation**; the server stores SHA-256 hashes and cannot recover
 the original.
+
+## RBAC scopes (role-based access)
+
+Every key carries a scope list. Default is `*` (full access); pass `scopes`
+when issuing to restrict it — e.g. a key a signing bot can use for nothing
+but signatures:
+
+```bash
+curl -X POST $BACKEND/api/v1/admin/keys \
+  -H "X-Admin-Token: $CHAMPDF_ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"label": "sign-bot", "scopes": ["pdf.sign"], "monthly_quota": 5000}'
+```
+
+| Scope       | Grants                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| `pdf.read`  | info, to-text, to-images, extract-tables, verify-signature                                  |
+| `pdf.write` | merge, split, delete-pages, rotate, compress, watermark, from-images, ocr, remove-watermark |
+| `pdf.sign`  | sign                                                                                        |
+| `pdf`       | all of the above (parent scope grants dotted children)                                      |
+| `convert`   | to-pdf, pdf-to-docx                                                                         |
+| `image`     | remove-bg, edit, inpaint, detect-watermarks                                                 |
+| `video`     | download, remove-logo                                                                       |
+| `*`         | everything (default)                                                                        |
+
+Out-of-scope calls return **403** with
+`{"code": "insufficient_scope", "required_scope": "..."}`. `/whoami` and
+`/capabilities` work with any valid key. Existing keys issued before this
+feature keep full access (`*`).
+
+Typical team setup: one scoped key per team/integration (e.g. Salesforce
+signing flow gets `pdf.sign` + `pdf.read`; the document pipeline gets `pdf` +
+`convert`), each with its own quota — usage per key is visible via the admin
+key list.
 
 ## Rate limits
 
@@ -231,11 +264,11 @@ browser-only. Everything else the browser tools cover — Office→PDF
 conversion, OCR, rotate, merge/split, signing — now has a server-side v1
 equivalent (see the document endpoints table above).
 
-## Phase 2: MCP server
+## MCP server (shipped)
 
-Planned. The MCP server will be a thin npm package
-(`@champ-deep/champdf-mcp`) that wraps these v1 endpoints as MCP tools so
-Claude Code, Claude Desktop, Cursor, etc. can call them natively. Users
-install with `npx -y @champ-deep/champdf-mcp`, paste their `CHAMPDF_API_KEY`,
-and ChamPDF tools become first-class agent tools. See
-`/root/.claude/plans/champdf-api-and-mcp-server.md` for the design.
+The MCP server lives in [`mcp/`](../mcp/) (`@champ-deep/champdf-mcp`) and
+wraps this API — all 17 document tools plus the media tools — so Claude
+Code, Claude Desktop, Cursor, and any MCP-aware agent can sign, merge,
+convert, and OCR documents natively. Two transports: stdio
+(`npx -y @champ-deep/champdf-mcp`) and a hosted HTTP endpoint for teams.
+Setup, tool list, and deployment: [`mcp/README.md`](../mcp/README.md).

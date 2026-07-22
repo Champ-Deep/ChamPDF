@@ -11,7 +11,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerAllTools } from './tools.js';
 
-const server = new McpServer({ name: 'champdf', version: '0.1.0' });
+const server = new McpServer({ name: 'champdf', version: '0.2.0' });
 registerAllTools(server);
 
 await server.connect(new StdioServerTransport());

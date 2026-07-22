@@ -24,7 +24,11 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import express, { type Request, type Response, type NextFunction } from 'express';
+import express, {
+  type Request,
+  type Response,
+  type NextFunction,
+} from 'express';
 import { registerAllTools } from './tools.js';
 
 const PORT = Number(process.env.PORT ?? 8081);
@@ -66,7 +70,7 @@ app.post('/mcp', authGate, async (req: Request, res: Response) => {
   // Stateless: spin up a fresh server + transport per request. Cheap for
   // our use case (no per-session state to keep) and avoids cross-request
   // bleed.
-  const server = new McpServer({ name: 'champdf', version: '0.1.0' });
+  const server = new McpServer({ name: 'champdf', version: '0.2.0' });
   registerAllTools(server);
 
   const transport = new StreamableHTTPServerTransport({

@@ -10,6 +10,45 @@ The frontend already knows how to talk to a remote backend via one env var
 (`VITE_API_URL`), and the backend already knows how to accept it via CORS
 (`ALLOWED_ORIGINS`). That's the whole contract.
 
+## Domain architecture (the API gateway picture)
+
+```
+champdf.com            → Vercel (static frontend)
+champdf.com/api/*      → rewritten by Vercel to api.champdf.com  (vercel.json)
+api.champdf.com        → Coolify/Deepify backend = the API gateway
+                          • auth (champdf_live_… keys) + RBAC scopes
+                          • per-key rate limits + monthly quotas + usage metering
+                          • /api/v1/* document + media endpoints
+                          • /docs (Swagger) + /api/v1/capabilities (feature discovery)
+```
+
+The FastAPI backend **is** the gateway — there's no separate gateway product
+to run. Salesforce, scripts, and MCP agents all hit `api.champdf.com` (or
+`champdf.com/api`, same thing after the rewrite) with a Bearer key.
+
+DNS you need: point `api.champdf.com` (A record) at `64.227.154.215` and
+attach that domain to the backend app in Deepify (Coolify provisions the
+TLS cert automatically). The included `vercel.json` already rewrites
+`champdf.com/api/*` and `/docs` to `api.champdf.com`.
+
+> Heads-up: very large uploads are best sent directly to
+> `api.champdf.com` — the Vercel rewrite path proxies through Vercel's
+> edge and is subject to its body-size limits; direct-to-API has none
+> beyond the backend's own 50–100MB caps.
+
+**RBAC (role-based keys).** Keys can be scoped so each team/integration
+gets exactly the access it needs — e.g. a signing-only key for the
+Salesforce flow:
+
+```bash
+curl -X POST https://api.champdf.com/api/v1/admin/keys \
+  -H "X-Admin-Token: $CHAMPDF_ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"label": "sf-signing", "scopes": ["pdf.sign", "pdf.read"], "monthly_quota": 5000}'
+```
+
+Scopes: `pdf.read`, `pdf.write`, `pdf.sign`, `pdf` (all pdf), `convert`,
+`image`, `video`, `*`. Full details: [`backend/API_V1.md`](backend/API_V1.md).
+
 ---
 
 ## Part 1 — Backend on Deepify (Coolify)
@@ -137,8 +176,45 @@ champdf_live_...` header (or add the domain to Remote Site Settings).
    example: [`backend/API_V1.md`](backend/API_V1.md).
 
 Recommended for production: put the backend on a real domain
-(`api.champpdf.com`) rather than the sslip.io one before rolling out to
+(`api.champdf.com`) rather than the sslip.io one before rolling out to
 teams — Salesforce Named Credentials shouldn't chase changing hosts.
+
+---
+
+## Part 4 — MCP server for agents
+
+The repo ships an MCP server ([`mcp/`](mcp/)) that turns the whole document
+API into agent tools — Claude Code, Claude Desktop, and Cursor can sign,
+merge, convert, and OCR documents natively.
+
+**Per-user (stdio)** — each teammate runs it locally with their own key:
+
+```bash
+claude mcp add champdf \
+  -e CHAMPDF_API_KEY=champdf_live_... \
+  -e CHAMPDF_API_BASE_URL=https://api.champdf.com \
+  -- npx -y @champ-deep/champdf-mcp
+```
+
+(Until the package is published to npm, clone the repo and use
+`node <repo>/mcp/dist/index.js` as the command instead of `npx`.)
+
+**Team-hosted (HTTP)** — deploy one more small app on Deepify from
+`mcp/Dockerfile.railway` (context: repo root), set:
+
+| Env var                  | Value                                             |
+| ------------------------ | ------------------------------------------------- |
+| `CHAMPDF_API_KEY`        | a v1 key for the backend (scope it appropriately) |
+| `CHAMPDF_API_BASE_URL`   | `https://api.champdf.com`                         |
+| `CHAMPDF_MCP_AUTH_TOKEN` | a shared secret your team's clients must send     |
+
+then clients connect with
+`{"type": "http", "url": "https://mcp.champdf.com/mcp", "headers": {"Authorization": "Bearer <token>"}}`.
+Healthcheck: `/healthz`, port 8081.
+
+Pair MCP with scoped keys for safe agent automation: give an agent a
+`pdf.sign`-only key and it can sign documents but can't touch anything
+else — out-of-scope calls return a structured `insufficient_scope` error.
 
 ---
 

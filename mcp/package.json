@@ -1,7 +1,7 @@
 {
   "name": "@champ-deep/champdf-mcp",
-  "version": "0.1.0",
-  "description": "MCP server for ChamPDF — let Claude Code and other AI agents call ChamPDF's tools (PDF watermark removal, image editing, video processing) natively.",
+  "version": "0.2.0",
+  "description": "MCP server for ChamPDF — let Claude Code and other AI agents sign, merge, convert, OCR, and watermark documents (plus image/video tools) natively.",
   "license": "MIT",
   "homepage": "https://champdf.com",
   "repository": {
@@ -39,7 +39,8 @@
     "dev:http": "tsx src/http.ts",
     "start": "node dist/index.js",
     "start:http": "node dist/http.js",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test:e2e": "node test/e2e.mjs"
   },
   "engines": {
     "node": ">=20"

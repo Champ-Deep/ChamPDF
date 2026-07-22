@@ -475,6 +475,106 @@ def test_extract_tables(client, auth, sample_pdf):
 
 
 # --------------------------------------------------------------------------
+# RBAC scopes
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def sign_only_key(client) -> str:
+    """A key scoped to pdf.sign only."""
+    res = client.post(
+        "/api/v1/admin/keys",
+        headers={"X-Admin-Token": ADMIN_TOKEN},
+        json={"label": "sign-bot", "monthly_quota": 1000, "scopes": ["pdf.sign"]},
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["scopes"] == ["pdf.sign"]
+    return body["key"]
+
+
+def test_admin_rejects_unknown_scope(client):
+    res = client.post(
+        "/api/v1/admin/keys",
+        headers={"X-Admin-Token": ADMIN_TOKEN},
+        json={"label": "bad", "scopes": ["pdf.frobnicate"]},
+    )
+    assert res.status_code == 422
+    assert "Unknown scope" in res.text
+
+
+def test_scoped_key_can_use_its_scope(client, sign_only_key, sample_pdf, sample_p12):
+    res = client.post(
+        "/api/v1/pdf/sign",
+        headers={"Authorization": f"Bearer {sign_only_key}"},
+        files={
+            "file": ("t.pdf", sample_pdf, "application/pdf"),
+            "cert": ("signer.p12", sample_p12, "application/octet-stream"),
+        },
+        data={"passphrase": "testpass", "timestamp": "false"},
+    )
+    assert res.status_code == 200, res.text
+
+
+def test_scoped_key_blocked_outside_scope(client, sign_only_key, sample_pdf):
+    hdr = {"Authorization": f"Bearer {sign_only_key}"}
+    for path, kwargs in [
+        ("/api/v1/pdf/merge", dict(files=[
+            ("files", ("a.pdf", sample_pdf, "application/pdf")),
+            ("files", ("b.pdf", sample_pdf, "application/pdf")),
+        ])),
+        ("/api/v1/pdf/to-text", dict(
+            files={"file": ("t.pdf", sample_pdf, "application/pdf")},
+            data={"pages": "1"},
+        )),
+        ("/api/v1/convert/pdf-to-docx", dict(
+            files={"file": ("t.pdf", sample_pdf, "application/pdf")},
+        )),
+    ]:
+        res = client.post(path, headers=hdr, **kwargs)
+        assert res.status_code == 403, f"{path}: {res.status_code} {res.text}"
+        assert res.json()["detail"]["code"] == "insufficient_scope"
+
+
+def test_scoped_key_whoami_and_capabilities_still_work(client, sign_only_key):
+    hdr = {"Authorization": f"Bearer {sign_only_key}"}
+    who = client.get("/api/v1/whoami", headers=hdr)
+    assert who.status_code == 200
+    assert who.json()["scopes"] == ["pdf.sign"]
+    caps = client.get("/api/v1/capabilities", headers=hdr)
+    assert caps.status_code == 200
+
+
+def test_parent_scope_grants_children(client, sample_pdf):
+    res = client.post(
+        "/api/v1/admin/keys",
+        headers={"X-Admin-Token": ADMIN_TOKEN},
+        json={"label": "pdf-all", "scopes": ["pdf"]},
+    )
+    assert res.status_code == 200
+    key = res.json()["key"]
+    hdr = {"Authorization": f"Bearer {key}"}
+    # pdf covers pdf.read...
+    res = client.post(
+        "/api/v1/pdf/info", headers=hdr,
+        files={"file": ("t.pdf", sample_pdf, "application/pdf")},
+    )
+    assert res.status_code == 200, res.text
+    # ...but not convert
+    res = client.post(
+        "/api/v1/convert/pdf-to-docx", headers=hdr,
+        files={"file": ("t.pdf", sample_pdf, "application/pdf")},
+    )
+    assert res.status_code == 403
+
+
+def test_default_key_has_full_access(client, auth):
+    # The session-wide key was minted without scopes -> '*'
+    who = client.get("/api/v1/whoami", headers=auth)
+    assert who.json()["scopes"] == ["*"]
+
+
+# --------------------------------------------------------------------------
 # Metering
 # --------------------------------------------------------------------------
 

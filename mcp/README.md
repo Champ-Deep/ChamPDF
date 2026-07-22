@@ -4,15 +4,39 @@ MCP server for [ChamPDF](https://champdf.com) — let Claude Code, Claude
 Desktop, Cursor, and any other MCP-aware client call ChamPDF's tools
 natively.
 
-What you get:
+What you get — **document tools** (the enterprise surface):
+
+- **`champdf_sign_pdf`** — compliance-grade digital signature (PAdES via pyHanko) with your .p12/.pfx cert, optional trusted timestamp. _"sign this contract with our company cert"_.
+- **`champdf_verify_pdf_signature`** — integrity/signer/timestamp report for a signed PDF.
+- **`champdf_merge_pdfs` / `champdf_split_pdf` / `champdf_delete_pdf_pages` / `champdf_rotate_pdf`** — assemble and reorganize documents.
+- **`champdf_compress_pdf`** — shrink PDFs (never returns a bigger file).
+- **`champdf_watermark_pdf`** — stamp CONFIDENTIAL / DRAFT / APPROVED across pages.
+- **`champdf_convert_to_pdf`** — Word/Excel/PowerPoint/ODF/HTML → PDF (LibreOffice).
+- **`champdf_pdf_to_docx`** — PDF → editable Word.
+- **`champdf_ocr_pdf`** — scanned PDF → searchable PDF / PDF-A.
+- **`champdf_pdf_to_text` / `champdf_extract_pdf_tables` / `champdf_pdf_info`** — pull text, tables (JSON + markdown), and metadata out of documents.
+- **`champdf_pdf_to_images` / `champdf_images_to_pdf`** — rasterize pages / build PDFs from images.
+
+Plus **media tools**:
 
 - **`champdf_remove_background`** — strip the background from a photo (rembg / U²-Net).
 - **`champdf_edit_image`** — natural-language image editing via Gemini ("Edit Banana"). _"remove the person on the left and inpaint the background"_.
 - **`champdf_detect_watermarks`** — find bounding boxes of watermarks/logos in an image. Pair with `champdf_inpaint_image` for fully autonomous removal.
 - **`champdf_inpaint_image`** — mask-based inpainting. Provide an image and a binary PNG mask; agent gets back a clean image.
+- **`champdf_remove_pdf_watermark`** — region-based watermark removal inside PDFs.
 - **`champdf_download_video`** — pull a YouTube/Instagram video (long-form, Shorts, Reels) as MP4 or 320 kbps MP3.
 - **`champdf_remove_video_logo`** — strip the corner watermark from a video (NotebookLM-style logos) and optionally overlay your own.
-- **`champdf_whoami`** — cheap sanity check that returns your key's quota and usage.
+
+And plumbing:
+
+- **`champdf_whoami`** — sanity check: key label, quota, usage, RBAC scopes.
+- **`champdf_capabilities`** — which optional backend features (signing, OCR, conversion) are enabled.
+
+**RBAC**: keys can be scoped (`pdf.sign`, `pdf.read`, `pdf.write`, `convert`,
+`image`, `video`, or `*`). A sign-only key lets an agent sign documents and
+nothing else — out-of-scope calls return a structured `insufficient_scope`
+error the agent can relay. Mint scoped keys via
+`POST /api/v1/admin/keys {"label": "sign-bot", "scopes": ["pdf.sign"]}`.
 
 ## Setup
 

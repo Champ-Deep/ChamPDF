@@ -104,6 +104,10 @@ def init_db() -> None:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(api_keys)")}
         if "clerk_user_id" not in cols:
             conn.execute("ALTER TABLE api_keys ADD COLUMN clerk_user_id TEXT")
+        # Migration: RBAC scopes. Existing keys default to '*' (full access)
+        # so upgrades don't break anything already issued.
+        if "scopes" not in cols:
+            conn.execute("ALTER TABLE api_keys ADD COLUMN scopes TEXT NOT NULL DEFAULT '*'")
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_api_keys_clerk_user "
             "ON api_keys(clerk_user_id)"
@@ -119,16 +123,65 @@ def _current_month_bucket() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
+# --------------------------------------------------------------------------
+# RBAC scopes
+#
+# A key's `scopes` field is a comma-separated list. '*' (the default) grants
+# everything. A scope grants itself plus any dotted children: 'pdf' covers
+# 'pdf.sign', 'pdf.read', 'pdf.write'. Taxonomy:
+#
+#   pdf.read   info / to-text / to-images / extract-tables / verify-signature
+#   pdf.write  merge / split / delete-pages / rotate / compress / watermark /
+#              from-images / ocr / remove-watermark
+#   pdf.sign   sign (compliance signatures)
+#   convert    Office <-> PDF conversion
+#   image      remove-bg / edit / inpaint / detect-watermarks
+#   video      download / remove-logo
+# --------------------------------------------------------------------------
+
+KNOWN_SCOPES = {"*", "pdf", "pdf.read", "pdf.write", "pdf.sign", "convert", "image", "video"}
+
+
+def normalize_scopes(scopes: Optional[list]) -> str:
+    """Validate and canonicalize a scope list into the stored string form."""
+    if not scopes:
+        return "*"
+    cleaned = []
+    for s in scopes:
+        s = str(s).strip().lower()
+        if s not in KNOWN_SCOPES:
+            raise ValueError(
+                f"Unknown scope '{s}'. Valid: {', '.join(sorted(KNOWN_SCOPES))}"
+            )
+        if s not in cleaned:
+            cleaned.append(s)
+    return "*" if "*" in cleaned else ",".join(cleaned)
+
+
+def key_scopes(key: Dict[str, Any]) -> list:
+    raw = (key.get("scopes") or "*").strip()
+    return [s for s in raw.split(",") if s]
+
+
+def key_has_scope(key: Dict[str, Any], required: str) -> bool:
+    for s in key_scopes(key):
+        if s == "*" or s == required or required.startswith(s + "."):
+            return True
+    return False
+
+
 def create_key(
     label: str,
     monthly_quota: int = DEFAULT_MONTHLY_QUOTA,
     clerk_user_id: Optional[str] = None,
+    scopes: Optional[list] = None,
 ) -> Dict[str, Any]:
     """Issue a new API key. Returns the raw key (only shown once) + metadata.
 
     clerk_user_id binds the key to a signed-in Clerk user (self-serve flow);
-    None for admin-issued keys.
+    None for admin-issued keys. scopes=None grants full access ('*').
     """
+    scopes_str = normalize_scopes(scopes)
     raw = API_KEY_PREFIX + secrets.token_hex(KEY_RANDOM_BYTES)
     hashed = _hash_key(raw)
     now = datetime.now(timezone.utc).isoformat()
@@ -137,10 +190,11 @@ def create_key(
             """
             INSERT INTO api_keys
                 (key_hash, label, monthly_quota, month_bucket, requests_used,
-                 created_at, clerk_user_id)
-            VALUES (?, ?, ?, ?, 0, ?, ?)
+                 created_at, clerk_user_id, scopes)
+            VALUES (?, ?, ?, ?, 0, ?, ?, ?)
             """,
-            (hashed, label, monthly_quota, _current_month_bucket(), now, clerk_user_id),
+            (hashed, label, monthly_quota, _current_month_bucket(), now,
+             clerk_user_id, scopes_str),
         )
         conn.commit()
         key_id = cur.lastrowid
@@ -149,6 +203,7 @@ def create_key(
         "key": raw,
         "label": label,
         "monthly_quota": monthly_quota,
+        "scopes": scopes_str.split(","),
         "created_at": now,
     }
 
@@ -195,7 +250,7 @@ def list_keys() -> list:
         rows = conn.execute(
             """
             SELECT id, label, monthly_quota, month_bucket, requests_used,
-                   created_at, last_used_at, disabled_at
+                   created_at, last_used_at, disabled_at, scopes
             FROM api_keys
             ORDER BY id DESC
             """
@@ -303,6 +358,34 @@ async def require_api_key(
     return key
 
 
+def scoped(required_scope: str):
+    """Dependency factory: authenticate the key AND require an RBAC scope.
+
+    403 (insufficient_scope) when the key is valid but not permitted — so a
+    sign-only key can call /pdf/sign and nothing else.
+    """
+
+    async def dependency(
+        authorization: Optional[str] = Header(None),
+    ) -> Dict[str, Any]:
+        key = await require_api_key(authorization)
+        if not key_has_scope(key, required_scope):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "insufficient_scope",
+                    "message": (
+                        f"This API key does not have the '{required_scope}' scope. "
+                        f"Key scopes: {', '.join(key_scopes(key))}"
+                    ),
+                    "required_scope": required_scope,
+                },
+            )
+        return key
+
+    return dependency
+
+
 def _require_admin(x_admin_token: Optional[str] = Header(None)) -> None:
     expected = os.environ.get(ADMIN_TOKEN_ENV)
     if not expected:
@@ -375,6 +458,14 @@ router = APIRouter(prefix="/api/v1", tags=["v1"])
 class CreateKeyRequest(BaseModel):
     label: str = Field(min_length=1, max_length=100)
     monthly_quota: int = Field(default=DEFAULT_MONTHLY_QUOTA, ge=1, le=1_000_000)
+    scopes: Optional[list[str]] = Field(
+        default=None,
+        description=(
+            "RBAC scopes for this key. Omit for full access ('*'). "
+            "Valid: pdf, pdf.read, pdf.write, pdf.sign, convert, image, video. "
+            "Example: ['pdf.sign'] mints a sign-only key."
+        ),
+    )
 
 
 class CreateKeyResponse(BaseModel):
@@ -382,6 +473,7 @@ class CreateKeyResponse(BaseModel):
     key: str = Field(description="Full API key — only returned at creation")
     label: str
     monthly_quota: int
+    scopes: list[str]
     created_at: str
 
 
@@ -394,6 +486,7 @@ class KeySummary(BaseModel):
     created_at: str
     last_used_at: Optional[str]
     disabled_at: Optional[str]
+    scopes: Optional[str] = "*"
 
 
 @router.post(
@@ -403,7 +496,12 @@ class KeySummary(BaseModel):
     dependencies=[Depends(_require_admin)],
 )
 def create_key_endpoint(req: CreateKeyRequest) -> Dict[str, Any]:
-    return create_key(label=req.label, monthly_quota=req.monthly_quota)
+    try:
+        return create_key(
+            label=req.label, monthly_quota=req.monthly_quota, scopes=req.scopes
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @router.get(
@@ -550,7 +648,7 @@ def _stream_png(data: bytes, filename: str = "output.png") -> StreamingResponse:
 )
 async def v1_remove_bg(
     image: UploadFile = File(..., description="PNG, JPEG, or WebP, up to 10MB"),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("image")),
 ):
     from image_processor import ImageProcessor  # local import to avoid cycles
 
@@ -581,7 +679,7 @@ async def v1_remove_bg(
 async def v1_edit_image(
     image: UploadFile = File(..., description="PNG, JPEG, or WebP, up to 20MB"),
     prompt: str = Form(..., description="What to change", min_length=3, max_length=2000),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("image")),
 ):
     from inpaint_processor import EditError, edit_image_with_prompt
 
@@ -641,7 +739,7 @@ async def v1_pdf_remove_watermark(
         description="Inpainting method: 'telea' / 'ns' (OpenCV, local) or 'gemini' (AI, server).",
     ),
     radius: int = Form(5, ge=1, le=30),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.write")),
 ):
     import json as _json
 
@@ -705,7 +803,7 @@ async def v1_pdf_remove_watermark(
 )
 async def v1_detect_watermarks(
     image: UploadFile = File(...),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("image")),
 ):
     from inpaint_processor import DetectError, detect_watermarks
 
@@ -745,7 +843,7 @@ async def v1_inpaint(
     mask: UploadFile = File(...),
     prompt: Optional[str] = Form(None),
     radius: int = Form(5),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("image")),
 ):
     from inpaint_processor import InpaintError, inpaint_image
 
@@ -788,7 +886,7 @@ class VideoDownloadRequest(BaseModel):
 )
 async def v1_video_download(
     payload: VideoDownloadRequest,
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("video")),
 ):
     """
     Returns the file as a binary stream with Content-Type set to video/mp4
@@ -869,7 +967,7 @@ async def v1_video_remove_logo(
         1.0,
         description="Replacement logo size multiplier (0.5–2.0; 1.0 = ~120px wide).",
     ),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("video")),
 ):
     import tempfile
 
@@ -1028,7 +1126,7 @@ async def v1_capabilities(key: Dict[str, Any] = Depends(require_api_key)) -> Dic
 @router.post("/pdf/merge", summary="Merge multiple PDFs into one")
 async def v1_pdf_merge(
     files: list[UploadFile] = File(..., description="Two or more PDFs, in merge order"),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.write")),
 ):
     from pdf_ops import PdfOpsError, merge_pdfs
 
@@ -1055,7 +1153,7 @@ async def v1_pdf_merge(
 async def v1_pdf_split(
     file: UploadFile = File(...),
     pages: str = Form(..., description="Page spec, e.g. '1-3,7' or '2-'"),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.write")),
 ):
     from pdf_ops import PdfOpsError, extract_pages
 
@@ -1074,7 +1172,7 @@ async def v1_pdf_split(
 async def v1_pdf_delete_pages(
     file: UploadFile = File(...),
     pages: str = Form(..., description="Pages to remove, e.g. '2,5-6'"),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.write")),
 ):
     from pdf_ops import PdfOpsError, delete_pages
 
@@ -1094,7 +1192,7 @@ async def v1_pdf_rotate(
     file: UploadFile = File(...),
     angle: int = Form(..., description="90, 180, or 270 (clockwise)"),
     pages: str = Form("all", description="Page spec, default all"),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.write")),
 ):
     from pdf_ops import PdfOpsError, rotate_pages
 
@@ -1118,7 +1216,7 @@ async def v1_pdf_compress(
     file: UploadFile = File(...),
     image_dpi: int = Form(150, ge=50, le=300, description="Target DPI for embedded images"),
     image_quality: int = Form(70, ge=10, le=95, description="JPEG quality for recompressed images"),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.write")),
 ):
     from pdf_ops import PdfOpsError, compress_pdf
 
@@ -1142,7 +1240,7 @@ async def v1_pdf_watermark(
     color: str = Form("888888", description="6-digit hex, no '#'"),
     angle: int = Form(45, ge=-90, le=90),
     pages: str = Form("all"),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.write")),
 ):
     from pdf_ops import PdfOpsError, add_watermark
 
@@ -1163,7 +1261,7 @@ async def v1_pdf_watermark(
 @router.post("/pdf/info", summary="Inspect a PDF (page count, metadata, size)")
 async def v1_pdf_info(
     file: UploadFile = File(...),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.read")),
 ):
     from pdf_ops import PdfOpsError, pdf_info
 
@@ -1182,7 +1280,7 @@ async def v1_pdf_info(
 async def v1_pdf_to_text(
     file: UploadFile = File(...),
     pages: str = Form("all"),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.read")),
 ):
     from pdf_ops import PdfOpsError, pdf_to_text
 
@@ -1206,7 +1304,7 @@ async def v1_pdf_to_images(
     pages: str = Form("all"),
     dpi: int = Form(150, ge=30, le=600),
     format: str = Form("png", pattern="^(png|jpeg)$"),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.read")),
 ):
     from pdf_ops import PdfOpsError, pdf_to_images
 
@@ -1231,7 +1329,7 @@ async def v1_pdf_to_images(
 @router.post("/pdf/from-images", summary="Combine images into a PDF")
 async def v1_pdf_from_images(
     files: list[UploadFile] = File(..., description="PNG/JPEG/WebP images, in page order"),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.write")),
 ):
     from pdf_ops import PdfOpsError, images_to_pdf
 
@@ -1270,7 +1368,7 @@ async def v1_pdf_sign(
     location: Optional[str] = Form(None, max_length=200),
     field_name: str = Form("Signature1", max_length=100),
     timestamp: bool = Form(True),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.sign")),
 ):
     from pdf_signer import SignError, default_tsa_url, sign_available, sign_pdf
 
@@ -1301,7 +1399,7 @@ async def v1_pdf_sign(
 )
 async def v1_pdf_verify(
     file: UploadFile = File(...),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.read")),
 ):
     from pdf_signer import SignError, sign_available, verify_pdf
 
@@ -1328,7 +1426,7 @@ async def v1_pdf_ocr(
     file: UploadFile = File(...),
     language: str = Form("eng", max_length=20),
     pdfa: bool = Form(True, description="Also convert to archival PDF/A"),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.write")),
 ):
     from ocr_processor import OcrError, ocr_available, ocr_pdf
 
@@ -1351,7 +1449,7 @@ async def v1_pdf_ocr(
 )
 async def v1_pdf_extract_tables(
     file: UploadFile = File(...),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("pdf.read")),
 ):
     from table_extractor import TableExtractionError, extract_tables, table_extraction_available
 
@@ -1380,7 +1478,7 @@ async def v1_pdf_extract_tables(
 )
 async def v1_convert_to_pdf(
     file: UploadFile = File(...),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("convert")),
 ):
     from doc_converter import ConvertError, office_to_pdf, office_to_pdf_available
 
@@ -1406,7 +1504,7 @@ async def v1_convert_to_pdf(
 )
 async def v1_convert_pdf_to_docx(
     file: UploadFile = File(...),
-    key: Dict[str, Any] = Depends(require_api_key),
+    key: Dict[str, Any] = Depends(scoped("convert")),
 ):
     from doc_converter import ConvertError, pdf_to_docx, pdf_to_docx_available
 
@@ -1441,4 +1539,5 @@ async def v1_whoami(key: Dict[str, Any] = Depends(require_api_key)) -> Dict[str,
         "monthly_quota": key["monthly_quota"],
         "requests_used": key["requests_used"],
         "month_bucket": key["month_bucket"],
+        "scopes": key_scopes(key),
     }
