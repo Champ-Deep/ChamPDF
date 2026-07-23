@@ -1,17 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build && rm -rf dist/libreoffice-wasm/node_modules",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://api.champdf.com/api/:path*"
+      "destination": "https://champdf-api.64.227.154.215.sslip.io/api/:path*"
     },
     {
       "source": "/docs",
-      "destination": "https://api.champdf.com/docs"
+      "destination": "https://champdf-api.64.227.154.215.sslip.io/docs"
     },
     {
       "source": "/openapi.json",
-      "destination": "https://api.champdf.com/openapi.json"
+      "destination": "https://champdf-api.64.227.154.215.sslip.io/openapi.json"
     }
   ]
 }

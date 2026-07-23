@@ -63,10 +63,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Set working directory
 WORKDIR /app
 
-# Copy application code (v2 modules + self-hosted AI engine modules)
-COPY backend/main.py backend/image_processor.py backend/video_processor.py backend/media_downloader.py backend/inpaint_processor.py backend/pdf_processor.py backend/api_v1.py backend/config.py backend/propainter_wrapper.py ./
-COPY backend/lama_processor.py backend/caption_processor.py backend/upscale_processor.py backend/watermark_detector.py backend/summarizer.py backend/video_analyzer.py backend/gpu_video_remover.py backend/replicate_client.py backend/video_matte.py backend/gpu_transcribe.py backend/ocr_processor.py backend/pdf_signer.py ./
-COPY backend/table_extractor.py backend/pdf_ops.py backend/doc_converter.py ./
+# Copy application code (all backend Python modules). Using a wildcard rather
+# than an explicit per-file list so newly added modules (e.g. clerk_auth.py)
+# are always included — an omitted file here 500s /api/capabilities at runtime.
+COPY backend/*.py ./
 
 # Persistent volume for the v1 API key SQLite store. Override with
 # CHAMPDF_DB_PATH env var if a different path is needed.
