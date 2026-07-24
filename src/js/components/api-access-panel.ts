@@ -297,6 +297,17 @@ function mcpConfigSection(key: string, masked: boolean): HTMLElement {
     : 'Paste into Claude Code, or add the JSON to Claude Desktop / Cursor.';
   wrap.appendChild(hint);
 
+  const docsLine = document.createElement('p');
+  docsLine.className = 'text-gray-400 text-xs';
+  docsLine.innerHTML =
+    'Full endpoint reference: ' +
+    '<a href="developers.html" class="text-orange-400 hover:text-orange-300">Developers guide</a>' +
+    ' · ' +
+    '<a href="/llms.txt" class="text-orange-400 hover:text-orange-300">llms.txt</a>' +
+    ' (paste into an AI tool) · ' +
+    '<a href="/docs" class="text-orange-400 hover:text-orange-300">Swagger</a>';
+  wrap.appendChild(docsLine);
+
   const cli =
     `claude mcp add champdf \\\n` +
     `  -e CHAMPDF_API_KEY=${key} \\\n` +

@@ -1,0 +1,164 @@
+# ChamPDF API — for AI agents and developers
+
+ChamPDF is a document, image, and video toolkit. This file describes its
+public REST API so an LLM-based agent (or a human) can call it directly.
+Machine-readable spec: GET /openapi.json. Interactive docs: GET /docs.
+
+## Base URL
+
+https://api.champdf.com
+
+(All paths below are relative to this base.)
+
+## Authentication
+
+Every request needs:
+
+    Authorization: Bearer champdf_live_<your key>
+
+Get a key by signing in at https://champdf.com, then opening the "API" pill
+next to your account avatar and clicking "Generate API key". The raw key is
+shown once — store it somewhere safe. Free tier: 1,000 requests/month,
+30 requests/minute burst.
+
+Check your key's status any time:
+
+    GET /api/v1/whoami
+    -> {"id":1,"label":"...","monthly_quota":1000,"requests_used":12,
+        "month_bucket":"2026-07","scopes":["*"]}
+
+Rotate or revoke from the same "API" panel on the site, or via:
+
+    GET    /api/v1/keys/me          status of your key
+    POST   /api/v1/keys/me          create your key (409 if one exists)
+    POST   /api/v1/keys/me/rotate   revoke + reissue
+    DELETE /api/v1/keys/me          revoke
+
+## Feature discovery
+
+    GET /api/v1/capabilities
+
+Returns which optional engines are enabled on this deployment (e.g. OCR,
+signing, LibreOffice conversion). Not every feature is on everywhere —
+check this before assuming an endpoint works, or just try it: a disabled
+feature returns 503 rather than a silent failure.
+
+## Endpoints
+
+All multipart uploads use standard `multipart/form-data`. All PDFs are
+capped at 50MB. Files are processed in memory / temp storage and are not
+retained after the response is sent.
+
+### Documents
+
+| Method | Path                       | Request                                          | Response                          |
+|--------|----------------------------|---------------------------------------------------|------------------------------------|
+| POST   | /api/v1/pdf/merge          | `files` (2+ PDFs)                                  | merged PDF                        |
+| POST   | /api/v1/pdf/split          | `file`, `pages` (e.g. `"1-3,7,9-"`)                 | PDF of just those pages           |
+| POST   | /api/v1/pdf/delete-pages   | `file`, `pages`                                    | PDF without those pages           |
+| POST   | /api/v1/pdf/rotate         | `file`, `angle` (90/180/270), optional `pages`      | rotated PDF                       |
+| POST   | /api/v1/pdf/compress       | `file`, optional `image_dpi`/`image_quality`        | smaller PDF                       |
+| POST   | /api/v1/pdf/watermark      | `file`, `text`, optional `opacity`/`font_size`/`color`/`angle`/`pages` | stamped PDF     |
+| POST   | /api/v1/pdf/info           | `file`                                             | JSON: page count, metadata, size  |
+| POST   | /api/v1/pdf/to-text        | `file`, optional `pages`                           | JSON `{pages:[{page,text}]}`      |
+| POST   | /api/v1/pdf/to-images      | `file`, optional `pages`/`dpi`/`format`             | ZIP of page images                |
+| POST   | /api/v1/pdf/from-images    | `files` (PNG/JPEG)                                 | one PDF, one page per image       |
+| POST   | /api/v1/pdf/sign           | `file`, `cert` (.p12/.pfx), `passphrase`, optional `reason`/`location`/`field_name` | PAdES-signed PDF (with trusted timestamp) |
+| POST   | /api/v1/pdf/verify-signature | `file`                                           | JSON signature report (signer, integrity, timestamp) |
+| POST   | /api/v1/pdf/ocr            | `file`, optional `language`/`pdfa`                 | searchable PDF / PDF-A            |
+| POST   | /api/v1/pdf/extract-tables | `file`                                             | JSON tables (rows + markdown)     |
+| POST   | /api/v1/convert/to-pdf     | Office doc (doc/docx/odt/rtf/txt/xls/xlsx/ods/csv/ppt/pptx/odp/html) | PDF |
+| POST   | /api/v1/convert/pdf-to-docx| `file` (PDF)                                       | editable Word .docx               |
+
+### Images
+
+| Method | Path                        | Request                                  | Response                       |
+|--------|-----------------------------|--------------------------------------------|----------------------------------|
+| POST   | /api/v1/image/remove-bg     | `image`                                     | PNG, transparent background     |
+| POST   | /api/v1/image/edit          | `image`, `prompt`                           | PNG (AI-edited)                 |
+| POST   | /api/v1/image/detect-watermarks | `image`                                 | JSON `{watermarks:[{x,y,w,h,label,confidence}]}` |
+| POST   | /api/v1/image/inpaint       | `image`, `mask`, optional `prompt`/`radius`  | PNG                              |
+
+### Video
+
+| Method | Path                     | Request                                                    | Response          |
+|--------|--------------------------|-------------------------------------------------------------|--------------------|
+| POST   | /api/v1/video/download   | JSON `{url, format: "mp3"\|"mp4"}`                          | binary file stream |
+| POST   | /api/v1/video/remove-logo| `file`, `logo_preset`, `watermark_position`, `logo_scale`    | MP4                |
+
+### PDF watermark removal (region-based, not AI-detect)
+
+| Method | Path                        | Request                                          | Response     |
+|--------|-----------------------------|-----------------------------------------------------|---------------|
+| POST   | /api/v1/pdf/remove-watermark| `file`, `regions` (JSON), `method` (telea/ns/gemini) | cleaned PDF |
+
+## Errors
+
+Failures return JSON with a `detail` field. Structured errors carry a `code`:
+
+| Status | code               | Meaning                                    |
+|--------|--------------------|----------------------------------------------|
+| 400    | —                  | bad input (malformed file, missing param)   |
+| 401    | —                  | missing/invalid API key                      |
+| 403    | insufficient_scope | your key lacks the scope for this endpoint  |
+| 413    | —                  | file over the size limit                     |
+| 429    | rate_limited       | over 30 requests/minute — back off and retry |
+| 429    | quota_exceeded     | over your monthly quota                      |
+| 503    | —                  | this feature isn't enabled on this deployment (check /api/v1/capabilities) |
+
+## Scopes
+
+Self-serve keys are issued with full access (`*`) by default. If you request
+a scoped key from an admin, scopes map to endpoint groups:
+
+    pdf.read  -> info, to-text, to-images, extract-tables, verify-signature
+    pdf.write -> merge, split, delete-pages, rotate, compress, watermark,
+                 from-images, ocr, remove-watermark
+    pdf.sign  -> sign
+    pdf       -> all of the above
+    convert   -> to-pdf, pdf-to-docx
+    image     -> remove-bg, edit, inpaint, detect-watermarks
+    video     -> download, remove-logo
+    *         -> everything
+
+## Connect an AI assistant (MCP)
+
+The @champ-deep/champdf-mcp package wraps this whole API as tools for
+Claude Code, Claude Desktop, Cursor, and any other MCP-aware client:
+
+    claude mcp add champdf \
+      -e CHAMPDF_API_KEY=champdf_live_... \
+      -e CHAMPDF_API_BASE_URL=https://api.champdf.com \
+      -- npx -y @champ-deep/champdf-mcp
+
+Or add to Claude Desktop / Cursor's MCP config:
+
+    {
+      "mcpServers": {
+        "champdf": {
+          "command": "npx",
+          "args": ["-y", "@champ-deep/champdf-mcp"],
+          "env": {
+            "CHAMPDF_API_KEY": "champdf_live_...",
+            "CHAMPDF_API_BASE_URL": "https://api.champdf.com"
+          }
+        }
+      }
+    }
+
+Then just ask: "merge these two PDFs", "sign this contract with my
+certificate", "remove the background from this photo".
+
+## Quickstart
+
+    # 1. Get your key: sign in at champdf.com -> API pill -> Generate
+
+    # 2. Use it
+    curl -X POST https://api.champdf.com/api/v1/image/remove-bg \
+      -H "Authorization: Bearer champdf_live_..." \
+      -F "image=@photo.jpg" \
+      -o photo-no-bg.png
+
+    # 3. Check usage
+    curl https://api.champdf.com/api/v1/whoami \
+      -H "Authorization: Bearer champdf_live_..."

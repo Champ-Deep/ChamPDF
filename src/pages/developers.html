@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Primary Meta Tags -->
+    <title>Developers - ChamPDF API for AI Agents & Apps</title>
+    <meta
+      name="title"
+      content="Developers - ChamPDF API for AI Agents & Apps"
+    />
+    <meta
+      name="description"
+      content="Get a ChamPDF API key and call document, image, and video tools from your own app, script, or AI assistant (Claude, Cursor, and other MCP clients)."
+    />
+    <meta
+      name="keywords"
+      content="chamPDF api, pdf api, mcp server, claude mcp, pdf automation"
+    />
+    <meta name="author" content="ChamPDF" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://www.champdf.com/developers.html" />
+
+    <!-- Open Graph / Facebook / LinkedIn -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.champdf.com/developers" />
+    <meta
+      property="og:title"
+      content="Developers - ChamPDF API for AI Agents & Apps"
+    />
+    <meta
+      property="og:description"
+      content="Get a ChamPDF API key and call document, image, and video tools from your own app, script, or AI assistant."
+    />
+    <meta property="og:site_name" content="ChamPDF" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://www.champdf.com/developers" />
+    <meta name="twitter:title" content="ChamPDF Developers" />
+    <meta
+      name="twitter:description"
+      content="Get a ChamPDF API key and call document, image, and video tools from your own app or AI assistant."
+    />
+    <meta name="twitter:site" content="@ChamPDF" />
+
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Developers" />
+
+    <link href="/src/css/styles.css" rel="stylesheet" />
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="/images/favicon-192x192.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="512x512"
+      href="/images/favicon-512x512.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/images/apple-touch-icon.png"
+    />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  </head>
+
+  <body class="antialiased bg-gray-900">
+    {{> navbar }}
+
+    <div class="min-h-screen bg-gray-900 text-gray-200">
+      <div class="container mx-auto px-4 py-12 max-w-4xl">
+        <button
+          id="back-to-tools-developers"
+          class="flex items-center gap-2 text-orange-400 hover:text-orange-300 mb-8 font-semibold"
+        >
+          <i data-lucide="arrow-left" class="cursor-pointer"></i>
+          <span class="cursor-pointer">Back to Tools</span>
+        </button>
+
+        <h1 class="text-3xl font-bold text-white mb-3">
+          ChamPDF for developers &amp; AI agents
+        </h1>
+        <p class="text-gray-400 mb-10 text-lg">
+          Every document, image, and video tool on this site also has a
+          server-side API. Sign in, mint a key, and call it from your own code —
+          or hand it straight to Claude, Cursor, or any other MCP-aware
+          assistant.
+        </p>
+
+        <!-- Step 1: Get a key -->
+        <section class="mb-10">
+          <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">
+            <i data-lucide="key-round" class="w-5 h-5 text-orange-400"></i>
+            1. Get an API key
+          </h2>
+          <div class="bg-gray-800 border border-gray-700 rounded-xl p-5">
+            <ol class="list-decimal list-inside space-y-2 text-gray-300">
+              <li>
+                <a
+                  href="#"
+                  id="developers-sign-in-link"
+                  class="text-orange-400 hover:text-orange-300 font-medium"
+                  >Sign in</a
+                >
+                (top right) — any account works, no separate application needed.
+              </li>
+              <li>
+                Click the
+                <span class="text-orange-400 font-semibold">API</span>
+                pill next to your avatar.
+              </li>
+              <li>
+                Click <strong>Generate API key</strong> and copy it — it's shown
+                once.
+              </li>
+            </ol>
+            <p class="text-gray-500 text-sm mt-3">
+              Free tier: 1,000 requests / month, 30 requests / minute burst.
+              Usage is visible any time via
+              <code class="text-orange-300">GET /api/v1/whoami</code>.
+            </p>
+          </div>
+        </section>
+
+        <!-- Step 2: Call it -->
+        <section class="mb-10">
+          <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">
+            <i data-lucide="terminal" class="w-5 h-5 text-orange-400"></i>
+            2. Call it directly
+          </h2>
+          <div
+            class="bg-gray-800 border border-gray-700 rounded-xl p-5 space-y-3"
+          >
+            <p class="text-gray-300">
+              Every endpoint lives under
+              <code class="text-orange-300">/api/v1</code> and takes an
+              <code class="text-orange-300"
+                >Authorization: Bearer champdf_live_...</code
+              >
+              header. Example — strip the background from a photo:
+            </p>
+            <pre
+              class="rounded bg-gray-900 border border-gray-700 p-4 text-xs text-gray-200 overflow-x-auto"
+            ><code>curl -X POST https://api.champdf.com/api/v1/image/remove-bg \
+  -H "Authorization: Bearer champdf_live_..." \
+  -F "image=@photo.jpg" \
+  -o photo-no-bg.png</code></pre>
+            <p class="text-gray-400 text-sm">
+              Full endpoint list, request/response shapes, scopes, and error
+              codes:
+              <a href="/llms.txt" class="text-orange-400 hover:text-orange-300"
+                >/llms.txt</a
+              >
+              (plain text, built for pasting into an AI tool) or the interactive
+              <a href="/docs" class="text-orange-400 hover:text-orange-300"
+                >Swagger docs</a
+              >.
+            </p>
+          </div>
+        </section>
+
+        <!-- Step 3: AI assistants -->
+        <section class="mb-10">
+          <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">
+            <i data-lucide="bot" class="w-5 h-5 text-orange-400"></i>
+            3. Or hand it to your AI assistant
+          </h2>
+          <div
+            class="bg-gray-800 border border-gray-700 rounded-xl p-5 space-y-3"
+          >
+            <p class="text-gray-300">
+              The
+              <code class="text-orange-300">@champ-deep/champdf-mcp</code>
+              package wraps this API as native tools for Claude Code, Claude
+              Desktop, Cursor, and any other MCP-aware client — merge, split,
+              sign, convert, OCR, remove backgrounds, and more, called directly
+              from your conversation.
+            </p>
+            <pre
+              class="rounded bg-gray-900 border border-gray-700 p-4 text-xs text-gray-200 overflow-x-auto"
+            ><code>claude mcp add champdf \
+  -e CHAMPDF_API_KEY=champdf_live_... \
+  -e CHAMPDF_API_BASE_URL=https://api.champdf.com \
+  -- npx -y @champ-deep/champdf-mcp</code></pre>
+            <p class="text-gray-400 text-sm">
+              The API panel (step 1) fills this in with your real key and also
+              shows the Claude Desktop / Cursor JSON config — just copy and
+              paste.
+            </p>
+          </div>
+        </section>
+
+        <!-- Endpoint overview -->
+        <section class="mb-10">
+          <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">
+            <i data-lucide="list" class="w-5 h-5 text-orange-400"></i>
+            What you can call
+          </h2>
+          <div
+            class="bg-gray-800 border border-gray-700 rounded-xl p-5 overflow-x-auto"
+          >
+            <table class="w-full text-sm text-left">
+              <thead>
+                <tr class="text-gray-400 border-b border-gray-700">
+                  <th class="pb-2 pr-4 font-semibold">Area</th>
+                  <th class="pb-2 font-semibold">Examples</th>
+                </tr>
+              </thead>
+              <tbody class="text-gray-300">
+                <tr class="border-b border-gray-700/60">
+                  <td class="py-2 pr-4 font-medium text-white">Documents</td>
+                  <td class="py-2">
+                    merge, split, rotate, compress, watermark, info, to-text,
+                    to-images, from-images, sign, verify-signature, OCR,
+                    extract-tables
+                  </td>
+                </tr>
+                <tr class="border-b border-gray-700/60">
+                  <td class="py-2 pr-4 font-medium text-white">Convert</td>
+                  <td class="py-2">
+                    Office docs (Word/Excel/PowerPoint/ODF) → PDF, PDF →
+                    editable Word
+                  </td>
+                </tr>
+                <tr class="border-b border-gray-700/60">
+                  <td class="py-2 pr-4 font-medium text-white">Images</td>
+                  <td class="py-2">
+                    remove background, AI edit, detect watermarks, inpaint
+                  </td>
+                </tr>
+                <tr>
+                  <td class="py-2 pr-4 font-medium text-white">Video</td>
+                  <td class="py-2">download, remove logo/watermark</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="text-gray-500 text-xs mt-3">
+              Not every feature is enabled on every deployment — check
+              <code class="text-orange-300">GET /api/v1/capabilities</code>
+              to see what's currently on.
+            </p>
+          </div>
+        </section>
+
+        <!-- Scopes & limits -->
+        <section>
+          <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-5 h-5 text-orange-400"></i>
+            Good to know
+          </h2>
+          <div class="bg-gray-800 border border-gray-700 rounded-xl p-5">
+            <ul class="list-disc list-inside space-y-2 text-gray-300">
+              <li>
+                Your key is shown once — rotate it any time from the API panel
+                if you lose it.
+              </li>
+              <li>
+                Files are processed in memory and are not retained after the
+                response is sent.
+              </li>
+              <li>
+                Rate limits: 30 requests/minute burst, plus your monthly quota
+                (resets each UTC month).
+              </li>
+              <li>
+                Out-of-scope or over-quota calls return a structured JSON error,
+                not a silent failure.
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    {{> footer }}
+
+    <script type="module" src="/src/js/utils/lucide-init.ts"></script>
+    <script type="module" src="/src/js/utils/full-width.ts"></script>
+    <script type="module" src="/src/js/utils/simple-mode-footer.ts"></script>
+    <script type="module" src="/src/version.ts"></script>
+    <script type="module" src="/src/js/mobileMenu.ts"></script>
+    <script type="module" src="/src/js/main.ts"></script>
+    <script type="module">
+      document
+        .getElementById('back-to-tools-developers')
+        ?.addEventListener('click', () => {
+          window.location.href = 'index.html';
+        });
+      document
+        .getElementById('developers-sign-in-link')
+        ?.addEventListener('click', (e) => {
+          e.preventDefault();
+          document.getElementById('login-btn')?.click();
+        });
+    </script>
+  </body>
+</html>
