@@ -904,8 +904,9 @@ async def transcribe_video(
 ):
     """Transcribe a video's speech to an .srt subtitle file.
 
-    engine: "cpu" (local faster-whisper), "gpu" (Replicate Whisper large-v3),
-    or "auto" (GPU when configured, else CPU).
+    engine: "cpu" (local faster-whisper), "gpu" (hosted Whisper large-v3 via
+    Replicate or Groq, per VIDEO_GPU_PROVIDER), or "auto" (GPU when configured,
+    else CPU).
     """
     if engine not in {"auto", "cpu", "gpu"}:
         raise HTTPException(status_code=400, detail="engine must be auto, cpu, or gpu")
@@ -1103,14 +1104,14 @@ async def video_insights(
                 status_code=400,
                 content={
                     "code": "analyze_unavailable",
-                    "message": "Video analysis needs GEMINI_API_KEY (or OPENROUTER_API_KEY for a text summary).",
+                    "message": "Video analysis needs GEMINI_API_KEY (or OPENROUTER_API_KEY/GROQ_API_KEY for a text summary).",
                 },
             )
         return JSONResponse(
             status_code=400,
             content={
                 "code": "summary_unavailable",
-                "message": "AI summary needs OPENROUTER_API_KEY set on the server.",
+                "message": "AI summary needs OPENROUTER_API_KEY or GROQ_API_KEY set on the server.",
             },
         )
 

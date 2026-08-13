@@ -61,7 +61,9 @@ class Settings(BaseSettings):
     WATERMARK_MATCH_THRESHOLD: float = 0.62  # 0-1; higher = stricter match
     WATERMARK_SAMPLE_FRAMES: int = 12        # frames sampled to locate a video watermark
 
-    # LLM summaries via OpenRouter (set OPENROUTER_API_KEY in env to enable).
+    # LLM summaries via OpenRouter (set OPENROUTER_API_KEY) or Groq (set
+    # GROQ_API_KEY — fast LPU-hosted Llama models; request a "groq/..." model
+    # id, or it's used automatically when OPENROUTER_API_KEY is unset).
     # Powers the Video Downloader's transcript → AI summary step.
     OPENROUTER_MODEL: str = "openai/gpt-4o-mini"
     ENABLE_VIDEO_INSIGHTS: bool = True  # transcript + summary from a video URL
@@ -72,7 +74,10 @@ class Settings(BaseSettings):
     # GPU video watermark removal (Video Rebrander "Best" quality).
     # Railway has no GPU, so the heavy inpainting is offloaded to an external
     # provider. "replicate" runs a hosted ProPainter model; "none" disables it.
-    VIDEO_GPU_PROVIDER: str = "none"  # replicate | none
+    # "groq" is also accepted, but ONLY for GPU transcription (gpu_transcribe.py)
+    # — Groq has no video models, so it can't serve this watermark-removal path
+    # or video_matte.py's background removal; those stay Replicate-only.
+    VIDEO_GPU_PROVIDER: str = "none"  # replicate | groq | none
     # Replicate model slug (owner/name or owner/name:version) for video inpainting.
     REPLICATE_PROPAINTER_MODEL: str = "jd7h/propainter"
     # Replicate model for video background removal (Robust Video Matting).
