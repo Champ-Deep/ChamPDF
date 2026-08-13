@@ -61,6 +61,7 @@ from gpu_video_remover import gpu_removal_available
 from video_matte import matte_video, matte_available
 from gpu_transcribe import transcribe as gpu_transcribe, gpu_transcribe_available
 from replicate_client import ReplicateError
+from groq_client import GroqError
 from ocr_processor import ocr_pdf, ocr_available, OcrError
 from pdf_signer import sign_pdf, verify_pdf, sign_available, default_tsa_url, SignError
 from table_extractor import extract_tables, table_extraction_available, TableExtractionError
@@ -943,7 +944,7 @@ async def transcribe_video(
                 try:
                     result = await gpu_transcribe(str(input_path), language=language)
                     srt_text = result["srt"]
-                except ReplicateError as ge:
+                except (ReplicateError, GroqError) as ge:
                     if engine == "gpu" or not caption_processor:
                         raise
                     logger.warning("GPU transcription failed, falling back to CPU: %s", ge)
