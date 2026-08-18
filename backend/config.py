@@ -91,6 +91,24 @@ class Settings(BaseSettings):
     # Reject offloading clips longer than this (cost guard). 0 = no cap.
     GPU_VIDEO_MAX_SECONDS: int = 120
 
+    # --- GPU cost control: crop-and-composite -------------------------------
+    # ProPainter is billed by GPU time, which scales with the pixels it
+    # processes. A corner watermark is ~1% of a frame, so sending the whole
+    # frame spends ~99% of the bill on pixels that are never touched. Instead
+    # crop a padded window around the watermark, inpaint only that, and
+    # composite the cleaned patch back. Only masked pixels are replaced, so
+    # the rest of the frame stays bit-for-bit the original.
+    GPU_VIDEO_CROP_ENABLED: bool = True
+    # Pad each side by this multiple of the watermark's own size, giving
+    # ProPainter surrounding context to propagate from.
+    GPU_VIDEO_CROP_PAD_RATIO: float = 1.0
+    # Never crop below this on either side — too small starves the model of
+    # temporal/spatial context and quality degrades.
+    GPU_VIDEO_CROP_MIN_SIDE: int = 320
+    # If the padded window still covers more than this fraction of the frame,
+    # cropping buys little; send the full frame instead.
+    GPU_VIDEO_CROP_MAX_FRACTION: float = 0.6
+
     # Compliance PDF signing (pyHanko). Needs the user's .p12/.pfx at sign time.
     ENABLE_PDF_SIGN: bool = True
     # Trusted timestamp authority for PAdES B-T (RFC 3161). Empty = no timestamp.

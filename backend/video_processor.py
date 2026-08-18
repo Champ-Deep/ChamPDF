@@ -639,6 +639,153 @@ class VideoProcessor:
         img.save(buf, format="PNG")
         return buf.getvalue()
 
+    @staticmethod
+    def _even(v: int) -> int:
+        """Round down to even — libx264/yuv420p requires even dimensions."""
+        return int(v) - (int(v) % 2)
+
+    def _gpu_crop_window(
+        self,
+        region: Dict[str, int],
+        width: int,
+        height: int,
+    ) -> Optional[Dict[str, int]]:
+        """Padded, even-aligned crop window around the watermark, or None.
+
+        The GPU bill scales with pixels processed, and a corner watermark is a
+        tiny fraction of the frame — so inpainting a window around it instead of
+        the whole frame cuts cost by roughly the pixel ratio. Returns None when
+        the window would still cover most of the frame (nothing to save) or when
+        cropping is disabled.
+        """
+        from config import settings
+
+        if not getattr(settings, "GPU_VIDEO_CROP_ENABLED", True):
+            return None
+
+        pad_ratio = float(getattr(settings, "GPU_VIDEO_CROP_PAD_RATIO", 1.0))
+        min_side = int(getattr(settings, "GPU_VIDEO_CROP_MIN_SIDE", 320))
+        max_frac = float(getattr(settings, "GPU_VIDEO_CROP_MAX_FRACTION", 0.6))
+
+        # Pad around the watermark for propagation context.
+        pad_x = int(region["w"] * pad_ratio)
+        pad_y = int(region["h"] * pad_ratio)
+        win_w = region["w"] + 2 * pad_x
+        win_h = region["h"] + 2 * pad_y
+
+        # Enforce a sensible floor, then clamp to the frame.
+        win_w = min(max(win_w, min_side), width)
+        win_h = min(max(win_h, min_side), height)
+
+        # Centre the window on the watermark, then slide it fully inside frame.
+        cx = region["x"] + region["w"] / 2.0
+        cy = region["y"] + region["h"] / 2.0
+        x = int(round(cx - win_w / 2.0))
+        y = int(round(cy - win_h / 2.0))
+        x = max(0, min(x, width - win_w))
+        y = max(0, min(y, height - win_h))
+
+        # Even-align origin and size without falling outside the frame.
+        x, y = self._even(x), self._even(y)
+        win_w = self._even(min(win_w, width - x))
+        win_h = self._even(min(win_h, height - y))
+        if win_w <= 0 or win_h <= 0:
+            return None
+
+        # If we're not meaningfully smaller than the frame, don't bother.
+        if (win_w * win_h) > (max_frac * width * height):
+            return None
+
+        return {"x": x, "y": y, "w": win_w, "h": win_h}
+
+    async def _crop_video(
+        self,
+        input_path: str,
+        output_path: str,
+        window: Dict[str, int],
+    ) -> Tuple[bool, Optional[str]]:
+        """Extract the crop window as a standalone video (no audio)."""
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", input_path,
+            "-filter:v", f"crop={window['w']}:{window['h']}:{window['x']}:{window['y']}",
+            "-an",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+            "-pix_fmt", "yuv420p",
+            output_path,
+        ]
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0 or not Path(output_path).exists():
+            return False, f"Crop failed: {stderr.decode()[-300:]}"
+        return True, None
+
+    async def _composite_cleaned_patch(
+        self,
+        original_path: str,
+        cleaned_crop_path: str,
+        output_path: str,
+        region: Dict[str, int],
+        window: Dict[str, int],
+        width: int,
+        height: int,
+        mask_pad: int = 4,
+    ) -> Tuple[bool, Optional[str]]:
+        """Paste only the inpainted watermark box back onto the original video.
+
+        Deliberately narrow: we overlay just the masked box, not the whole
+        cleaned window. Everything outside it comes straight from the source, so
+        the crop boundary can't show up as a seam from differing re-encodes.
+        The cleaned crop is scaled back to the window size first, since the model
+        may return a different resolution than it was given.
+        """
+        # The box actually inpainted = region + the mask's own padding, clamped
+        # to both the frame and the crop window (mask can't exceed the window).
+        px1 = max(window["x"], region["x"] - mask_pad, 0)
+        py1 = max(window["y"], region["y"] - mask_pad, 0)
+        px2 = min(
+            window["x"] + window["w"], region["x"] + region["w"] + mask_pad, width
+        )
+        py2 = min(
+            window["y"] + window["h"], region["y"] + region["h"] + mask_pad, height
+        )
+        pw, ph = int(px2 - px1), int(py2 - py1)
+        if pw <= 0 or ph <= 0:
+            return False, "Computed empty composite patch"
+
+        # Same box expressed inside the cleaned crop.
+        rx, ry = int(px1 - window["x"]), int(py1 - window["y"])
+
+        filter_complex = (
+            f"[1:v]scale={window['w']}:{window['h']},"
+            f"crop={pw}:{ph}:{rx}:{ry}[patch];"
+            f"[0:v][patch]overlay={int(px1)}:{int(py1)}:format=auto[out]"
+        )
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", original_path,
+            "-i", cleaned_crop_path,
+            "-filter_complex", filter_complex,
+            "-map", "[out]",
+            "-an",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+            "-pix_fmt", "yuv420p",
+            output_path,
+        ]
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0 or not Path(output_path).exists():
+            return False, f"Composite failed: {stderr.decode()[-300:]}"
+        return True, None
+
     async def _inpaint_video_gpu(
         self,
         input_path: str,
@@ -653,9 +800,13 @@ class VideoProcessor:
     ) -> Tuple[bool, Optional[str]]:
         """Offload inpainting to an external GPU provider, then finalize locally.
 
-        Flow: build a static region mask → extract audio → send video + mask to
-        the provider (returns a cleaned MP4 with no audio) → re-mux the original
+        Flow: crop a padded window around the watermark (cost control — see
+        _gpu_crop_window) → build a mask for it → extract audio → send to the
+        provider → composite the cleaned patch back onto the original → re-mux
         audio and overlay the replacement logo with the existing FFmpeg step.
+
+        Falls back to sending the full frame when cropping isn't worthwhile or
+        the crop step fails, so behaviour is never worse than before.
         """
         from gpu_video_remover import remove_watermark, GpuVideoError
         from config import settings
@@ -674,19 +825,57 @@ class VideoProcessor:
 
         work_dir = tempfile.mkdtemp(prefix="champdf_gpu_")
         try:
-            mask_png = self._build_mask_png(width, height, region)
-
             # Pull the audio aside; the provider returns video only.
             audio_path = os.path.join(work_dir, "audio.aac")
             has_audio = await self._extract_audio(input_path, audio_path)
 
+            window = self._gpu_crop_window(region, width, height)
+            send_path = input_path
+            if window:
+                crop_path = os.path.join(work_dir, "crop.mp4")
+                ok, err = await self._crop_video(input_path, crop_path, window)
+                if ok:
+                    send_path = crop_path
+                    saving = 1.0 - (window["w"] * window["h"]) / float(width * height)
+                    logger.info(
+                        "GPU inpaint: sending %dx%d crop instead of %dx%d frame "
+                        "(~%.0f%% fewer pixels billed)",
+                        window["w"], window["h"], width, height, saving * 100,
+                    )
+                    # Mask is relative to the crop's own coordinate space.
+                    mask_png = self._build_mask_png(
+                        window["w"],
+                        window["h"],
+                        {
+                            "x": region["x"] - window["x"],
+                            "y": region["y"] - window["y"],
+                            "w": region["w"],
+                            "h": region["h"],
+                        },
+                    )
+                else:
+                    logger.warning("Crop for GPU inpaint failed (%s); sending full frame.", err)
+                    window = None
+
+            if not window:
+                mask_png = self._build_mask_png(width, height, region)
+
             try:
-                cleaned = await remove_watermark(input_path, mask_png)
+                cleaned = await remove_watermark(send_path, mask_png)
             except GpuVideoError as e:
                 return False, str(e)
 
             cleaned_path = os.path.join(work_dir, "cleaned.mp4")
             Path(cleaned_path).write_bytes(cleaned)
+
+            if window:
+                composited = os.path.join(work_dir, "composited.mp4")
+                ok, err = await self._composite_cleaned_patch(
+                    input_path, cleaned_path, composited, region, window, width, height
+                )
+                if not ok:
+                    return False, err
+                cleaned_path = composited
 
             return await self._finalize_video(
                 cleaned_path,
