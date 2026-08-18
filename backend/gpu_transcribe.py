@@ -7,10 +7,15 @@ provider is configured, this offloads to a hosted Whisper for faster, more
 accurate transcripts. Returns plain text + an SRT built from the model's
 timestamps. Env-gated; falls back to CPU when unavailable.
 
-Provider selection is VIDEO_GPU_PROVIDER (shared with gpu_video_remover.py /
-video_matte.py for the "replicate" value) — but "groq" is valid *only* here.
-Groq hosts Whisper (fast LPU inference) but has no video models, so it cannot
-serve the video-pixel GPU paths those other modules use.
+Provider selection is TRANSCRIBE_PROVIDER (groq | replicate | cpu), and is
+deliberately INDEPENDENT of VIDEO_GPU_PROVIDER. Those must be separately
+settable: Groq hosts Whisper (fast LPU inference) but has no video models, so
+it cannot serve the video-pixel paths (gpu_video_remover.py ProPainter
+inpainting, video_matte.py RVM matting) — those are Replicate-only. Tying both
+to one variable would force a choice between Groq transcription and GPU video
+watermark removal.
+
+Unset => auto: prefer Groq when credentialed, else Replicate, else CPU.
 """
 
 from __future__ import annotations
@@ -24,13 +29,28 @@ import groq_client
 
 
 def _provider() -> str:
-    return (os.environ.get("VIDEO_GPU_PROVIDER", "none") or "none").strip().lower()
+    """Explicit transcription backend, or "" for auto."""
+    return (os.environ.get("TRANSCRIBE_PROVIDER", "") or "").strip().lower()
+
+
+def _use_groq() -> bool:
+    p = _provider()
+    if p == "groq":
+        return groq_client.groq_available()
+    if p in ("replicate", "cpu", "none"):
+        return False
+    return groq_client.groq_available()  # auto: Groq wins when credentialed
 
 
 def gpu_transcribe_available() -> bool:
-    return replicate_available() or (
-        _provider() == "groq" and groq_client.groq_available()
-    )
+    p = _provider()
+    if p in ("cpu", "none"):
+        return False
+    if p == "groq":
+        return groq_client.groq_available()
+    if p == "replicate":
+        return replicate_available()
+    return groq_client.groq_available() or replicate_available()
 
 
 def _model_slug() -> str:
@@ -71,10 +91,11 @@ async def transcribe(media_path: str, language: Optional[str] = None) -> dict:
     """GPU Whisper → {"text", "srt"}. Raises ReplicateError/GroqError on failure."""
     if not gpu_transcribe_available():
         raise ReplicateError(
-            "GPU transcription needs VIDEO_GPU_PROVIDER=replicate + REPLICATE_API_TOKEN "
-            "(or VIDEO_GPU_PROVIDER=groq + GROQ_API_KEY)."
+            "Hosted transcription needs GROQ_API_KEY, or "
+            "VIDEO_GPU_PROVIDER=replicate + REPLICATE_API_TOKEN. "
+            "Pin one with TRANSCRIBE_PROVIDER=groq|replicate."
         )
-    if _provider() == "groq" and groq_client.groq_available():
+    if _use_groq():
         return await asyncio.to_thread(groq_client.transcribe, media_path, language)
 
     with open(media_path, "rb") as f:
