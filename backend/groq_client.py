@@ -23,7 +23,10 @@ from typing import Optional
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_TRANSCRIBE_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 
-DEFAULT_CHAT_MODEL = "llama-3.3-70b-versatile"
+# Groq retires hosted models fairly often (llama-3.3-70b-versatile was pulled
+# in Aug 2026 and now 404s). Check GET /openai/v1/models for the live catalog
+# before changing this; override per-deployment with GROQ_MODEL.
+DEFAULT_CHAT_MODEL = "openai/gpt-oss-120b"
 DEFAULT_TRANSCRIBE_MODEL = "whisper-large-v3-turbo"
 
 

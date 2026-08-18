@@ -26,13 +26,13 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "openai/gpt-4o-mini"
 
 # Small allowlist surfaced to the UI; any OpenRouter model id also works, as
-# does any Groq model id prefixed "groq/" (e.g. "groq/llama-3.3-70b-versatile").
+# does any Groq model id prefixed "groq/" (e.g. "groq/openai/gpt-oss-120b").
 SUGGESTED_MODELS = [
     "openai/gpt-4o-mini",
     "anthropic/claude-3.5-haiku",
     "google/gemini-flash-1.5",
     "meta-llama/llama-3.1-70b-instruct",
-    "groq/llama-3.3-70b-versatile",
+    "groq/openai/gpt-oss-120b",
 ]
 
 
