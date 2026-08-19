@@ -115,9 +115,10 @@ Failures return JSON with a `detail` field. Structured errors carry a `code`:
 Self-serve keys are issued with full access (`*`) by default. If you request
 a scoped key from an admin, scopes map to endpoint groups:
 
-    pdf.read  -> info, to-text, to-images, extract-tables, verify-signature
+    pdf.read  -> info, to-text, to-images, extract-tables, verify-signature,
+                 form-fields
     pdf.write -> merge, split, delete-pages, rotate, compress, watermark,
-                 from-images, ocr, remove-watermark
+                 from-images, ocr, remove-watermark, fill-form
     pdf.sign  -> sign
     pdf       -> all of the above
     convert   -> to-pdf, pdf-to-docx
