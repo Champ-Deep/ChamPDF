@@ -58,6 +58,12 @@ async function preloadGhostscript(): Promise<void> {
         if (path.endsWith('.wasm')) {
           return gsBaseUrl + 'gs.wasm';
         }
+        // Emscripten also probes for its glue/worker JS. Unmapped, that
+        // resolves next to the bundled chunk (/assets/gs.js) and 404s on every
+        // page load. The real file sits alongside gs.wasm.
+        if (path.endsWith('.js')) {
+          return gsBaseUrl + 'gs.js';
+        }
         return path;
       },
       print: () => {},
