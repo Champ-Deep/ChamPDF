@@ -159,7 +159,7 @@
             </p>
             <pre
               class="rounded bg-gray-900 border border-gray-700 p-4 text-xs text-gray-200 overflow-x-auto"
-            ><code>curl -X POST https://api.champdf.com/api/v1/image/remove-bg \
+            ><code>curl -X POST https://champdf-api.64.227.154.215.sslip.io/api/v1/image/remove-bg \
   -H "Authorization: Bearer champdf_live_..." \
   -F "image=@photo.jpg" \
   -o photo-no-bg.png</code></pre>
@@ -198,7 +198,7 @@
               class="rounded bg-gray-900 border border-gray-700 p-4 text-xs text-gray-200 overflow-x-auto"
             ><code>claude mcp add champdf \
   -e CHAMPDF_API_KEY=champdf_live_... \
-  -e CHAMPDF_API_BASE_URL=https://api.champdf.com \
+  -e CHAMPDF_API_BASE_URL=https://champdf-api.64.227.154.215.sslip.io \
   -- npx -y @champ-deep/champdf-mcp</code></pre>
             <p class="text-gray-400 text-sm">
               The API panel (step 1) fills this in with your real key and also

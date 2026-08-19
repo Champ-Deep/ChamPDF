@@ -6,9 +6,11 @@ Machine-readable spec: GET /openapi.json. Interactive docs: GET /docs.
 
 ## Base URL
 
-https://api.champdf.com
+https://champdf-api.64.227.154.215.sslip.io
 
-(All paths below are relative to this base.)
+(All paths below are relative to this base. This is the current production
+host; a friendlier api.champdf.com may front it later, so read the base URL
+from this file rather than hard-coding it.)
 
 ## Authentication
 
@@ -128,7 +130,7 @@ Claude Code, Claude Desktop, Cursor, and any other MCP-aware client:
 
     claude mcp add champdf \
       -e CHAMPDF_API_KEY=champdf_live_... \
-      -e CHAMPDF_API_BASE_URL=https://api.champdf.com \
+      -e CHAMPDF_API_BASE_URL=https://champdf-api.64.227.154.215.sslip.io \
       -- npx -y @champ-deep/champdf-mcp
 
 Or add to Claude Desktop / Cursor's MCP config:
@@ -140,7 +142,7 @@ Or add to Claude Desktop / Cursor's MCP config:
           "args": ["-y", "@champ-deep/champdf-mcp"],
           "env": {
             "CHAMPDF_API_KEY": "champdf_live_...",
-            "CHAMPDF_API_BASE_URL": "https://api.champdf.com"
+            "CHAMPDF_API_BASE_URL": "https://champdf-api.64.227.154.215.sslip.io"
           }
         }
       }
@@ -154,11 +156,11 @@ certificate", "remove the background from this photo".
     # 1. Get your key: sign in at champdf.com -> API pill -> Generate
 
     # 2. Use it
-    curl -X POST https://api.champdf.com/api/v1/image/remove-bg \
+    curl -X POST https://champdf-api.64.227.154.215.sslip.io/api/v1/image/remove-bg \
       -H "Authorization: Bearer champdf_live_..." \
       -F "image=@photo.jpg" \
       -o photo-no-bg.png
 
     # 3. Check usage
-    curl https://api.champdf.com/api/v1/whoami \
+    curl https://champdf-api.64.227.154.215.sslip.io/api/v1/whoami \
       -H "Authorization: Bearer champdf_live_..."
