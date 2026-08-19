@@ -1083,11 +1083,18 @@ def _meter(key: Dict[str, Any], endpoint: str, started: float, status: int = 200
     )
 
 
-def _stream_pdf(data: bytes, filename: str = "output.pdf") -> StreamingResponse:
+def _stream_pdf(
+    data: bytes,
+    filename: str = "output.pdf",
+    extra_headers: Optional[Dict[str, str]] = None,
+) -> StreamingResponse:
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    if extra_headers:
+        headers.update(extra_headers)
     return StreamingResponse(
         io.BytesIO(data),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers=headers,
     )
 
 
@@ -1368,6 +1375,18 @@ async def v1_pdf_sign(
     location: Optional[str] = Form(None, max_length=200),
     field_name: str = Form("Signature1", max_length=100),
     timestamp: bool = Form(True),
+    visible: bool = Form(
+        False,
+        description=(
+            "Render a DocuSign-style visible signature box (signer name, "
+            "time, reason). Same cryptographic signature either way."
+        ),
+    ),
+    page: int = Form(1, description="Page for the visible box (1-based; -1 = last page)"),
+    x: float = Form(380.0, description="Visible box: left, PDF points (origin bottom-left)"),
+    y: float = Form(40.0, description="Visible box: bottom, PDF points"),
+    width: float = Form(180.0, ge=40, le=600, description="Visible box width, points"),
+    height: float = Form(70.0, ge=20, le=400, description="Visible box height, points"),
     key: Dict[str, Any] = Depends(scoped("pdf.sign")),
 ):
     from pdf_signer import SignError, default_tsa_url, sign_available, sign_pdf
@@ -1385,12 +1404,79 @@ async def v1_pdf_sign(
         out = await sign_pdf(
             pdf_bytes, p12_bytes, passphrase,
             field_name=field_name, reason=reason, location=location, tsa_url=tsa,
+            visible=visible, page=page, box=(x, y, width, height) if visible else None,
         )
     except SignError as e:
         _meter(key, "pdf/sign", started, 422)
         raise HTTPException(status_code=422, detail=str(e))
     _meter(key, "pdf/sign", started)
     return _stream_pdf(out, "signed.pdf")
+
+
+@router.post(
+    "/pdf/form-fields",
+    summary="List a PDF's AcroForm fields (names, types, values, options)",
+    description=(
+        "Inspect a fillable PDF: returns every form field with its name, type "
+        "(text/checkbox/radio/combobox/listbox), current value, page, and "
+        "options where applicable. Use this to discover the names to pass to "
+        "/pdf/fill-form."
+    ),
+)
+async def v1_pdf_form_fields(
+    file: UploadFile = File(...),
+    key: Dict[str, Any] = Depends(scoped("pdf.read")),
+):
+    from pdf_ops import PdfOpsError, form_fields
+
+    started = time.monotonic()
+    pdf_bytes = await _read_pdf_upload(file)
+    try:
+        fields = await form_fields(pdf_bytes)
+    except PdfOpsError as e:
+        _meter(key, "pdf/form-fields", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/form-fields", started)
+    return {"field_count": len(fields), "fields": fields}
+
+
+@router.post(
+    "/pdf/fill-form",
+    summary="Fill a PDF's AcroForm fields by name",
+    description=(
+        "Fill form fields from a JSON object of {field_name: value}. Checkbox "
+        "values accept true/false or yes/no. `flatten=true` bakes values into "
+        "the page (no longer editable) — flatten BEFORE signing, never after: "
+        "any post-signature modification invalidates the signature. Unknown "
+        "field names are rejected with a 422 listing them."
+    ),
+)
+async def v1_pdf_fill_form(
+    file: UploadFile = File(..., description="Fillable PDF"),
+    fields: str = Form(..., description='JSON object, e.g. {"Name":"Jane","Agree":true}'),
+    flatten: bool = Form(False),
+    key: Dict[str, Any] = Depends(scoped("pdf.write")),
+):
+    import json as _json
+
+    from pdf_ops import PdfOpsError, fill_form
+
+    started = time.monotonic()
+    pdf_bytes = await _read_pdf_upload(file)
+    try:
+        values = _json.loads(fields)
+        if not isinstance(values, dict) or not values:
+            raise ValueError("fields must be a non-empty JSON object")
+    except ValueError as e:
+        _meter(key, "pdf/fill-form", started, 422)
+        raise HTTPException(status_code=422, detail=f"Invalid fields JSON: {e}")
+    try:
+        out, filled = await fill_form(pdf_bytes, values, flatten=flatten)
+    except PdfOpsError as e:
+        _meter(key, "pdf/fill-form", started, 422)
+        raise HTTPException(status_code=422, detail=str(e))
+    _meter(key, "pdf/fill-form", started)
+    return _stream_pdf(out, "filled.pdf", extra_headers={"X-Fields-Filled": str(filled)})
 
 
 @router.post(

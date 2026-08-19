@@ -65,8 +65,10 @@ retained after the response is sent.
 | POST   | /api/v1/pdf/to-text        | `file`, optional `pages`                           | JSON `{pages:[{page,text}]}`      |
 | POST   | /api/v1/pdf/to-images      | `file`, optional `pages`/`dpi`/`format`             | ZIP of page images                |
 | POST   | /api/v1/pdf/from-images    | `files` (PNG/JPEG)                                 | one PDF, one page per image       |
-| POST   | /api/v1/pdf/sign           | `file`, `cert` (.p12/.pfx), `passphrase`, optional `reason`/`location`/`field_name` | PAdES-signed PDF (with trusted timestamp) |
+| POST   | /api/v1/pdf/sign           | `file`, `cert` (.p12/.pfx), `passphrase`, optional `reason`/`location`/`field_name`; `visible=true` renders a DocuSign-style signature box (`page` 1-based or -1=last, `x`/`y`/`width`/`height` in PDF points, origin bottom-left) | PAdES-signed PDF (with trusted timestamp) |
 | POST   | /api/v1/pdf/verify-signature | `file`                                           | JSON signature report (signer, integrity, timestamp) |
+| POST   | /api/v1/pdf/form-fields    | `file`                                           | JSON list of AcroForm fields (name, type, value, page, options) |
+| POST   | /api/v1/pdf/fill-form      | `file`, `fields` (JSON object of name→value), optional `flatten` (bake values in — do this BEFORE signing) | Filled PDF (`X-Fields-Filled` header) |
 | POST   | /api/v1/pdf/ocr            | `file`, optional `language`/`pdfa`                 | searchable PDF / PDF-A            |
 | POST   | /api/v1/pdf/extract-tables | `file`                                             | JSON tables (rows + markdown)     |
 | POST   | /api/v1/convert/to-pdf     | Office doc (doc/docx/odt/rtf/txt/xls/xlsx/ods/csv/ppt/pptx/odp/html) | PDF |
