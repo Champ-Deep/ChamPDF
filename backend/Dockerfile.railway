@@ -76,6 +76,11 @@ RUN mkdir -p /app/data && chmod 777 /app/data
 RUN mkdir -p ./assets
 
 # Copy logos from Images & Logos directory to /app/assets/logos/
+# Backend-bundled assets (script font for visible signatures, watermark
+# templates). Copied BEFORE the logo overlay below so that, on any filename
+# collision under assets/logos, the Images & Logos versions win (the
+# behaviour the image has always had).
+COPY backend/assets/ ./assets/
 COPY ["Images & Logos/", "./assets/logos/"]
 
 # Create temp directories with proper permissions

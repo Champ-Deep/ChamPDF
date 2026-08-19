@@ -1387,6 +1387,16 @@ async def v1_pdf_sign(
     y: float = Form(40.0, description="Visible box: bottom, PDF points"),
     width: float = Form(180.0, ge=40, le=600, description="Visible box width, points"),
     height: float = Form(70.0, ge=20, le=400, description="Visible box height, points"),
+    signature_name: Optional[str] = Form(
+        None,
+        max_length=80,
+        description=(
+            "With visible=true: render this name in a handwritten script face "
+            "on the signature box (DocuSign-style), above the attestation "
+            "details. Purely visual — signer identity still comes from the "
+            "certificate."
+        ),
+    ),
     key: Dict[str, Any] = Depends(scoped("pdf.sign")),
 ):
     from pdf_signer import SignError, default_tsa_url, sign_available, sign_pdf
@@ -1405,6 +1415,7 @@ async def v1_pdf_sign(
             pdf_bytes, p12_bytes, passphrase,
             field_name=field_name, reason=reason, location=location, tsa_url=tsa,
             visible=visible, page=page, box=(x, y, width, height) if visible else None,
+            signature_name=signature_name if visible else None,
         )
     except SignError as e:
         _meter(key, "pdf/sign", started, 422)
