@@ -58,3 +58,5 @@ Thumbs.db
 backend/uploads/
 backend/outputs/
 /tmp/video-rebrander/
+.vercel
+.env*
