@@ -13,7 +13,9 @@
 - **🍌 Edit Banana** — prompt-based AI image editor backed by Gemini's image-editing model ("Nano Banana"). Drop an image, describe what to change, get the result. See `/edit-banana.html`.
 - **📺 Video Downloader (MP4 & MP3)** — paste a YouTube or Instagram link to download as MP4 video or 320 kbps MP3 audio. Supports long-form and Shorts/Reels. See `/video-downloader.html`.
 - **🪄 Better PDF Watermark Removal** — the existing Telea / Navier-Stokes options are joined by a third "Gemini AI" option that routes pages through Google's image-editing model for results that compete with Magic Eraser. Falls back to OpenCV silently if no Gemini key is configured.
-- **🔌 Public API + MCP server** — a versioned `/api/v1/*` surface with API-key auth and per-key rate limits, plus an npm-publishable MCP server (`@champ-deep/champdf-mcp`) so Claude Code, Claude Desktop, Cursor, etc. can call ChamPDF tools natively. See [`backend/API_V1.md`](./backend/API_V1.md) and [`mcp/README.md`](./mcp/README.md).
+- **🔌 Public API + MCP server** — a versioned `/api/v1/*` surface with API-key auth, RBAC scopes, and per-key rate limits, plus an MCP server (`@champ-deep/champdf-mcp`) so Claude Code, Claude Desktop, Cursor, etc. can call ChamPDF tools natively. See [`backend/API_V1.md`](./backend/API_V1.md) and [`mcp/README.md`](./mcp/README.md).
+- **🖋️ Digital signing & form filling over the API** — PAdES signatures (pyHanko) with trusted timestamps, DocuSign-style visible signature boxes with a handwritten-script signer name (`signature_name`), AcroForm discovery (`/pdf/form-fields`) and filling (`/pdf/fill-form`, with flatten). Built for server-to-server flows like Salesforce.
+- **🎙️ Groq-powered transcription & summaries** — hosted Whisper (`whisper-large-v3-turbo`) and LLM video summaries via `GROQ_API_KEY`; provider-independent from the Replicate GPU video pipeline.
 - **🧭 Three-pillar navigation** — Documents / Images / Video pillars with mega-menu dropdowns and dedicated hub pages.
 - **📐 Adjustable logo size** on Video Logo Remover, Image Watermark Remover, and Add Watermark.
 - **🔍 Better search** — keyword aliases (e.g. searching `notebooklm` or `nano-banana`) and an empty-state message.
@@ -40,6 +42,12 @@ Visit our [Documentation](https://champdf.com/docs/) for:
 - **Self-Hosting** guides (Docker, Vercel, Netlify, Cloudflare, AWS, Hostinger, Nginx, Apache)
 - **Contributing** guide
 - **Commercial License** details
+
+In-repo references:
+
+- [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) — how production is deployed and operated (Vercel frontend + Coolify backend, env vars, ops runbook)
+- [`backend/API_V1.md`](./backend/API_V1.md) — the full `/api/v1` API reference (auth, scopes, endpoints, quotas)
+- `public/llms.txt` — agent-readable API docs, served at `/llms.txt` on the deployed site
 
 ---
 
@@ -209,6 +217,7 @@ ChamPDF includes optional backend services for advanced image and video processi
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template)
 
 **Environment Variables (Required for Production):**
+
 ```bash
 # Set in Railway Dashboard > Variables
 ALLOWED_ORIGINS=https://your-domain.com,https://www.your-domain.com
@@ -217,6 +226,7 @@ MAX_CONCURRENT_JOBS=2
 ```
 
 For complete backend setup instructions, see:
+
 - [Backend README](backend/README.md) - API documentation and configuration
 - [Railway Deployment Guide](.railway/README.md) - Railway-specific setup
 - [Environment Variables Reference](backend/.env.example) - All configuration options
