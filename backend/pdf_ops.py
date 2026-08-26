@@ -343,3 +343,85 @@ def _info_sync(pdf_bytes: bytes) -> Dict:
 
 async def pdf_info(pdf_bytes: bytes) -> Dict:
     return await asyncio.to_thread(_info_sync, pdf_bytes)
+
+
+def _form_fields_sync(pdf_bytes: bytes) -> List[Dict]:
+    """List AcroForm fields: name, type, current value, page, options."""
+    doc = _open_pdf(pdf_bytes)
+    try:
+        out: List[Dict] = []
+        for pno in range(doc.page_count):
+            for w in doc[pno].widgets() or []:
+                entry: Dict = {
+                    "name": w.field_name,
+                    "type": w.field_type_string,
+                    "value": w.field_value,
+                    "page": pno + 1,
+                    "required": bool(w.field_flags & 2),
+                    "readonly": bool(w.field_flags & 1),
+                }
+                if w.choice_values:
+                    entry["options"] = w.choice_values
+                out.append(entry)
+        return out
+    finally:
+        doc.close()
+
+
+async def form_fields(pdf_bytes: bytes) -> List[Dict]:
+    return await asyncio.to_thread(_form_fields_sync, pdf_bytes)
+
+
+def _fill_form_sync(pdf_bytes: bytes, values: Dict, flatten: bool) -> Tuple[bytes, int]:
+    """Fill AcroForm fields by name → (filled PDF, fields updated).
+
+    Checkbox values accept true/false, "yes"/"no", "on"/"off" (any case).
+    flatten=True bakes appearances into page content so values render
+    everywhere and can no longer be edited — do this BEFORE signing, since
+    any post-signature change (flattening included) breaks the signature.
+    """
+    import fitz
+
+    truthy = {"true", "yes", "on", "1", "checked"}
+    doc = _open_pdf(pdf_bytes)
+    try:
+        filled = 0
+        unknown = dict(values)
+        for pno in range(doc.page_count):
+            for w in doc[pno].widgets() or []:
+                if w.field_name not in values:
+                    continue
+                unknown.pop(w.field_name, None)
+                val = values[w.field_name]
+                if w.field_type == fitz.PDF_WIDGET_TYPE_CHECKBOX:
+                    w.field_value = (
+                        bool(val)
+                        if isinstance(val, bool)
+                        else str(val).strip().lower() in truthy
+                    )
+                elif w.field_type == fitz.PDF_WIDGET_TYPE_RADIOBUTTON:
+                    w.field_value = str(val)
+                else:
+                    w.field_value = "" if val is None else str(val)
+                w.update()
+                filled += 1
+        if unknown:
+            raise PdfOpsError(
+                f"Unknown form field(s): {', '.join(sorted(unknown))}. "
+                "Use POST /pdf/form-fields to list the fields this PDF has."
+            )
+        if flatten:
+            # bake() replaces widgets with static page content (PyMuPDF >= 1.23)
+            if not hasattr(doc, "bake"):
+                raise PdfOpsError(
+                    "flatten=true needs a newer PyMuPDF on this server; "
+                    "retry with flatten=false"
+                )
+            doc.bake()
+        return _save(doc), filled
+    finally:
+        doc.close()
+
+
+async def fill_form(pdf_bytes: bytes, values: Dict, flatten: bool = False) -> Tuple[bytes, int]:
+    return await asyncio.to_thread(_fill_form_sync, pdf_bytes, values, flatten)

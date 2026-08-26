@@ -61,7 +61,9 @@ class Settings(BaseSettings):
     WATERMARK_MATCH_THRESHOLD: float = 0.62  # 0-1; higher = stricter match
     WATERMARK_SAMPLE_FRAMES: int = 12        # frames sampled to locate a video watermark
 
-    # LLM summaries via OpenRouter (set OPENROUTER_API_KEY in env to enable).
+    # LLM summaries via OpenRouter (set OPENROUTER_API_KEY) or Groq (set
+    # GROQ_API_KEY — fast LPU-hosted Llama models; request a "groq/..." model
+    # id, or it's used automatically when OPENROUTER_API_KEY is unset).
     # Powers the Video Downloader's transcript → AI summary step.
     OPENROUTER_MODEL: str = "openai/gpt-4o-mini"
     ENABLE_VIDEO_INSIGHTS: bool = True  # transcript + summary from a video URL
@@ -72,7 +74,10 @@ class Settings(BaseSettings):
     # GPU video watermark removal (Video Rebrander "Best" quality).
     # Railway has no GPU, so the heavy inpainting is offloaded to an external
     # provider. "replicate" runs a hosted ProPainter model; "none" disables it.
-    VIDEO_GPU_PROVIDER: str = "none"  # replicate | none
+    # "groq" is also accepted, but ONLY for GPU transcription (gpu_transcribe.py)
+    # — Groq has no video models, so it can't serve this watermark-removal path
+    # or video_matte.py's background removal; those stay Replicate-only.
+    VIDEO_GPU_PROVIDER: str = "none"  # replicate | groq | none
     # Replicate model slug (owner/name or owner/name:version) for video inpainting.
     REPLICATE_PROPAINTER_MODEL: str = "jd7h/propainter"
     # Replicate model for video background removal (Robust Video Matting).
@@ -85,6 +90,24 @@ class Settings(BaseSettings):
     GPU_VIDEO_TIMEOUT: int = 840
     # Reject offloading clips longer than this (cost guard). 0 = no cap.
     GPU_VIDEO_MAX_SECONDS: int = 120
+
+    # --- GPU cost control: crop-and-composite -------------------------------
+    # ProPainter is billed by GPU time, which scales with the pixels it
+    # processes. A corner watermark is ~1% of a frame, so sending the whole
+    # frame spends ~99% of the bill on pixels that are never touched. Instead
+    # crop a padded window around the watermark, inpaint only that, and
+    # composite the cleaned patch back. Only masked pixels are replaced, so
+    # the rest of the frame stays bit-for-bit the original.
+    GPU_VIDEO_CROP_ENABLED: bool = True
+    # Pad each side by this multiple of the watermark's own size, giving
+    # ProPainter surrounding context to propagate from.
+    GPU_VIDEO_CROP_PAD_RATIO: float = 1.0
+    # Never crop below this on either side — too small starves the model of
+    # temporal/spatial context and quality degrades.
+    GPU_VIDEO_CROP_MIN_SIDE: int = 320
+    # If the padded window still covers more than this fraction of the frame,
+    # cropping buys little; send the full frame instead.
+    GPU_VIDEO_CROP_MAX_FRACTION: float = 0.6
 
     # Compliance PDF signing (pyHanko). Needs the user's .p12/.pfx at sign time.
     ENABLE_PDF_SIGN: bool = True

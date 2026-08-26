@@ -61,6 +61,7 @@ from gpu_video_remover import gpu_removal_available
 from video_matte import matte_video, matte_available
 from gpu_transcribe import transcribe as gpu_transcribe, gpu_transcribe_available
 from replicate_client import ReplicateError
+from groq_client import GroqError
 from ocr_processor import ocr_pdf, ocr_available, OcrError
 from pdf_signer import sign_pdf, verify_pdf, sign_available, default_tsa_url, SignError
 from table_extractor import extract_tables, table_extraction_available, TableExtractionError
@@ -904,8 +905,9 @@ async def transcribe_video(
 ):
     """Transcribe a video's speech to an .srt subtitle file.
 
-    engine: "cpu" (local faster-whisper), "gpu" (Replicate Whisper large-v3),
-    or "auto" (GPU when configured, else CPU).
+    engine: "cpu" (local faster-whisper), "gpu" (hosted Whisper large-v3 via
+    Replicate or Groq, per VIDEO_GPU_PROVIDER), or "auto" (GPU when configured,
+    else CPU).
     """
     if engine not in {"auto", "cpu", "gpu"}:
         raise HTTPException(status_code=400, detail="engine must be auto, cpu, or gpu")
@@ -942,7 +944,7 @@ async def transcribe_video(
                 try:
                     result = await gpu_transcribe(str(input_path), language=language)
                     srt_text = result["srt"]
-                except ReplicateError as ge:
+                except (ReplicateError, GroqError) as ge:
                     if engine == "gpu" or not caption_processor:
                         raise
                     logger.warning("GPU transcription failed, falling back to CPU: %s", ge)
@@ -1103,14 +1105,14 @@ async def video_insights(
                 status_code=400,
                 content={
                     "code": "analyze_unavailable",
-                    "message": "Video analysis needs GEMINI_API_KEY (or OPENROUTER_API_KEY for a text summary).",
+                    "message": "Video analysis needs GEMINI_API_KEY (or OPENROUTER_API_KEY/GROQ_API_KEY for a text summary).",
                 },
             )
         return JSONResponse(
             status_code=400,
             content={
                 "code": "summary_unavailable",
-                "message": "AI summary needs OPENROUTER_API_KEY set on the server.",
+                "message": "AI summary needs OPENROUTER_API_KEY or GROQ_API_KEY set on the server.",
             },
         )
 

@@ -6,9 +6,11 @@ Machine-readable spec: GET /openapi.json. Interactive docs: GET /docs.
 
 ## Base URL
 
-https://api.champdf.com
+https://champdf-api.64.227.154.215.sslip.io
 
-(All paths below are relative to this base.)
+(All paths below are relative to this base. This is the current production
+host; a friendlier api.champdf.com may front it later, so read the base URL
+from this file rather than hard-coding it.)
 
 ## Authentication
 
@@ -63,8 +65,10 @@ retained after the response is sent.
 | POST   | /api/v1/pdf/to-text        | `file`, optional `pages`                           | JSON `{pages:[{page,text}]}`      |
 | POST   | /api/v1/pdf/to-images      | `file`, optional `pages`/`dpi`/`format`             | ZIP of page images                |
 | POST   | /api/v1/pdf/from-images    | `files` (PNG/JPEG)                                 | one PDF, one page per image       |
-| POST   | /api/v1/pdf/sign           | `file`, `cert` (.p12/.pfx), `passphrase`, optional `reason`/`location`/`field_name` | PAdES-signed PDF (with trusted timestamp) |
+| POST   | /api/v1/pdf/sign           | `file`, `cert` (.p12/.pfx), `passphrase`, optional `reason`/`location`/`field_name`; `visible=true` renders a DocuSign-style signature box (`page` 1-based or -1=last, `x`/`y`/`width`/`height` in PDF points, origin bottom-left); add `signature_name` to render that name in a handwritten script face on the box (visual only — signer identity comes from the certificate) | PAdES-signed PDF (with trusted timestamp) |
 | POST   | /api/v1/pdf/verify-signature | `file`                                           | JSON signature report (signer, integrity, timestamp) |
+| POST   | /api/v1/pdf/form-fields    | `file`                                           | JSON list of AcroForm fields (name, type, value, page, options) |
+| POST   | /api/v1/pdf/fill-form      | `file`, `fields` (JSON object of name→value), optional `flatten` (bake values in — do this BEFORE signing) | Filled PDF (`X-Fields-Filled` header) |
 | POST   | /api/v1/pdf/ocr            | `file`, optional `language`/`pdfa`                 | searchable PDF / PDF-A            |
 | POST   | /api/v1/pdf/extract-tables | `file`                                             | JSON tables (rows + markdown)     |
 | POST   | /api/v1/convert/to-pdf     | Office doc (doc/docx/odt/rtf/txt/xls/xlsx/ods/csv/ppt/pptx/odp/html) | PDF |
@@ -111,9 +115,10 @@ Failures return JSON with a `detail` field. Structured errors carry a `code`:
 Self-serve keys are issued with full access (`*`) by default. If you request
 a scoped key from an admin, scopes map to endpoint groups:
 
-    pdf.read  -> info, to-text, to-images, extract-tables, verify-signature
+    pdf.read  -> info, to-text, to-images, extract-tables, verify-signature,
+                 form-fields
     pdf.write -> merge, split, delete-pages, rotate, compress, watermark,
-                 from-images, ocr, remove-watermark
+                 from-images, ocr, remove-watermark, fill-form
     pdf.sign  -> sign
     pdf       -> all of the above
     convert   -> to-pdf, pdf-to-docx
@@ -128,7 +133,7 @@ Claude Code, Claude Desktop, Cursor, and any other MCP-aware client:
 
     claude mcp add champdf \
       -e CHAMPDF_API_KEY=champdf_live_... \
-      -e CHAMPDF_API_BASE_URL=https://api.champdf.com \
+      -e CHAMPDF_API_BASE_URL=https://champdf-api.64.227.154.215.sslip.io \
       -- npx -y @champ-deep/champdf-mcp
 
 Or add to Claude Desktop / Cursor's MCP config:
@@ -140,7 +145,7 @@ Or add to Claude Desktop / Cursor's MCP config:
           "args": ["-y", "@champ-deep/champdf-mcp"],
           "env": {
             "CHAMPDF_API_KEY": "champdf_live_...",
-            "CHAMPDF_API_BASE_URL": "https://api.champdf.com"
+            "CHAMPDF_API_BASE_URL": "https://champdf-api.64.227.154.215.sslip.io"
           }
         }
       }
@@ -154,11 +159,11 @@ certificate", "remove the background from this photo".
     # 1. Get your key: sign in at champdf.com -> API pill -> Generate
 
     # 2. Use it
-    curl -X POST https://api.champdf.com/api/v1/image/remove-bg \
+    curl -X POST https://champdf-api.64.227.154.215.sslip.io/api/v1/image/remove-bg \
       -H "Authorization: Bearer champdf_live_..." \
       -F "image=@photo.jpg" \
       -o photo-no-bg.png
 
     # 3. Check usage
-    curl https://api.champdf.com/api/v1/whoami \
+    curl https://champdf-api.64.227.154.215.sslip.io/api/v1/whoami \
       -H "Authorization: Bearer champdf_live_..."

@@ -1,9 +1,15 @@
 """
-Summarizer — LLM summaries via OpenRouter (any model: GPT, Claude, Gemini, Llama…).
+Summarizer — LLM summaries via OpenRouter (any model: GPT, Claude, Gemini, Llama…)
+or Groq (fast LPU-hosted Llama models).
 
-OpenRouter exposes an OpenAI-compatible /chat/completions endpoint, so we hit it
-with the stdlib (no extra dependency). Set OPENROUTER_API_KEY to enable; pick a
-default model with OPENROUTER_MODEL (per-request override allowed).
+Both expose an OpenAI-compatible /chat/completions endpoint, so we hit either
+with the stdlib (no extra dependency). Set OPENROUTER_API_KEY and/or
+GROQ_API_KEY to enable; pick a default model with OPENROUTER_MODEL/GROQ_MODEL
+(per-request override allowed via a "groq/..." model id, see summarize_transcript).
+
+If only one key is set, that provider is used. If both are set, OpenRouter is
+the default (wider model choice) — request a Groq model explicitly (prefix
+"groq/") to route to Groq instead.
 """
 
 import json
@@ -12,17 +18,21 @@ import logging
 import urllib.request
 import urllib.error
 
+import groq_client
+
 logger = logging.getLogger(__name__)
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "openai/gpt-4o-mini"
 
-# Small allowlist surfaced to the UI; any OpenRouter model id also works.
+# Small allowlist surfaced to the UI; any OpenRouter model id also works, as
+# does any Groq model id prefixed "groq/" (e.g. "groq/openai/gpt-oss-120b").
 SUGGESTED_MODELS = [
     "openai/gpt-4o-mini",
     "anthropic/claude-3.5-haiku",
     "google/gemini-flash-1.5",
     "meta-llama/llama-3.1-70b-instruct",
+    "groq/openai/gpt-oss-120b",
 ]
 
 
@@ -31,8 +41,8 @@ class SummarizeError(Exception):
 
 
 def summary_available() -> bool:
-    """True iff an OpenRouter API key is configured."""
-    return bool(os.environ.get("OPENROUTER_API_KEY"))
+    """True iff an OpenRouter or Groq API key is configured."""
+    return bool(os.environ.get("OPENROUTER_API_KEY")) or groq_client.groq_available()
 
 
 def summarize_transcript(
@@ -42,12 +52,17 @@ def summarize_transcript(
     max_chars: int = 24000,
 ) -> str:
     """
-    Summarize a transcript with an OpenRouter model. Returns markdown text.
+    Summarize a transcript with an OpenRouter or Groq model. Returns markdown text.
 
-    Truncates very long transcripts to keep latency/cost predictable.
+    Truncates very long transcripts to keep latency/cost predictable. Routes to
+    Groq if `model` is prefixed "groq/", or if OPENROUTER_API_KEY isn't set but
+    GROQ_API_KEY is; otherwise uses OpenRouter.
     """
-    key = os.environ.get("OPENROUTER_API_KEY")
-    if not key:
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+    use_groq = (model or "").startswith("groq/") or (
+        not openrouter_key and groq_client.groq_available()
+    )
+    if not use_groq and not openrouter_key:
         raise SummarizeError("OPENROUTER_API_KEY is not set on the server.")
 
     text = (transcript or "").strip()
@@ -56,7 +71,6 @@ def summarize_transcript(
     if len(text) > max_chars:
         text = text[:max_chars] + "\n…[transcript truncated]"
 
-    model = model or os.environ.get("OPENROUTER_MODEL", DEFAULT_MODEL)
     system = (
         "You are a precise assistant that summarizes video transcripts for a "
         "busy team. Be faithful to the transcript; do not invent facts."
@@ -71,6 +85,17 @@ def summarize_transcript(
         )
     ) + "\n\nTRANSCRIPT:\n" + text
 
+    if use_groq:
+        groq_model = model.removeprefix("groq/") if model else None
+        try:
+            return groq_client.chat_completion(
+                system, user, model=groq_model, temperature=0.3
+            )
+        except groq_client.GroqError as e:
+            raise SummarizeError(str(e))
+
+    model = model or os.environ.get("OPENROUTER_MODEL", DEFAULT_MODEL)
+    key = openrouter_key
     body = json.dumps(
         {
             "model": model,

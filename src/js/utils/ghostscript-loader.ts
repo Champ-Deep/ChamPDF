@@ -43,9 +43,20 @@ export async function convertToPdfA(
   } else {
     const gsBaseUrl = getWasmBaseUrl('ghostscript');
     gs = (await loadWASM({
+      // The loader dynamic-imports `${baseUrl}gs.js`; without baseUrl it
+      // defaults to './', which resolves next to the bundled chunk
+      // (/assets/gs.js) and 404s. locateFile can't fix that — it is only
+      // handed to the inner module after that import has already happened.
+      baseUrl: gsBaseUrl,
       locateFile: (path: string) => {
         if (path.endsWith('.wasm')) {
           return gsBaseUrl + 'gs.wasm';
+        }
+        // Emscripten also probes for its glue/worker JS. Unmapped, that
+        // resolves next to the bundled chunk (/assets/gs.js) and 404s on every
+        // page load. The real file sits alongside gs.wasm.
+        if (path.endsWith('.js')) {
+          return gsBaseUrl + 'gs.js';
         }
         return path;
       },
@@ -371,9 +382,20 @@ export async function convertFontsToOutlines(
   } else {
     const gsBaseUrl = getWasmBaseUrl('ghostscript');
     gs = (await loadWASM({
+      // The loader dynamic-imports `${baseUrl}gs.js`; without baseUrl it
+      // defaults to './', which resolves next to the bundled chunk
+      // (/assets/gs.js) and 404s. locateFile can't fix that — it is only
+      // handed to the inner module after that import has already happened.
+      baseUrl: gsBaseUrl,
       locateFile: (path: string) => {
         if (path.endsWith('.wasm')) {
           return gsBaseUrl + 'gs.wasm';
+        }
+        // Emscripten also probes for its glue/worker JS. Unmapped, that
+        // resolves next to the bundled chunk (/assets/gs.js) and 404s on every
+        // page load. The real file sits alongside gs.wasm.
+        if (path.endsWith('.js')) {
+          return gsBaseUrl + 'gs.js';
         }
         return path;
       },
