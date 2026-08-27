@@ -40,7 +40,12 @@ faster-whisper==1.0.3
 # NOTE: the fork's setup.py declares its name as `realesrgan`; pip enforces that
 # the name left of `@` matches package metadata, so this MUST stay `realesrgan`.
 realesrgan @ git+https://github.com/ai-forever/Real-ESRGAN.git
-huggingface_hub>=0.20.0
+# Upper bound is load-bearing: the fork imports `cached_download`, which
+# huggingface_hub removed in 0.26.0 (last exported in 0.25.x). Without the cap a
+# rebuild silently pulls a newer hub and /api/upscale-image 500s at import time
+# with "cannot import name 'cached_download'". Only relax this if the upscaler
+# is moved off the ai-forever fork.
+huggingface_hub>=0.20.0,<0.26
 
 # ─── Document conversion (PDF → DOCX) ────────────────────────────────────────
 # pdf2docx itself is installed `--no-deps` in the Dockerfile: its metadata
