@@ -114,8 +114,17 @@ async def lifespan(app: FastAPI):
     # shutil.rmtree(settings.BASE_TEMP_DIR, ignore_errors=True)
 
 app = FastAPI(
-    title="Video Logo Remover API",
-    description="Remove AI watermarks and rebrand videos with custom logos",
+    title="ChamPDF API",
+    description=(
+        "Document API: fill PDF forms, apply PAdES digital signatures with a "
+        "visible signature block, verify signed documents, plus merge, split, "
+        "watermark, OCR, Office conversion, and text/table extraction.\n\n"
+        "Endpoints under `/api/v1` are the public, API-key-authenticated "
+        "surface — the one to integrate against. Send "
+        "`Authorization: Bearer champdf_live_...` on every v1 call.\n\n"
+        "Unversioned `/api/*` endpoints back the ChamPDF web app and carry no "
+        "compatibility guarantee; do not build against them."
+    ),
     version="1.0.0",
     lifespan=lifespan
 )
@@ -131,6 +140,67 @@ app.add_middleware(
 
 # Public versioned API (API-key auth)
 app.include_router(api_v1_router)
+
+
+def _custom_openapi():
+    """OpenAPI schema with a server URL and declared auth schemes.
+
+    FastAPI emits neither by default, which makes the spec unusable as a
+    Postman/Insomnia import: requests land with no base URL and no
+    Authorization header, so every call 401s. Declaring them here means
+    `GET /openapi.json` is a working client out of the box.
+    """
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    from fastapi.openapi.utils import get_openapi
+
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+
+    public_base = os.environ.get(
+        "CHAMPDF_PUBLIC_BASE_URL", "https://champdf-api.64.227.154.215.sslip.io"
+    ).rstrip("/")
+    schema["servers"] = [{"url": public_base, "description": "Production"}]
+
+    schema.setdefault("components", {})["securitySchemes"] = {
+        "apiKey": {
+            "type": "http",
+            "scheme": "bearer",
+            "description": (
+                "API key issued for your integration: "
+                "`Authorization: Bearer champdf_live_...`"
+            ),
+        },
+        "adminToken": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-Admin-Token",
+            "description": "Admin token. Only for /api/v1/admin/* key management.",
+        },
+    }
+
+    # Every v1 endpoint is key-authenticated; the admin key-management
+    # endpoints take the admin token instead.
+    for path, item in schema.get("paths", {}).items():
+        if not path.startswith("/api/v1"):
+            continue
+        requirement = (
+            [{"adminToken": []}] if path.startswith("/api/v1/admin") else [{"apiKey": []}]
+        )
+        for operation in item.values():
+            if isinstance(operation, dict):
+                operation["security"] = requirement
+
+    app.openapi_schema = schema
+    return schema
+
+
+app.openapi = _custom_openapi
 
 # Initialize processors
 processor = VideoProcessor(logo_dir=settings.LOGO_DIR)

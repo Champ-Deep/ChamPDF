@@ -1,0 +1,1934 @@
+{
+  "info": {
+    "_postman_id": "c8a1f4d2-7e63-4b19-9f52-6db0a3e17c40",
+    "name": "ChamPDF API",
+    "description": "# ChamPDF API\n\nChampions Group's in-house document API. Fill PDF form fields from record data,\napply cryptographic digital signatures with a visible DocuSign-style signature\nblock, and verify any signed document \u2014 plus merge, split, watermark, compress,\nOCR, Office conversion, and text/table extraction, all behind one REST API.\n\nBuilt for server-to-server integration. The Salesforce flow is the reference\nimplementation and has its own folder below.\n\n---\n\n## Set up in two minutes\n\n1. **Select an environment** \u2014 top-right corner. Use **ChamPDF \u00b7 Production**.\n2. **Paste your API key** into the environment's `apiKey` variable (it is typed\n   as *secret*, so it is masked and is not exported).\n3. **Send `0 \u00b7 Start here \u2192 Who am I`.** A `200` means everything is wired up.\n\nThat is all. Auth is set once at the collection level and every request inherits\nit \u2014 there is no per-request header to maintain.\n\n---\n\n## Base URL\n\n| | |\n|---|---|\n| **Production** | `https://champdf-api.64.227.154.215.sslip.io` |\n| **Interactive docs** | `https://champdf-api.64.227.154.215.sslip.io/docs` |\n| **OpenAPI spec** | `https://champdf-api.64.227.154.215.sslip.io/openapi.json` |\n\n`https://champdf.com/api/\u2026` reaches the same backend through the website, but it\nadds a proxy hop \u2014 prefer the direct host for server-to-server calls. A stable\n`api.champdf.com` is being stood up alongside a dedicated container.\n\n> **Build the base URL as configuration, never as a literal.** In this collection\n> it is the `baseUrl` variable. In Salesforce it should be a **Named Credential**.\n> Then moving to the dedicated host is a config change, never a code edit.\n\n---\n\n## Authentication\n\nEvery `/api/v1` call takes a bearer token:\n\n```\nAuthorization: Bearer champdf_live_...\n```\n\nKeys are scoped per endpoint. An out-of-scope call returns `403` with\n`{\"code\":\"insufficient_scope\",\"required_scope\":\"pdf.sign\"}` \u2014 naming exactly\nthe scope it needed, so the fix is never a guess.\n\nThe `6 \u00b7 Key management` folder overrides this with the admin token, which is a\nseparate and more powerful credential.\n\n---\n\n## Limits\n\n| Limit | Value | Notes |\n|---|---|---|\n| PDF size | 50 MB | Server-side ceiling |\n| Burst | 30 requests/min | Per key |\n| Monthly quota | Configurable per key | Resets at the start of each **UTC** month |\n\n> **Salesforce callers: the 50 MB ceiling is not reachable from Apex.** Governor\n> limits cap a callout body at 6 MB synchronous / 12 MB asynchronous, and heap\n> holds the PDF blob, its base64 form and the assembled multipart body at the\n> same time. Budget roughly **2 MB sync / 4 MB async** for the PDF itself. Run\n> each callout as its own Queueable to get the higher ceiling and to avoid the\n> 120-second cumulative callout cap.\n\n---\n\n## Error codes\n\n| Status | Meaning | What to do |\n|---|---|---|\n| `400` | Bad input \u2014 malformed PDF, wrong cert password | Surface `detail` to the user |\n| `401` | Missing, malformed or revoked key | Check the environment is selected |\n| `403` | `insufficient_scope` \u2014 wrong key for this endpoint | Use a key with the named scope |\n| `413` | PDF over 50 MB | Compress or split first |\n| `422` | Semantic failure \u2014 unknown field, unreadable cert, page out of range | `detail` names exactly what is wrong |\n| `429` | `rate_limited` (burst) or `quota_exceeded` (monthly) | Back off and retry |\n| `503` | Engine not enabled on this deployment | Check `/api/v1/capabilities` first |\n\nRetry on `429` and `5xx`. **Do not blind-retry a timeout** on a signing call \u2014\ncheck whether the artefact landed first. The API is at-least-once and carries no\nidempotency key, so de-duplication belongs to the caller.\n\n---\n\n## Data handling\n\nStateless. Documents and certificates are processed in memory and **never stored\nserver-side**; the working directory is deleted whatever the outcome. Your system\nof record keeps the documents; the signatures live inside the PDFs. API keys are\nstored only as SHA-256 hashes and cannot be recovered, even by us.\n\n---\n\n## Working with file uploads in Postman\n\nMost requests here upload a file, and Postman does not export file paths \u2014 that\nis deliberate, so a shared collection cannot leak your local filesystem. Two\nconsequences:\n\n- **Sending by hand:** click **Select Files** on the `file` row and choose a\n  document. Postman remembers it for that request on your machine.\n- **Using the Collection Runner:** set a working directory under\n  **Settings \u2192 General \u2192 Working directory**, put your test files there, and\n  Postman will resolve them by name.\n\n*Collection maintained by Champions Group. Verified against production\n2026-09-04.*",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{apiKey}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Fail fast with a readable message instead of a confusing 401.",
+          "const key = pm.environment.get('apiKey') || pm.collectionVariables.get('apiKey');",
+          "if (!key && !pm.request.url.toString().includes('/health')) {",
+          "  console.warn('No apiKey set. Select an environment (top-right) and paste your key into apiKey.');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-wide checks that run after every request.",
+          "pm.test('Not rate limited or over quota', function () {",
+          "  if (pm.response.code === 429) {",
+          "    const code = pm.response.json().code;",
+          "    pm.expect.fail(code === 'quota_exceeded'",
+          "      ? 'Monthly quota exhausted \u2014 quotas reset at the start of the UTC month.'",
+          "      : 'Burst limit hit (30/min) \u2014 slow down and retry.');",
+          "  }",
+          "});",
+          "pm.test('Key has the scope this endpoint needs', function () {",
+          "  if (pm.response.code === 403) {",
+          "    pm.expect.fail('insufficient_scope: needs ' + pm.response.json().required_scope);",
+          "  }",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://champdf-api.64.227.154.215.sslip.io",
+      "type": "string",
+      "description": "API host. Override per environment."
+    }
+  ],
+  "item": [
+    {
+      "name": "0 \u00b7 Start here",
+      "description": "Three zero-risk calls that prove connectivity, auth and feature availability.\n\nRun them top to bottom before anything else. None of them upload a file, so they cost nothing but a request against your quota.",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Liveness probe. **No authentication.** Returns `200` when the API is up.\n\nIf this fails, nothing else will \u2014 check `{{baseUrl}}` before debugging your key.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Capabilities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/capabilities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "capabilities"
+              ]
+            },
+            "description": "Which optional engines are enabled on this deployment.\n\nFeature-detect with this rather than assuming: any endpoint whose engine is missing returns `503`. For the Salesforce signing flow you need `pdf_sign_advanced` and `pdf_verify` to be `true`."
+          },
+          "response": [
+            {
+              "name": "Production",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"pdf_sign_advanced\": true,\n  \"pdf_verify\": true,\n  \"ocr_server\": true,\n  \"table_extraction\": true,\n  \"api_self_serve_keys\": false\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));",
+                  "pm.test('Signing is enabled', () => pm.expect(pm.response.json().pdf_sign_advanced).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Who am I",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whoami",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "whoami"
+              ]
+            },
+            "description": "**The smoke test for your API key.** Returns the key's label, scopes, monthly quota and requests used so far this month.\n\nA `200` here means `{{baseUrl}}` and `{{apiKey}}` are both correct. A `401` means the key is missing, malformed or revoked \u2014 check the environment is selected (top-right).\n\nAlso the cheapest way to watch quota burn during a load test."
+          },
+          "response": [
+            {
+              "name": "Authenticated",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"id\": 3,\n  \"label\": \"sf-docflow\",\n  \"scopes\": [\n    \"pdf\"\n  ],\n  \"monthly_quota\": 5000,\n  \"requests_used\": 128,\n  \"month_bucket\": \"2026-09\"\n}"
+            },
+            {
+              "name": "Bad or missing key",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"detail\": \"Invalid API key\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));",
+                  "pm.test('Key is identified', () => pm.expect(pm.response.json()).to.have.property('label'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 \u00b7 Salesforce signing flow",
+      "description": "**The pipeline that replaces a DocuSign envelope, in the order Apex calls it.**\n\nSteps 1\u20132 are design-time (run once per template). Steps 3\u20135 run per document.\n\n### How to run this end to end\nEach step consumes the PDF the previous step returned. Postman cannot pipe a binary response body into the next request's file field, so do this manually:\n\n1. Send the request.\n2. In the response pane, **Save Response \u2192 Save to a file**.\n3. Select that file in the next request's `file` field.\n\nIt takes about two minutes and it is the fastest way to see the whole pipeline work before writing a line of Apex.\n\n> **Flatten before signing, never after.** Any modification to a signed PDF \u2014 including flattening \u2014 breaks the signature.",
+      "item": [
+        {
+          "name": "1 \u00b7 Discover the template's fields",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/form-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "form-fields"
+              ]
+            },
+            "description": "Upload your PDF template and get back every AcroForm field: name, type, current value, page and options.\n\n**Design-time only.** Run this once, hard-code the resulting field names in your Apex mapping, and never call it at runtime.\n\nReturns `field_count: 0` for a flat PDF \u2014 the API fills existing fields, it cannot add fields to a PDF that has none. Templates must be authored with form fields (any PDF tool, or ChamPDF's web Form Creator).\n\n**Scope:** `pdf.read`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "Your PDF template, with AcroForm fields."
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Contract template",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"field_count\": 3,\n  \"fields\": [\n    {\n      \"name\": \"client_name\",\n      \"type\": \"Text\",\n      \"value\": \"\",\n      \"page\": 1\n    },\n    {\n      \"name\": \"contract_value\",\n      \"type\": \"Text\",\n      \"value\": \"\",\n      \"page\": 1\n    },\n    {\n      \"name\": \"agree_terms\",\n      \"type\": \"Checkbox\",\n      \"value\": \"Off\",\n      \"page\": 2\n    }\n  ]\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));",
+                  "const fields = pm.response.json().fields || [];",
+                  "pm.test('Template has form fields', () => pm.expect(fields.length).to.be.above(0));",
+                  "console.log('Field names:', fields.map(f => f.name).join(', '));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 \u00b7 Fill from record data (+ flatten)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/fill-form",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "fill-form"
+              ]
+            },
+            "description": "Fill the template's fields from a JSON object of `{field_name: value}` \u2014 in Salesforce, values off the record.\n\n`flatten=true` bakes the values into the page so they render identically everywhere and can no longer be edited. **Always flatten before signing.**\n\nCheckbox fields accept `true`/`false` or `\"yes\"`/`\"no\"`.\n\nThe response header `X-Fields-Filled` tells you how many fields were written \u2014 assert on it. An unknown field name returns `422` naming exactly which names it did not recognise, which makes template drift loud instead of silent.\n\n**Scope:** `pdf.write`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The template from step 1."
+                },
+                {
+                  "key": "fields",
+                  "value": "{\"client_name\":\"Acme Corp\",\"contract_value\":\"$250,000.00\",\"agree_terms\":true}",
+                  "type": "text",
+                  "description": "JSON object of field name \u2192 value. Must be valid JSON."
+                },
+                {
+                  "key": "flatten",
+                  "value": "true",
+                  "type": "text",
+                  "description": "Bake values into the page. Always true before signing."
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Unknown field name",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}"
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"detail\": \"Unknown form fields: clint_name\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));",
+                  "pm.test('Returned a PDF', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('pdf'));",
+                  "pm.test('Fields were written', () => pm.expect(Number(pm.response.headers.get('X-Fields-Filled'))).to.be.above(0));",
+                  "console.log('Save Response \u2192 Save to a file, then use it in step 3.');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 \u00b7 Sign (visible, DocuSign-style)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/sign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "sign"
+              ]
+            },
+            "description": "Apply a **PAdES** digital signature and render a visible signature block on the page.\n\n### The visual knobs\nThe cryptography is identical whatever you set here \u2014 these only change what is drawn.\n\n| Field | Meaning |\n|---|---|\n| `visible` | `true` draws a signature block. Omit for an invisible signature \u2014 still fully valid, still shows in Acrobat's panel. |\n| `signature_name` | Rendered in a handwritten script face above the attestation lines. **Visual only** \u2014 legal identity always comes from the certificate. |\n| `page` | 1-based. `-1` = last page. |\n| `x` `y` `width` `height` | Box in PDF points, origin **bottom-left**. A US-Letter page is 612 \u00d7 792. |\n| `field_name` | Signature field id. Put the Salesforce User Id here \u2014 it round-trips through verification. |\n| `reason` | Free-text audit line. Put the record Id here. |\n\n### Notes that matter\n- `timestamp` defaults to `true` and adds a trusted timestamp from a public TSA, so signing time is not self-asserted. It adds an outbound round-trip \u2014 this is the slowest call in the pipeline. Set the Apex callout timeout to 120000 ms.\n- **Multiple signers:** run the signed output through this endpoint again with the next certificate, a **unique `field_name`** and a different box position. Each signature is an incremental update, so earlier signatures stay valid.\n\n**Scope:** `pdf.sign`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The flattened PDF from step 2."
+                },
+                {
+                  "key": "cert",
+                  "type": "file",
+                  "src": null,
+                  "description": "The signer's `.p12` / `.pfx` certificate. Select the file."
+                },
+                {
+                  "key": "passphrase",
+                  "value": "{{certPassphrase}}",
+                  "type": "text",
+                  "description": "Certificate password."
+                },
+                {
+                  "key": "visible",
+                  "value": "true",
+                  "type": "text",
+                  "description": "Draw the signature block."
+                },
+                {
+                  "key": "signature_name",
+                  "value": "Sreedeep Surapaneni",
+                  "type": "text",
+                  "description": "Name in handwritten script. Visual only."
+                },
+                {
+                  "key": "field_name",
+                  "value": "Sig_005XX0000012345",
+                  "type": "text",
+                  "description": "Signature field id \u2014 use the Salesforce User Id."
+                },
+                {
+                  "key": "reason",
+                  "value": "Approved in Salesforce - Opp 006XX0000098765",
+                  "type": "text",
+                  "description": "Audit line \u2014 use the record Id."
+                },
+                {
+                  "key": "page",
+                  "value": "-1",
+                  "type": "text",
+                  "description": "1-based; -1 = last page."
+                },
+                {
+                  "key": "x",
+                  "value": "360",
+                  "type": "text",
+                  "description": "Box left, PDF points from bottom-left."
+                },
+                {
+                  "key": "y",
+                  "value": "40",
+                  "type": "text",
+                  "description": "Box bottom, PDF points."
+                },
+                {
+                  "key": "width",
+                  "value": "200",
+                  "type": "text",
+                  "description": "Box width, points (40\u2013600)."
+                },
+                {
+                  "key": "height",
+                  "value": "80",
+                  "type": "text",
+                  "description": "Box height, points (20\u2013400)."
+                },
+                {
+                  "key": "location",
+                  "value": "Bangalore, IN",
+                  "type": "text",
+                  "description": "Optional signing location.",
+                  "disabled": true
+                },
+                {
+                  "key": "timestamp",
+                  "value": "true",
+                  "type": "text",
+                  "description": "Trusted timestamp. Default true.",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Wrong certificate password",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}"
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"detail\": \"Could not load the certificate (.p12/.pfx). Check the file and password.\"\n}"
+            },
+            {
+              "name": "Key lacks the sign scope",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": \"insufficient_scope\",\n  \"required_scope\": \"pdf.sign\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));",
+                  "pm.test('Returned a signed PDF', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('pdf'));",
+                  "console.log('Save Response \u2192 Save to a file, then verify it in step 5.');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 \u00b7 Sign (invisible)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/sign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "sign"
+              ]
+            },
+            "description": "The same cryptographic signature with **no visible block** on the page. Acrobat still shows it in the signature panel and verification is identical.\n\nUse this where a system attestation is wanted but a signature graphic on the document would be wrong.\n\n**Scope:** `pdf.sign`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The flattened PDF from step 2."
+                },
+                {
+                  "key": "cert",
+                  "type": "file",
+                  "src": null,
+                  "description": "The signer's `.p12` / `.pfx` certificate. Select the file."
+                },
+                {
+                  "key": "passphrase",
+                  "value": "{{certPassphrase}}",
+                  "type": "text",
+                  "description": "Certificate password."
+                },
+                {
+                  "key": "field_name",
+                  "value": "Sig_System",
+                  "type": "text",
+                  "description": "Signature field id."
+                },
+                {
+                  "key": "reason",
+                  "value": "System attestation - Opp 006XX0000098765",
+                  "type": "text",
+                  "description": "Audit line \u2014 use the record Id."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 \u00b7 Verify \u2014 the audit trail",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/verify-signature",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "verify-signature"
+              ]
+            },
+            "description": "Upload any signed PDF and get the integrity report back as JSON. **Store this on the Salesforce record** \u2014 it is the audit surface an auditor will ask for.\n\n### Reading the report\n- `intact && valid` = signed, and unmodified since. **This is the pass/fail test.** Tampering flips `intact` to `false`.\n- `signer` is the certificate's subject \u2014 this, not `signature_name`, is the identity that was attested.\n- `field` echoes the `field_name` you sent, so the Salesforce User Id round-trips.\n- `timestamped: true` means the signing time came from a trusted timestamp authority rather than the signer's clock.\n\n> **`coverage` is not a pass/fail signal.** After a second signer signs, the first signature's coverage is no longer `ENTIRE_FILE` \u2014 it covers the revision it signed, which is how every multi-signature PDF works. Test `intact && valid` per signature entry.\n\n**What this does and does not prove:** it reports cryptographic integrity and signer identity. It does **not** assert that the certificate chains to a publicly trusted root \u2014 that requires a certificate from a public CA.\n\n**Scope:** `pdf.read`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The signed PDF from step 3 or 4."
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Valid signature",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"signature_count\": 1,\n  \"signatures\": [\n    {\n      \"field\": \"Sig_005XX0000012345\",\n      \"intact\": true,\n      \"valid\": true,\n      \"coverage\": \"SignatureCoverageLevel.ENTIRE_FILE\",\n      \"signer\": \"Email Address: jane.doe@championsmail.com, Organization: Champions Group, Common Name: Jane Doe\",\n      \"signing_time\": \"2026-08-19 22:45:07+00:00\",\n      \"timestamped\": true\n    }\n  ]\n}"
+            },
+            {
+              "name": "Tampered after signing",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"signature_count\": 1,\n  \"signatures\": [\n    {\n      \"field\": \"Sig_005XX0000012345\",\n      \"intact\": false,\n      \"valid\": false,\n      \"coverage\": \"SignatureCoverageLevel.CONTIGUOUS_BLOCK_FROM_START\",\n      \"signer\": \"Common Name: Jane Doe\",\n      \"signing_time\": \"2026-08-19 22:45:07+00:00\",\n      \"timestamped\": true\n    }\n  ]\n}"
+            },
+            {
+              "name": "Unsigned document",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"signature_count\": 0,\n  \"signatures\": []\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));",
+                  "const r = pm.response.json();",
+                  "pm.test('Document carries a signature', () => pm.expect(r.signature_count).to.be.above(0));",
+                  "pm.test('Every signature is intact and valid', () => r.signatures.forEach(s => { pm.expect(s.intact, 'intact').to.be.true; pm.expect(s.valid, 'valid').to.be.true; }));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 \u00b7 Forms",
+      "description": "AcroForm discovery and filling, outside the Salesforce narrative.\n\nThe API fills fields that already exist; it cannot add fields to a flat PDF.",
+      "item": [
+        {
+          "name": "List form fields",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/form-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "form-fields"
+              ]
+            },
+            "description": "Every AcroForm field with name, type, value, page and options.\n\n**Scope:** `pdf.read`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Fill form fields",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/fill-form",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "fill-form"
+              ]
+            },
+            "description": "Fill by name from a JSON object. `flatten=true` makes values permanent. Unknown names \u2192 `422`.\n\n**Scope:** `pdf.write`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                },
+                {
+                  "key": "fields",
+                  "value": "{\"client_name\":\"Acme Corp\"}",
+                  "type": "text",
+                  "description": "JSON object of field name \u2192 value."
+                },
+                {
+                  "key": "flatten",
+                  "value": "false",
+                  "type": "text",
+                  "description": "Bake values in permanently."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 \u00b7 Assemble & edit",
+      "description": "Page-level document manipulation. All return a PDF.\n\n**Scope:** `pdf.write` for everything in this folder.",
+      "item": [
+        {
+          "name": "Merge PDFs",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/merge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "merge"
+              ]
+            },
+            "description": "Combine two or more PDFs into one, in upload order.\n\nAdd the `files` key once per document \u2014 Postman allows repeated keys in form-data. Useful for assembling contract packets.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": null,
+                  "description": "First PDF."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": null,
+                  "description": "Second PDF. Add more rows for more documents."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Split / extract pages",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/split",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "split"
+              ]
+            },
+            "description": "Extract a page range into a new PDF. The spec is 1-based and also **reorders**: `3,1,2` returns those pages in that order. Open-ended ranges work: `9-` means page 9 to the end.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                },
+                {
+                  "key": "pages",
+                  "value": "1-3,7,9-",
+                  "type": "text",
+                  "description": "1-based page spec. Commas and ranges. `9-` = 9 to end."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete pages",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/delete-pages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "delete-pages"
+              ]
+            },
+            "description": "Return the document without the pages named in the spec.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                },
+                {
+                  "key": "pages",
+                  "value": "2,5",
+                  "type": "text",
+                  "description": "1-based pages to remove."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rotate pages",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/rotate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "rotate"
+              ]
+            },
+            "description": "Rotate pages clockwise. `angle` must be 90, 180 or 270.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                },
+                {
+                  "key": "angle",
+                  "value": "90",
+                  "type": "text",
+                  "description": "90, 180 or 270 degrees clockwise."
+                },
+                {
+                  "key": "pages",
+                  "value": "all",
+                  "type": "text",
+                  "description": "1-based spec, or `all`."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Compress",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/compress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "compress"
+              ]
+            },
+            "description": "Downsample embedded images. **Never returns a file larger than the input** \u2014 if compression would grow it, the original comes back.\n\nUseful ahead of a Salesforce callout, where heap is the binding constraint rather than the API's 50 MB ceiling.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                },
+                {
+                  "key": "image_dpi",
+                  "value": "150",
+                  "type": "text",
+                  "description": "Target DPI for embedded images."
+                },
+                {
+                  "key": "image_quality",
+                  "value": "70",
+                  "type": "text",
+                  "description": "JPEG quality, 1\u2013100."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Watermark",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/watermark",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "watermark"
+              ]
+            },
+            "description": "Stamp diagonal text across pages \u2014 `DRAFT`, `APPROVED`, a copy marker. Colour is a hex string without the `#`.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                },
+                {
+                  "key": "text",
+                  "value": "APPROVED",
+                  "type": "text",
+                  "description": "The watermark text."
+                },
+                {
+                  "key": "opacity",
+                  "value": "0.15",
+                  "type": "text",
+                  "description": "0\u20131."
+                },
+                {
+                  "key": "font_size",
+                  "value": "48",
+                  "type": "text",
+                  "description": "Points."
+                },
+                {
+                  "key": "color",
+                  "value": "888888",
+                  "type": "text",
+                  "description": "Hex, no leading #."
+                },
+                {
+                  "key": "angle",
+                  "value": "45",
+                  "type": "text",
+                  "description": "Degrees."
+                },
+                {
+                  "key": "pages",
+                  "value": "all",
+                  "type": "text",
+                  "description": "1-based spec, or `all`."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Images \u2192 PDF",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/from-images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "from-images"
+              ]
+            },
+            "description": "Combine PNG/JPEG images into one PDF, one page per image, in upload order.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": null,
+                  "description": "First image."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": null,
+                  "description": "Second image."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 \u00b7 Extract & inspect",
+      "description": "Read data out of documents \u2014 for indexing incoming files into Salesforce fields.\n\n**Scope:** `pdf.read` for everything in this folder.",
+      "item": [
+        {
+          "name": "Document info",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "info"
+              ]
+            },
+            "description": "Page count, metadata, encryption status and page dimensions. Cheap \u2014 good as a pre-flight check before an expensive operation.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Extract text",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/to-text",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "to-text"
+              ]
+            },
+            "description": "Text per page as JSON. Returns empty strings for a scanned document \u2014 run **OCR** first if there is no text layer.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                },
+                {
+                  "key": "pages",
+                  "value": "all",
+                  "type": "text",
+                  "description": "1-based spec, or `all`."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Extract tables",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/extract-tables",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "extract-tables"
+              ]
+            },
+            "description": "Detected tables as JSON rows plus a markdown rendering. Works on ruled tables; whitespace-aligned columns are less reliable.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pages \u2192 images (ZIP)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/to-images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "to-images"
+              ]
+            },
+            "description": "Rasterise pages and return a **ZIP** of image files. Note the response is a ZIP, not a PDF.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                },
+                {
+                  "key": "pages",
+                  "value": "all",
+                  "type": "text",
+                  "description": "1-based spec, or `all`."
+                },
+                {
+                  "key": "dpi",
+                  "value": "150",
+                  "type": "text",
+                  "description": "Raster resolution."
+                },
+                {
+                  "key": "format",
+                  "value": "png",
+                  "type": "text",
+                  "description": "`png` or `jpeg`."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5 \u00b7 OCR & conversion",
+      "description": "Engine-backed endpoints. Each returns **503** when its engine is not installed on the deployment \u2014 check `GET /api/v1/capabilities` first.",
+      "item": [
+        {
+          "name": "OCR a scanned PDF",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pdf/ocr",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pdf",
+                "ocr"
+              ]
+            },
+            "description": "Add a searchable text layer to a scanned document (OCRmyPDF). `pdfa=true` outputs PDF/A, which is the right choice for archival and compliance storage.\n\nRequires `ocr_server: true`.\n\n**Scope:** `pdf.write`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                },
+                {
+                  "key": "language",
+                  "value": "eng",
+                  "type": "text",
+                  "description": "Tesseract language code."
+                },
+                {
+                  "key": "pdfa",
+                  "value": "true",
+                  "type": "text",
+                  "description": "Output PDF/A for archival."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Office \u2192 PDF",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/convert/to-pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "convert",
+                "to-pdf"
+              ]
+            },
+            "description": "LibreOffice conversion. Accepts doc, docx, odt, rtf, txt, xls, xlsx, ods, csv, ppt, pptx, odp and html.\n\nThe natural first step when Salesforce generates a .docx quote that needs to become a signable PDF.\n\n**Scope:** `convert`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The Office document to convert."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PDF \u2192 Word",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/convert/pdf-to-docx",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "convert",
+                "pdf-to-docx"
+              ]
+            },
+            "description": "Convert a PDF back to an editable .docx (pdf2docx). Layout fidelity is good but not perfect \u2014 treat the output as a draft for editing, not a faithful reproduction.\n\n**Scope:** `convert`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null,
+                  "description": "The PDF to process. Click **Select Files** and choose one."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6 \u00b7 Key management (admin)",
+      "description": "Issuing and revoking API keys. **These use the admin token, not an API key** \u2014 the collection-level bearer auth is overridden to `noauth` here and the `X-Admin-Token` header is sent instead.\n\nKeep `adminToken` out of any shared environment. It is a different class of credential from an API key: it can mint keys.",
+      "item": [
+        {
+          "name": "Issue a key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Admin-Token",
+                "value": "{{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "keys"
+              ]
+            },
+            "description": "Create a scoped, quota-limited key.\n\n**The raw key value is returned exactly once, at creation.** The server stores only a SHA-256 hash and cannot recover it. Copy it immediately into your secret store.\n\n### Scopes\n| Scope | Grants |\n|---|---|\n| `pdf.read` | info, to-text, to-images, extract-tables, verify-signature, form-fields |\n| `pdf.write` | merge, split, delete-pages, rotate, compress, watermark, from-images, ocr, fill-form |\n| `pdf.sign` | sign |\n| `pdf` | all of the above |\n| `convert` | to-pdf, pdf-to-docx |\n| `*` | everything (the default) |\n\nIssue the narrowest scope that works. A `pdf.sign` + `pdf.read` key can sign and verify but cannot alter documents, which limits the blast radius if it leaks.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"sf-docflow\",\n  \"scopes\": [\n    \"pdf\"\n  ],\n  \"monthly_quota\": 5000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));",
+                  "pm.test('Key returned once', () => pm.expect(pm.response.json()).to.have.property('key'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List keys",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Admin-Token",
+                "value": "{{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "keys"
+              ]
+            },
+            "description": "Every key with its label, scopes, quota and usage. Never returns raw key values.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Revoke a key",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Admin-Token",
+                "value": "{{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/keys/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "keys",
+                "1"
+              ]
+            },
+            "description": "Revoke by numeric key id (from **List keys**). Takes effect immediately \u2014 the next call with that key returns `401`.\n\nReplace the `1` in the URL with the real key id.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7 \u00b7 Media (outside the Salesforce scope)",
+      "description": "The same API also carries image and video tooling. **Not part of the Salesforce document integration** \u2014 listed for completeness so nobody wonders what the other endpoints do.\n\nDifferent scopes (`image`, `video`), and several depend on optional engines.",
+      "item": [
+        {
+          "name": "Remove image background",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/image/remove-bg",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "image",
+                "remove-bg"
+              ]
+            },
+            "description": "Returns a PNG with a transparent background. 10 MB limit.\n\n**Scope:** `image`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": null,
+                  "description": "The image to process."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit image by prompt",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/image/edit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "image",
+                "edit"
+              ]
+            },
+            "description": "Natural-language image edit (Gemini). Requires `GEMINI_API_KEY` on the server, else `503`.\n\n**Scope:** `image`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": null,
+                  "description": "The image to edit."
+                },
+                {
+                  "key": "prompt",
+                  "value": "remove the logo in the top right",
+                  "type": "text",
+                  "description": "What to change."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detect watermarks",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/image/detect-watermarks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "image",
+                "detect-watermarks"
+              ]
+            },
+            "description": "Returns bounding boxes for detected watermarks and logos.\n\n**Scope:** `image`",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": null,
+                  "description": "The image to scan."
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Download video",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/video/download",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "video",
+                "download"
+              ]
+            },
+            "description": "Fetch a video as MP4 or extract its audio as MP3.\n\n**Scope:** `video`",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://www.youtube.com/watch?v=...\",\n  \"format\": \"mp4\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Responds under 30s', () => pm.expect(pm.response.responseTime).to.be.below(30000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
