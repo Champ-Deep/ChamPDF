@@ -43,6 +43,15 @@ from api_v1 import (
     self_serve_keys_available,
 )
 
+# ChampPDF Sign: template -> tracked link -> OTP -> signature -> sealed PDF,
+# with a hash-chained audit trail. Env-gated like everything else; see
+# docs/sign/README.md.
+from sign.router import router as sign_router
+from sign.store import init_sign_db
+from sign.service import sign_enabled as sign_feature_enabled
+from sign.providers import provider_name as sign_provider_name
+from sign.mailer import mail_configured as sign_mail_configured
+
 # Self-hosted AI engine (our branch): LaMa inpainting, OpenCV template watermark
 # detection, faster-whisper captions, Real-ESRGAN upscaling. These run locally and
 # require no API key (Gemini above stays optional, e.g. for Edit Banana).
@@ -104,6 +113,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"v1 API key store init failed: {e}")
 
+    # ChampPDF Sign system of record (same SQLite file, its own tables)
+    try:
+        init_sign_db()
+        logger.info("✅ Sign store initialized (provider=%s)", sign_provider_name())
+    except Exception as e:
+        logger.warning(f"Sign store init failed: {e}")
+
     logger.info("Backend startup complete - ready to accept connections")
 
     yield
@@ -141,6 +157,9 @@ app.add_middleware(
 # Public versioned API (API-key auth)
 app.include_router(api_v1_router)
 
+# ChampPDF Sign (/api/sign/*): sender routes are Clerk- or admin-token gated,
+# signer routes are capability-URL + OTP gated.
+app.include_router(sign_router)
 
 def _custom_openapi():
     """OpenAPI schema with a server URL and declared auth schemes.
@@ -724,6 +743,10 @@ async def get_capabilities():
         "table_extraction": table_extraction_available(),
         "api_self_serve_keys": self_serve_keys_available(),
         "summary_models": SUGGESTED_MODELS,
+        # ChampPDF Sign. Full detail (seal, storage, templates) at /api/sign/status.
+        "sign_esign": sign_feature_enabled(),
+        "sign_provider": sign_provider_name(),
+        "sign_email": sign_mail_configured(),
     }
 
 

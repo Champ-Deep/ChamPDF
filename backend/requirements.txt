@@ -55,10 +55,16 @@ python-docx>=1.1.0
 fonttools>=4.47.0
 
 # ─── PDF signing + server OCR (optional) ─────────────────────────────────────
-# pyHanko: compliance-grade PAdES signing + verification.
+# pyHanko: compliance-grade PAdES signing + verification. Also seals every
+# executed ChampPDF Sign document (backend/sign/seal.py).
 # ocrmypdf: server-side OCR / PDF-A (needs tesseract-ocr + ghostscript apt pkgs).
 pyHanko>=0.25.0
 ocrmypdf>=16.0.0
+
+# ─── ChampPDF Sign object storage (optional) ─────────────────────────────────
+# Only used when SIGN_STORAGE_BUCKET is set (S3 or Cloudflare R2). With it
+# unset, sealed PDFs are written once to the /app/data volume.
+boto3>=1.34.0
 
 # torch is required by simple-lama-inpainting and Real-ESRGAN.
 # Pin a CPU build in the Dockerfile (--index-url https://download.pytorch.org/whl/cpu)
