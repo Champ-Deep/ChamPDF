@@ -10,6 +10,9 @@ Sitemap: https://www.champdf.com/sitemap.xml
 
 # Disallow internal/system paths
 Disallow: /api/
+# ChampPDF Sign: signing links are private capability URLs
+Disallow: /s/
+Disallow: /sign-document.html
 Disallow: /_next/
 Disallow: /assets/
 Disallow: /src/

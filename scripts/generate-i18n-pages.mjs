@@ -43,9 +43,13 @@ async function generateI18nPages() {
     process.exit(1);
   }
 
+  // The ChampPDF Sign signer page is served at /s/<token> via a rewrite and
+  // is English-only; language copies would never be reachable.
+  const I18N_EXCLUDE = new Set(['sign-document.html']);
   const htmlFiles = fs
     .readdirSync(DIST_DIR)
-    .filter((file) => file.endsWith('.html'));
+    .filter((file) => file.endsWith('.html'))
+    .filter((file) => !I18N_EXCLUDE.has(file));
 
   for (const file of htmlFiles) {
     const filePath = path.join(DIST_DIR, file);

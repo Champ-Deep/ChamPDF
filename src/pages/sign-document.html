@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Review and sign | ChampPDF Sign</title>
+    <meta
+      name="description"
+      content="Private signing page for an invited recipient."
+    />
+    <!-- The URL carries a one-time capability token. Never index, never leak it via referer. -->
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta name="referrer" content="no-referrer" />
+    <link href="/src/css/styles.css" rel="stylesheet" />
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  </head>
+
+  <body
+    class="antialiased bg-gray-900 text-gray-200 min-h-screen flex flex-col"
+  >
+    <header
+      class="border-b border-gray-800 bg-gray-900/95 backdrop-blur sticky top-0 z-40"
+    >
+      <div
+        class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-4"
+      >
+        <div class="text-lg font-bold text-white whitespace-nowrap">
+          Cham<span class="text-orange-500">PDF</span>
+          <span class="text-gray-400 font-semibold">Sign</span>
+        </div>
+        <div id="hdr-entity" class="text-xs text-gray-400 truncate"></div>
+      </div>
+    </header>
+
+    <main class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
+      <!-- Loading -->
+      <section
+        id="state-loading"
+        class="max-w-xl mx-auto text-center py-16 text-gray-400"
+      >
+        <div
+          class="inline-block w-8 h-8 border-2 border-gray-600 border-t-orange-500 rounded-full animate-spin mb-4"
+        ></div>
+        <p>Opening your document…</p>
+      </section>
+
+      <!-- Error (invalid / expired / voided / locked) -->
+      <section id="state-error" class="hidden max-w-xl mx-auto">
+        <div
+          class="bg-gray-800 border border-gray-700 rounded-xl p-8 text-center"
+        >
+          <div
+            class="mx-auto w-12 h-12 rounded-full bg-red-500/15 border border-red-500/40 flex items-center justify-center mb-4 text-red-300"
+          >
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 9v4m0 4h.01M4.93 19h14.14c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.2 16c-.77 1.33.19 3 1.73 3z"
+              />
+            </svg>
+          </div>
+          <h1 id="error-title" class="text-xl font-bold text-white mb-2">
+            This link is not available
+          </h1>
+          <p id="error-message" class="text-gray-400"></p>
+          <p id="error-hint" class="text-gray-500 text-sm mt-4"></p>
+        </div>
+      </section>
+
+      <!-- Landing -->
+      <section id="state-landing" class="hidden max-w-xl mx-auto">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-8">
+          <p
+            class="text-[11px] uppercase tracking-[0.14em] text-gray-500 font-semibold mb-3"
+          >
+            Document for signature
+          </p>
+          <h1
+            id="doc-title"
+            class="text-2xl font-bold text-white leading-tight mb-3"
+          ></h1>
+          <p class="text-gray-300 mb-6">
+            Sent by <b id="sender-name" class="text-white"></b> at
+            <b id="entity-name" class="text-white"></b>.
+          </p>
+          <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm mb-6">
+            <div class="bg-gray-900/60 border border-gray-700 rounded-lg p-3">
+              <dt class="text-gray-500 text-xs uppercase tracking-wide">For</dt>
+              <dd
+                id="recipient-name"
+                class="text-gray-100 font-medium mt-1"
+              ></dd>
+              <dd id="recipient-designation" class="text-gray-400 text-xs"></dd>
+            </div>
+            <div class="bg-gray-900/60 border border-gray-700 rounded-lg p-3">
+              <dt class="text-gray-500 text-xs uppercase tracking-wide">
+                Link valid until
+              </dt>
+              <dd id="expires-at" class="text-gray-100 font-medium mt-1"></dd>
+            </div>
+            <div class="bg-gray-900/60 border border-gray-700 rounded-lg p-3">
+              <dt class="text-gray-500 text-xs uppercase tracking-wide">
+                Length
+              </dt>
+              <dd id="page-count" class="text-gray-100 font-medium mt-1"></dd>
+            </div>
+          </dl>
+          <ol
+            class="text-sm text-gray-400 space-y-2 mb-6 list-decimal list-inside"
+          >
+            <li>
+              We email a six-digit code to
+              <b id="masked-email" class="text-gray-200"></b> to confirm it is
+              you.
+            </li>
+            <li>You read the document. The sign button unlocks at the end.</li>
+            <li>
+              You sign by typing or drawing. Both parties receive the sealed
+              PDF.
+            </li>
+          </ol>
+          <button
+            id="btn-send-code"
+            class="w-full bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-medium px-6 py-3 rounded-lg transition-colors"
+          >
+            Email me the verification code
+          </button>
+          <p id="landing-feedback" class="hidden mt-3 text-sm text-red-300"></p>
+          <p class="text-xs text-gray-500 mt-4">
+            Having the link alone does not allow anyone to sign. Only the person
+            who controls the invited mailbox can continue.
+          </p>
+        </div>
+      </section>
+
+      <!-- OTP -->
+      <section id="state-otp" class="hidden max-w-md mx-auto">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-8">
+          <h2 class="text-xl font-bold text-white mb-2">
+            Enter the six-digit code
+          </h2>
+          <p class="text-gray-400 text-sm mb-6">
+            We sent it to <b id="otp-sent-to" class="text-gray-200"></b>. It
+            expires in 10 minutes.
+          </p>
+          <input
+            id="otp-code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            pattern="[0-9]*"
+            maxlength="6"
+            placeholder="••••••"
+            class="w-full text-center tracking-[0.5em] text-2xl font-mono px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          />
+          <button
+            id="btn-verify"
+            class="w-full mt-4 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-medium px-6 py-3 rounded-lg transition-colors"
+          >
+            Verify and continue
+          </button>
+          <p id="otp-feedback" class="hidden mt-3 text-sm text-red-300"></p>
+          <div
+            class="mt-5 text-sm text-gray-500 flex items-center justify-between"
+          >
+            <span>Did not get it?</span>
+            <button
+              id="btn-resend-code"
+              class="text-orange-400 hover:text-orange-300 disabled:text-gray-600 disabled:cursor-not-allowed"
+            >
+              Send a new code
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Viewer -->
+      <section id="state-view" class="hidden">
+        <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
+          <div>
+            <p
+              class="text-[11px] uppercase tracking-[0.14em] text-gray-500 font-semibold"
+            >
+              Read the document
+            </p>
+            <h2 id="view-title" class="text-lg font-bold text-white"></h2>
+          </div>
+          <p id="page-progress" class="text-sm text-gray-400"></p>
+        </div>
+        <div
+          id="pdf-scroll"
+          class="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-5 space-y-4 overflow-y-auto"
+          style="max-height: 72vh"
+        ></div>
+        <div
+          class="sticky bottom-0 mt-3 bg-gray-900/95 backdrop-blur border border-gray-800 rounded-xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3"
+        >
+          <p id="read-status" class="text-sm text-gray-400">
+            Scroll to the end of the document to enable signing.
+          </p>
+          <button
+            id="btn-open-sign"
+            disabled
+            class="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
+          >
+            Sign document
+          </button>
+        </div>
+      </section>
+
+      <!-- Signature -->
+      <section id="state-sign" class="hidden max-w-2xl mx-auto">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 sm:p-8">
+          <h2 class="text-xl font-bold text-white mb-1">
+            Apply your signature
+          </h2>
+          <p class="text-gray-400 text-sm mb-6">
+            Type your name or draw with your finger or mouse.
+          </p>
+
+          <div class="flex gap-2 mb-4">
+            <button
+              id="tab-typed"
+              class="px-4 py-2 rounded-lg text-sm font-medium bg-orange-600 text-white"
+            >
+              Type
+            </button>
+            <button
+              id="tab-drawn"
+              class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600"
+            >
+              Draw
+            </button>
+          </div>
+
+          <div id="panel-typed">
+            <input
+              id="typed-name"
+              type="text"
+              placeholder="Your full name"
+              autocomplete="name"
+              class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            />
+            <div
+              class="mt-3 bg-white rounded-lg h-28 flex items-center justify-center overflow-hidden"
+            >
+              <span
+                id="typed-preview"
+                class="text-4xl text-indigo-900 px-4 truncate"
+                style="font-family: 'Great Vibes', cursive"
+              ></span>
+            </div>
+          </div>
+
+          <div id="panel-drawn" class="hidden">
+            <div class="bg-white rounded-lg overflow-hidden relative">
+              <canvas
+                id="sig-pad"
+                class="w-full touch-none block"
+                style="height: 180px"
+              ></canvas>
+              <div
+                class="absolute left-4 right-4 bottom-8 border-b border-dashed border-gray-300 pointer-events-none"
+              ></div>
+            </div>
+            <div class="flex justify-between items-center mt-2">
+              <span class="text-xs text-gray-500">Sign above the line.</span>
+              <button
+                id="btn-clear-pad"
+                class="text-sm text-orange-400 hover:text-orange-300"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+            <div>
+              <label
+                for="sign-name"
+                class="block text-sm font-medium text-gray-300 mb-1"
+                >Full name</label
+              >
+              <input
+                id="sign-name"
+                type="text"
+                autocomplete="name"
+                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label
+                for="sign-designation"
+                class="block text-sm font-medium text-gray-300 mb-1"
+                >Designation</label
+              >
+              <input
+                id="sign-designation"
+                type="text"
+                autocomplete="organization-title"
+                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          <label
+            class="flex items-start gap-3 mt-6 text-sm text-gray-300 cursor-pointer"
+          >
+            <input
+              id="intent"
+              type="checkbox"
+              class="mt-1 w-4 h-4 rounded text-orange-600 bg-gray-700 border-gray-600"
+            />
+            <span id="intent-text"></span>
+          </label>
+
+          <p id="sign-feedback" class="hidden mt-4 text-sm text-red-300"></p>
+
+          <div class="flex flex-wrap gap-3 mt-6">
+            <button
+              id="btn-back-to-doc"
+              class="px-5 py-2.5 rounded-lg text-sm font-medium bg-gray-700 text-gray-200 hover:bg-gray-600"
+            >
+              Back to document
+            </button>
+            <button
+              id="btn-apply-signature"
+              class="flex-1 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
+            >
+              Sign and finish
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Hosted engine (Documenso) -->
+      <section id="state-hosted" class="hidden">
+        <p class="text-sm text-gray-400 mb-3">Complete your signature below.</p>
+        <iframe
+          id="hosted-frame"
+          title="Signing"
+          class="w-full bg-white rounded-xl border border-gray-800"
+          style="height: 80vh"
+          referrerpolicy="no-referrer"
+        ></iframe>
+      </section>
+
+      <!-- Done -->
+      <section id="state-done" class="hidden max-w-xl mx-auto">
+        <div
+          class="bg-gray-800 border border-gray-700 rounded-xl p-8 text-center"
+        >
+          <div
+            class="mx-auto w-12 h-12 rounded-full bg-green-500/15 border border-green-500/40 flex items-center justify-center mb-4 text-green-300"
+          >
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+          <h1 id="done-title" class="text-xl font-bold text-white mb-2"></h1>
+          <p id="done-message" class="text-gray-400 mb-6"></p>
+          <dl
+            id="done-meta"
+            class="hidden text-left text-sm bg-gray-900/60 border border-gray-700 rounded-lg p-4 mb-6 space-y-2"
+          >
+            <div>
+              <dt class="text-gray-500 text-xs uppercase tracking-wide">
+                Executed
+              </dt>
+              <dd id="done-executed-at" class="text-gray-100"></dd>
+            </div>
+            <div>
+              <dt class="text-gray-500 text-xs uppercase tracking-wide">
+                SHA-256 of the sealed file
+              </dt>
+              <dd
+                id="done-hash"
+                class="text-gray-300 font-mono text-xs break-all"
+              ></dd>
+            </div>
+          </dl>
+          <button
+            id="btn-download"
+            class="hidden w-full bg-orange-600 hover:bg-orange-500 text-white font-medium px-6 py-3 rounded-lg transition-colors"
+          >
+            Download the sealed PDF
+          </button>
+          <p id="done-feedback" class="hidden mt-3 text-sm text-red-300"></p>
+        </div>
+      </section>
+    </main>
+
+    <footer
+      class="w-full max-w-5xl mx-auto px-4 py-6 text-xs text-gray-500 border-t border-gray-800"
+    >
+      This page is private to the invited signer. ChampPDF Sign records identity
+      verification, the exact document viewed, and the time and network address
+      of signing in a tamper-evident audit trail that both parties receive.
+    </footer>
+
+    <script type="module" src="/src/js/logic/sign-document-page.ts"></script>
+  </body>
+</html>

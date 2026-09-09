@@ -859,6 +859,24 @@ export const categories: Category[] = [
         keywords: ['pades', 'pyhanko', 'integrity', 'timestamp', 'trust'],
       },
       {
+        href: B + 'sign.html',
+        name: 'ChampPDF Sign',
+        icon: 'ph-signature',
+        subtitle:
+          'Send an NDA for e-signature: tracked link, email code, sealed PDF with audit trail.',
+        pillar: 'documents',
+        keywords: [
+          'esign',
+          'e-signature',
+          'send for signature',
+          'nda',
+          'docusign',
+          'otp',
+          'agreement',
+          'contract',
+        ],
+      },
+      {
         href: B + 'encrypt-pdf.html',
         name: 'Encrypt PDF',
         icon: 'ph-lock',
