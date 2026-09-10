@@ -73,6 +73,10 @@ from replicate_client import ReplicateError
 from groq_client import GroqError
 from ocr_processor import ocr_pdf, ocr_available, OcrError
 from pdf_signer import sign_pdf, verify_pdf, sign_available, default_tsa_url, SignError
+# Per-capability media engine switch (local | replicate via treg | openrouter | gemini).
+import media_providers
+import treg_client
+from media_providers import MediaError
 from table_extractor import extract_tables, table_extraction_available, TableExtractionError
 
 logger = logging.getLogger(__name__)
@@ -243,6 +247,17 @@ caption_processor = (
     else None
 )
 
+# Hand the local engines to the provider switch; hosted engines are env-driven.
+media_providers.configure_local(
+    lama=lama_processor, upscaler=upscale_processor, image_processor=image_processor
+)
+
+
+def _media_http_error(e: MediaError) -> HTTPException:
+    status = {"not_configured": 503, "invalid_input": 422}.get(e.code, 502)
+    return HTTPException(status_code=status, detail=str(e))
+
+
 # Allowed extensions
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".avi"}
 ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
@@ -324,20 +339,20 @@ async def remove_background(
         # Acquire semaphore to prevent OOM
         async with process_semaphore:
             logger.info(f"Removing background from {file.filename}")
-            output_bytes = await image_processor.remove_background(
-                contents,
-                output_format=output_format
-            )
+            result = await media_providers.remove_background(contents, output_format=output_format)
 
         # Return processed image
         return StreamingResponse(
-            io.BytesIO(output_bytes),
+            io.BytesIO(result.data),
             media_type=f"image/{output_format}",
             headers={
-                "Content-Disposition": f"attachment; filename={file.filename.rsplit('.', 1)[0]}_no_bg.{output_format}"
+                "Content-Disposition": f"attachment; filename={file.filename.rsplit('.', 1)[0]}_no_bg.{output_format}",
+                "X-ChamPDF-Provider": result.provider,
             }
         )
 
+    except MediaError as e:
+        raise _media_http_error(e)
     except Exception as e:
         logger.error(f"Background removal error: {str(e)}")
         raise HTTPException(
@@ -527,19 +542,16 @@ async def inpaint_image_endpoint(
 
     try:
         async with process_semaphore:
-            result_png = await inpaint_image(
-                image_bytes=image_bytes,
-                mask_bytes=mask_bytes,
-                prompt=prompt,
-                radius=radius,
-            )
+            result = await media_providers.inpaint(image_bytes, mask_bytes, prompt=prompt, radius=radius)
+    except MediaError as e:
+        raise _media_http_error(e)
     except InpaintError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
     return StreamingResponse(
-        io.BytesIO(result_png),
+        io.BytesIO(result.data),
         media_type="image/png",
-        headers={"Content-Disposition": 'inline; filename="inpainted.png"'},
+        headers={"Content-Disposition": 'inline; filename="inpainted.png"', "X-ChamPDF-Provider": result.provider},
     )
 
 
@@ -593,23 +605,18 @@ async def edit_image_endpoint(
 
     try:
         async with process_semaphore:
-            result_png = await edit_image_with_prompt(
-                image_bytes=image_bytes, prompt=prompt
-            )
-    except EditError as e:
+            result = await media_providers.edit_image(image_bytes, prompt)
+    except MediaError as e:
         # 503 if the server is just not configured; 422 if the user input
         # was the problem; 502 for an actual upstream failure.
-        msg = str(e)
-        if "not configured" in msg:
-            raise HTTPException(status_code=503, detail=msg)
-        if "Prompt" in msg or "prompt is required" in msg.lower():
-            raise HTTPException(status_code=422, detail=msg)
-        raise HTTPException(status_code=502, detail=msg)
+        raise _media_http_error(e)
+    except EditError as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
     return StreamingResponse(
-        io.BytesIO(result_png),
+        io.BytesIO(result.data),
         media_type="image/png",
-        headers={"Content-Disposition": 'inline; filename="edited.png"'},
+        headers={"Content-Disposition": 'inline; filename="edited.png"', "X-ChamPDF-Provider": result.provider},
     )
 
 
@@ -724,13 +731,17 @@ async def cleanup_temp_files():
 async def get_capabilities():
     """Report which self-hosted AI features are enabled (frontend show/hide)."""
     return {
-        "background_removal": True,
+        "background_removal": media_providers.resolve("remove_background") is not None,
         "video_rebrand": True,
-        "inpaint": lama_processor is not None,
-        "upscale": upscale_processor is not None,
+        "inpaint": media_providers.resolve("inpaint") not in (None, "opencv"),
+        "upscale": media_providers.resolve("upscale") is not None,
         "captions": caption_processor is not None,
         "watermark_autodetect": watermark_detector.has_templates(),
-        "gemini_inpaint": bool(os.environ.get("GEMINI_API_KEY")),
+        # Name kept for the frontend; true when ANY prompt-editing engine is configured.
+        "gemini_inpaint": media_providers.resolve("edit_image") is not None,
+        "image_edit_provider": media_providers.resolve("edit_image"),
+        "media_providers": media_providers.describe(),
+        "treg": treg_client.describe(),
         "video_transcript": caption_processor is not None,
         "video_summary": summary_available(),
         "video_analyze": analyze_available(),
@@ -837,8 +848,8 @@ async def remove_image_watermark(
 
 @app.post("/api/inpaint")
 async def inpaint_with_mask(file: UploadFile = File(...), mask: UploadFile = File(...)):
-    """Generic LaMa inpainting: image + 1-channel mask (white = remove)."""
-    if not lama_processor:
+    """Generic inpainting: image + 1-channel mask (white = remove). LaMa locally, or a hosted model."""
+    if media_providers.resolve("inpaint") in (None, "opencv"):
         raise HTTPException(status_code=400, detail="AI inpainting is disabled on this server")
     if not process_semaphore:
         raise HTTPException(status_code=503, detail="Server initializing")
@@ -847,16 +858,18 @@ async def inpaint_with_mask(file: UploadFile = File(...), mask: UploadFile = Fil
     mask_bytes = await mask.read()
     try:
         async with process_semaphore:
-            output = await lama_processor.inpaint(image_bytes, mask_bytes)
+            result = await media_providers.inpaint(image_bytes, mask_bytes)
+    except MediaError as e:
+        raise _media_http_error(e)
     except Exception as e:
         logger.error(f"Inpaint error: {e}")
         raise HTTPException(status_code=500, detail=f"Processing failed: {e}")
 
     base = (file.filename or "image").rsplit(".", 1)[0]
     return StreamingResponse(
-        io.BytesIO(output),
+        io.BytesIO(result.data),
         media_type="image/png",
-        headers={"Content-Disposition": f"attachment; filename={base}_inpainted.png"},
+        headers={"Content-Disposition": f"attachment; filename={base}_inpainted.png", "X-ChamPDF-Provider": result.provider},
     )
 
 
@@ -956,8 +969,8 @@ async def upscale_image(
     scale: int = Form(4),
     output_format: str = Form("png"),
 ):
-    """Upscale an image with Real-ESRGAN (2x / 4x)."""
-    if not upscale_processor:
+    """Upscale an image (2x / 4x): Real-ESRGAN locally, or a hosted model."""
+    if media_providers.resolve("upscale") is None:
         raise HTTPException(status_code=400, detail="Upscaling is disabled on this server")
     if not process_semaphore:
         raise HTTPException(status_code=503, detail="Server initializing")
@@ -975,7 +988,9 @@ async def upscale_image(
 
     try:
         async with process_semaphore:
-            output = await upscale_processor.upscale(contents, scale=scale, output_format=output_format)
+            result = await media_providers.upscale(contents, scale=scale, output_format=output_format)
+    except MediaError as e:
+        raise _media_http_error(e)
     except Exception as e:
         logger.error(f"Upscale error: {e}")
         raise HTTPException(status_code=500, detail=f"Processing failed: {e}")
@@ -983,9 +998,9 @@ async def upscale_image(
     base = (file.filename or "image").rsplit(".", 1)[0]
     ext = "png" if output_format.lower() == "png" else "jpg"
     return StreamingResponse(
-        io.BytesIO(output),
+        io.BytesIO(result.data),
         media_type=f"image/{ext}",
-        headers={"Content-Disposition": f"attachment; filename={base}_upscaled_{scale}x.{ext}"},
+        headers={"Content-Disposition": f"attachment; filename={base}_upscaled_{scale}x.{ext}", "X-ChamPDF-Provider": result.provider},
     )
 
 
