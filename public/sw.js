@@ -5,7 +5,7 @@
  * Version: 1.1.0
  */
 
-const CACHE_VERSION = 'champdf-v9';
+const CACHE_VERSION = 'champdf-v10';
 const CACHE_NAME = `${CACHE_VERSION}-static`;
 
 const getBasePath = () => {
@@ -14,23 +14,11 @@ const getBasePath = () => {
   return url.pathname.replace(/\/$/, '') || '';
 };
 
+// Only assets that actually ship in /public. The old Pyodide/PyMuPDF wheel list
+// went away with the mupdf.js migration — those files have not existed since,
+// so precaching them just 404'd 14 times on every first load. MuPDF now rides
+// in the app bundle as a lazy chunk (cached by the /assets/ rule below).
 const buildCriticalAssets = (basePath) => [
-  `${basePath}/pymupdf-wasm/pyodide.js`,
-  `${basePath}/pymupdf-wasm/pyodide.asm.js`,
-  `${basePath}/pymupdf-wasm/pyodide.asm.wasm`,
-  `${basePath}/pymupdf-wasm/python_stdlib.zip`,
-  `${basePath}/pymupdf-wasm/pyodide-lock.json`,
-
-  `${basePath}/pymupdf-wasm/pymupdf-1.26.3-cp313-none-pyodide_2025_0_wasm32.whl`,
-  `${basePath}/pymupdf-wasm/numpy-2.2.5-cp313-cp313-pyodide_2025_0_wasm32.whl`,
-  `${basePath}/pymupdf-wasm/opencv_python-4.11.0.86-cp313-cp313-pyodide_2025_0_wasm32.whl`,
-  `${basePath}/pymupdf-wasm/lxml-5.4.0-cp313-cp313-pyodide_2025_0_wasm32.whl`,
-  `${basePath}/pymupdf-wasm/python_docx-1.2.0-py3-none-any.whl`,
-  `${basePath}/pymupdf-wasm/pdf2docx-0.5.8-py3-none-any.whl`,
-  `${basePath}/pymupdf-wasm/fonttools-4.56.0-py3-none-any.whl`,
-  `${basePath}/pymupdf-wasm/typing_extensions-4.12.2-py3-none-any.whl`,
-  `${basePath}/pymupdf-wasm/pymupdf4llm-0.0.27-py3-none-any.whl`,
-
   `${basePath}/ghostscript-wasm/gs.js`,
   `${basePath}/ghostscript-wasm/gs.wasm`,
 ];
@@ -244,9 +232,6 @@ async function networkFirstStrategy(request) {
  * Returns the local directory path for a given CDN package
  */
 function getLocalPathForCDNUrl(pathname) {
-  if (pathname.includes('/@champdf/pymupdf-wasm')) {
-    return '/pymupdf-wasm/';
-  }
   if (pathname.includes('/@champdf/gs-wasm')) {
     return '/ghostscript-wasm/';
   }
@@ -273,7 +258,6 @@ function shouldCache(pathname, isCDN = false) {
 
   if (isCDN) {
     return (
-      pathname.includes('/@champdf/pymupdf-wasm') ||
       pathname.includes('/@champdf/gs-wasm') ||
       pathname.includes('/@matbee/libreoffice-converter') ||
       pathname.match(/\.(wasm|whl|zip|json|js|gz)$/)
@@ -282,7 +266,6 @@ function shouldCache(pathname, isCDN = false) {
 
   return (
     pathname.includes('/libreoffice-wasm/') ||
-    pathname.includes('/pymupdf-wasm/') ||
     pathname.includes('/ghostscript-wasm/') ||
     pathname.includes('/embedpdf/') ||
     pathname.includes('/assets/') ||

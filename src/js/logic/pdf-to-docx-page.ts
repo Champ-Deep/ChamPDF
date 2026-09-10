@@ -7,15 +7,14 @@ import {
 } from '../utils/helpers.js';
 import { state } from '../state.js';
 import { createIcons, icons } from 'lucide';
-import {
-  getLibreOfficeConverter,
-  type LoadProgress,
-} from '../utils/libreoffice-loader.js';
+import { pdfToDocx } from '../utils/pdf-to-docx.js';
 
-// MuPDF core has no PDF->DOCX exporter (PyMuPDF's was a Python add-on with no
-// mupdf.js equivalent), so this reuses the LibreOffice-wasm engine already
-// shipped for the DOCX/PPTX/XLSX->PDF converters, via its PDF import filter.
-const converter = getLibreOfficeConverter();
+/** Warn when pages had no text layer, so the user knows to OCR them first. */
+const scannedNote = (scanned: number, total: number): string =>
+  scanned === 0
+    ? ''
+    : ` ${scanned} of ${total} page(s) had no text layer and were embedded as` +
+      ` images — run OCR PDF on those first if you need editable text.`;
 
 document.addEventListener('DOMContentLoaded', () => {
   const fileInput = document.getElementById('file-input') as HTMLInputElement;
@@ -107,15 +106,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       showLoader('Loading conversion engine...');
-      await converter.initialize((progress: LoadProgress) => {
-        showLoader(progress.message);
-      });
+
+      // Pages with no text layer come back as page images; tell the user so they
+      // know to run OCR first rather than wondering why the text is not editable.
+      let scannedPages = 0;
 
       if (state.files.length === 1) {
         const file = state.files[0];
         showLoader(`Converting ${file.name}...`);
 
-        const docxBlob = await converter.pdfToDocx(file);
+        const result = await pdfToDocx(file, {
+          onProgress: ({ page, totalPages }) =>
+            showLoader(`Converting page ${page} of ${totalPages}...`),
+        });
+        scannedPages = result.rasterizedPages;
+        const docxBlob = result.blob;
         const outName = file.name.replace(/\.pdf$/i, '') + '.docx';
 
         downloadFile(docxBlob, outName);
@@ -123,7 +128,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showAlert(
           'Conversion Complete',
-          `Successfully converted ${file.name} to DOCX.`,
+          `Successfully converted ${file.name} to DOCX.` +
+            scannedNote(scannedPages, result.pages),
           'success',
           () => resetState()
         );
@@ -131,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoader('Converting multiple PDFs...');
         const JSZip = (await import('jszip')).default;
         const zip = new JSZip();
+        let totalPages = 0;
 
         for (let i = 0; i < state.files.length; i++) {
           const file = state.files[i];
@@ -138,9 +145,16 @@ document.addEventListener('DOMContentLoaded', () => {
             `Converting ${i + 1}/${state.files.length}: ${file.name}...`
           );
 
-          const docxBlob = await converter.pdfToDocx(file);
+          const result = await pdfToDocx(file, {
+            onProgress: ({ page, totalPages: pages }) =>
+              showLoader(
+                `Converting ${i + 1}/${state.files.length}: ${file.name} — page ${page} of ${pages}...`
+              ),
+          });
+          scannedPages += result.rasterizedPages;
+          totalPages += result.pages;
           const baseName = file.name.replace(/\.pdf$/i, '');
-          const arrayBuffer = await docxBlob.arrayBuffer();
+          const arrayBuffer = await result.blob.arrayBuffer();
           zip.file(`${baseName}.docx`, arrayBuffer);
         }
 
@@ -152,7 +166,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showAlert(
           'Conversion Complete',
-          `Successfully converted ${state.files.length} PDF(s) to DOCX.`,
+          `Successfully converted ${state.files.length} PDF(s) to DOCX.` +
+            scannedNote(scannedPages, totalPages),
           'success',
           () => resetState()
         );

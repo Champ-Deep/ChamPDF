@@ -1,9 +1,16 @@
 import { afterEach, vi } from 'vitest';
 
-afterEach(() => {
-  document.body.innerHTML = '';
-  document.head.innerHTML = '';
-});
+// Suites that opt into the node environment (`@vitest-environment node`, e.g.
+// the mupdf-backed converters, whose WASM loader needs the node code path) have
+// no DOM at all — every browser stub below has to be skipped for them.
+const hasDom = typeof window !== 'undefined';
+
+if (hasDom) {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    document.head.innerHTML = '';
+  });
+}
 
 global.ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
@@ -11,19 +18,21 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   disconnect: vi.fn(),
 }));
 
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation((query) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-});
+if (hasDom) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
 
 global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),

@@ -24,6 +24,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drop NotebookLM/other watermark reference crops in `backend/assets/watermark_templates/`
   to enable auto-detection. See `docs/design/CLAUDE_DESIGN_BRIEF.md` for UI design directions.
 
+### 🐛 Fixed - PDF to Word
+
+- **PDF → Word actually converts now.** The tool routed PDFs through LibreOffice-wasm,
+  which imports a PDF as a _Draw_ document — Draw has no word-processing export filter,
+  so every conversion was rejected up front ("PDF files are imported as Draw documents
+  and cannot be exported to Office formats") and the user only saw an error dialog.
+  PDF→DOCX is now written directly from MuPDF's structured text (`utils/pdf-to-docx.ts`):
+  paragraphs per text block, runs carrying font/size/bold/italic/colour, page breaks,
+  embedded images, and de-hyphenation across line breaks. Still 100% client-side.
+- Pages with no text layer (scans) are embedded as page images instead of coming out
+  blank, and the result dialog says how many, pointing the user at OCR PDF first.
+- Service worker no longer precaches the Pyodide/PyMuPDF wheel list that disappeared
+  with the mupdf.js migration — that was 14 guaranteed 404s (`pyodide.js`,
+  `pyodide.asm.wasm`, `pyodide-lock.json`, …) on every first page load. Cache bumped
+  to `champdf-v10` so stale entries are dropped.
+
 ### 🐛 Fixed - UI / Quality
 
 - Removed duplicate `<title>`/`<meta description>` tags in `replace-logo`, `remove-watermark`

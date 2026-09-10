@@ -204,27 +204,11 @@ export class LibreOfficeConverter {
     return this.convertToPdf(file);
   }
 
-  /** Convert a PDF to an editable DOCX via LibreOffice's PDF import filter. */
-  async pdfToDocx(file: File): Promise<Blob> {
-    if (!this.converter || !this.initialized) {
-      throw new Error('Converter not initialized. Call initialize() first.');
-    }
-
-    const uint8Array = new Uint8Array(await file.arrayBuffer());
-    const result = await withTimeout(
-      this.converter.convert(
-        uint8Array,
-        { outputFormat: 'docx', inputFormat: 'pdf' as any },
-        file.name
-      ),
-      CONVERT_TIMEOUT_MS,
-      `Conversion of ${file.name}`
-    );
-    const data = new Uint8Array(result.data);
-    return new Blob([data], {
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    });
-  }
+  // There is deliberately no pdfToDocx here: LibreOffice imports a PDF as a
+  // *Draw* document, and Draw has no word-processing export filter, so the
+  // converter rejects pdf→docx outright ("PDF files are imported as Draw
+  // documents and cannot be exported to Office formats"). PDF→Word lives in
+  // utils/pdf-to-docx.ts, which writes WordprocessingML from MuPDF's text layout.
 
   async destroy(): Promise<void> {
     if (this.converter) {
