@@ -217,7 +217,7 @@ def describe() -> Dict[str, Any]:
             entry["model"] = _env("OPENROUTER_IMAGE_MODEL")
             entry["via"] = "treg" if _openrouter_via_treg() else "direct"
         elif prov == "gemini":
-            entry["model"] = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image-preview")
+            entry["model"] = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
         out[cap] = entry
     out["treg_configured"] = _treg_configured()
     return out
@@ -439,7 +439,7 @@ async def edit_image(image_bytes: bytes, prompt: str) -> MediaResult:
             data = await edit_image_with_prompt(png, prompt)
         except EditError as e:
             raise MediaError(str(e), "not_configured" if "not configured" in str(e) else "upstream") from e
-        return MediaResult(data, "gemini", os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image-preview"),
+        return MediaResult(data, "gemini", os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image"),
                            elapsed_s=time.time() - started)
     if provider == "openrouter":
         return await asyncio.to_thread(_openrouter_edit, png, prompt)
