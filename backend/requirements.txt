@@ -66,6 +66,11 @@ ocrmypdf>=16.0.0
 # unset, sealed PDFs are written once to the /app/data volume.
 boto3>=1.34.0
 
+# ─── ChampPDF Sign admin portal IP enrichment (optional) ─────────────────────
+# Reads a MaxMind GeoIP2 .mmdb (MAXMIND_DB_PATH) at read time for the admin
+# portal. Pure Python and tiny; without the env var it is never touched.
+maxminddb>=2.6.0
+
 # torch is required by simple-lama-inpainting and Real-ESRGAN.
 # Pin a CPU build in the Dockerfile (--index-url https://download.pytorch.org/whl/cpu)
 # to keep the image small; GPU hosts can install the CUDA build instead.
