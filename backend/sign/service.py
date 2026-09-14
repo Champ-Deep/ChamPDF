@@ -243,6 +243,7 @@ async def preview(sender: Sender, template_id: str, values: Dict[str, Any], sign
     """Render the filled instrument without creating anything. Sender only."""
     _require_enabled()
     template = _template(template_id)
+    _ensure_sendable(sender, template)
     clean = _values(template, values)
     recipients = []
     if signer and (signer.get("name") or signer.get("email")):
@@ -270,6 +271,7 @@ async def create_and_send(
 ) -> Dict[str, Any]:
     _require_enabled()
     template = _template(template_id)
+    _ensure_sendable(sender, template)
     clean = _values(template, values)
     if not (MIN_EXPIRY_DAYS <= int(expires_in_days) <= MAX_EXPIRY_DAYS):
         raise err(422, "invalid_expiry", f"expires_in_days must be between {MIN_EXPIRY_DAYS} and {MAX_EXPIRY_DAYS}")
@@ -986,6 +988,16 @@ def _template(template_id: str) -> tpl.Template:
         return tpl.get_template(template_id)
     except tpl.TemplateError as e:
         raise err(404, "unknown_template", str(e))
+
+
+def _ensure_sendable(sender: Sender, template: tpl.Template) -> None:
+    """Admin/legal control of which templates may be sent. Legal and admin may
+    send and manage every registry template; members are capped to the set the
+    portal has switched on."""
+    if sender.at_least("legal"):
+        return
+    if not store.template_available(template.id, template.version):
+        raise err(403, "template_inactive", f"Template '{template.id}' is not available for sending")
 
 
 def _values(template: tpl.Template, values: Dict[str, Any]) -> Dict[str, str]:

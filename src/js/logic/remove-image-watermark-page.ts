@@ -14,9 +14,15 @@ import { createIcons, icons } from 'lucide';
 // API endpoint - empty string makes relative URLs work behind the Nginx proxy.
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
+/** A selection rectangle in preview-canvas pixels (including CANVAS_PADDING). */
+type Box = { x: number; y: number; width: number; height: number };
+
 interface WatermarkRemoverState {
   file: File | null;
-  selectionBox: { x: number; y: number; width: number; height: number } | null;
+  /** All watermark regions the user has marked, in canvas pixels. */
+  selections: Box[];
+  /** Index of the highlighted box (the one with resize handles); -1 = none. */
+  activeIndex: number;
   method: 'ai' | 'blur';
   blurRadius: number; // 5, 10, 15 for light/medium/heavy
   logoPreset: 'none' | 'lakeb2b' | 'champions' | 'ampliz';
@@ -29,14 +35,12 @@ interface WatermarkRemoverState {
   previewCanvas: HTMLCanvasElement | null;
   imgNaturalWidth: number;
   imgNaturalHeight: number;
-  isDrawing: boolean;
-  drawStartX: number;
-  drawStartY: number;
 }
 
 const state: WatermarkRemoverState = {
   file: null,
-  selectionBox: null,
+  selections: [],
+  activeIndex: -1,
   method: 'ai', // Default: AI inpaint (server)
   blurRadius: 10, // Default: medium blur
   logoPreset: 'none',
@@ -47,10 +51,17 @@ const state: WatermarkRemoverState = {
   previewCanvas: null,
   imgNaturalWidth: 0,
   imgNaturalHeight: 0,
-  isDrawing: false,
-  drawStartX: 0,
-  drawStartY: 0,
 };
+
+/** The highlighted box, falling back to the first one. Used to anchor the logo. */
+function activeBox(): Box | null {
+  if (state.selections.length === 0) return null;
+  const i =
+    state.activeIndex >= 0 && state.activeIndex < state.selections.length
+      ? state.activeIndex
+      : 0;
+  return state.selections[i];
+}
 
 // Logo images served from public folder (with BASE_URL for Vite)
 const LOGO_URLS: Record<string, string> = {
@@ -144,29 +155,35 @@ function initializePage() {
   setupLogoDrag();
   window.addEventListener('resize', positionLogoOverlay);
 
-  // Clear selection button
+  // Clear all boxes / remove the highlighted box
   document
     .getElementById('clear-selection-btn')
-    ?.addEventListener('click', () => {
-      state.selectionBox = null;
+    ?.addEventListener('click', () => clearSelections());
+  document
+    .getElementById('delete-box-btn')
+    ?.addEventListener('click', () => deleteActiveBox());
 
-      // Clear overlay canvas
-      const overlayCanvas = document.getElementById(
-        'selection-overlay'
-      ) as HTMLCanvasElement;
-      if (overlayCanvas) {
-        const ctx = overlayCanvas.getContext('2d')!;
-        ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-      }
-
-      // Disable process button until new selection made
-      const processBtn = document.getElementById(
-        'process-btn'
-      ) as HTMLButtonElement;
-      if (processBtn) processBtn.disabled = true;
-
-      showAlert('Selection Cleared', 'Drag to select a new watermark area.');
-    });
+  // Delete/Backspace removes the highlighted box, Escape un-highlights it.
+  document.addEventListener('keydown', (e) => {
+    const t = e.target as HTMLElement | null;
+    if (
+      t &&
+      (t.tagName === 'INPUT' ||
+        t.tagName === 'TEXTAREA' ||
+        t.tagName === 'SELECT' ||
+        t.isContentEditable)
+    ) {
+      return;
+    }
+    if (!state.previewCanvas || state.selections.length === 0) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (deleteActiveBox()) e.preventDefault();
+    } else if (e.key === 'Escape') {
+      state.activeIndex = -1;
+      renderSelections();
+      syncSelectionUi();
+    }
+  });
 
   // Process button
   document
@@ -230,8 +247,14 @@ function setupCanvasPreview(file: File) {
     state.imgNaturalWidth = img.naturalWidth;
     state.imgNaturalHeight = img.naturalHeight;
 
-    // Size canvas to fit container while maintaining aspect ratio
-    const maxWidth = 800;
+    // Size canvas to fit the card while maintaining aspect ratio. The canvas
+    // is also CSS-scaled (max-w-full) on narrow screens; pointer maths in the
+    // selection editor converts screen px -> canvas px, so any scale is fine.
+    const container = canvas.parentElement?.parentElement;
+    const available = container
+      ? Math.max(200, container.clientWidth - CANVAS_PADDING * 2)
+      : 800;
+    const maxWidth = Math.min(800, available);
     const maxHeight = 600;
     const scale = Math.min(
       maxWidth / img.naturalWidth,
@@ -268,156 +291,386 @@ function setupCanvasPreview(file: File) {
   img.src = URL.createObjectURL(file);
 }
 
+/* ── Selection editor: several boxes, draw / move / resize with pointer events ── */
+
+type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+const HANDLE_IDS: HandleId[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+/** Boxes smaller than this (canvas px) are treated as a click, not a selection. */
+const MIN_BOX_PX = 8;
+/** Screen-pixel radius within which a pointer grabs a resize handle. */
+const HANDLE_GRAB_CSS_PX = 10;
+const HANDLE_SIZE_CSS_PX = 9;
+
+type Drag =
+  | { kind: 'draw'; startX: number; startY: number }
+  | { kind: 'move'; index: number; offsetX: number; offsetY: number }
+  | { kind: 'resize'; index: number; handle: HandleId; start: Box };
+
+let overlayEl: HTMLCanvasElement | null = null;
+let drag: Drag | null = null;
+let editorBound = false;
+
+/** Internal canvas px per CSS px (the overlay is CSS-scaled to the card width). */
+function overlayScale(): number {
+  const o = overlayEl;
+  if (!o || o.clientWidth === 0) return 1;
+  return o.width / o.clientWidth;
+}
+
+/** Screen coordinates -> canvas pixels, correcting for CSS scaling and the border. */
+function pointerToCanvas(e: { clientX: number; clientY: number }): {
+  x: number;
+  y: number;
+} {
+  const o = overlayEl!;
+  const r = o.getBoundingClientRect();
+  const s = overlayScale();
+  return {
+    x: (e.clientX - r.left - o.clientLeft) * s,
+    y: (e.clientY - r.top - o.clientTop) * s,
+  };
+}
+
+function clampPoint(p: { x: number; y: number }): { x: number; y: number } {
+  const o = overlayEl!;
+  return {
+    x: Math.min(Math.max(p.x, 0), o.width),
+    y: Math.min(Math.max(p.y, 0), o.height),
+  };
+}
+
+function normalizeBox(x1: number, y1: number, x2: number, y2: number): Box {
+  return {
+    x: Math.min(x1, x2),
+    y: Math.min(y1, y2),
+    width: Math.abs(x2 - x1),
+    height: Math.abs(y2 - y1),
+  };
+}
+
+/** Keep a box inside the canvas (padding included) without changing its size. */
+function clampBox(b: Box): Box {
+  const o = overlayEl!;
+  const width = Math.min(b.width, o.width);
+  const height = Math.min(b.height, o.height);
+  return {
+    x: Math.min(Math.max(b.x, 0), o.width - width),
+    y: Math.min(Math.max(b.y, 0), o.height - height),
+    width,
+    height,
+  };
+}
+
+function handlePoints(b: Box): Record<HandleId, { x: number; y: number }> {
+  const cx = b.x + b.width / 2;
+  const cy = b.y + b.height / 2;
+  const r = b.x + b.width;
+  const btm = b.y + b.height;
+  return {
+    nw: { x: b.x, y: b.y },
+    n: { x: cx, y: b.y },
+    ne: { x: r, y: b.y },
+    e: { x: r, y: cy },
+    se: { x: r, y: btm },
+    s: { x: cx, y: btm },
+    sw: { x: b.x, y: btm },
+    w: { x: b.x, y: cy },
+  };
+}
+
+function hitHandle(b: Box, p: { x: number; y: number }): HandleId | null {
+  const tol = HANDLE_GRAB_CSS_PX * overlayScale();
+  const pts = handlePoints(b);
+  for (const id of HANDLE_IDS) {
+    const h = pts[id];
+    if (Math.abs(p.x - h.x) <= tol && Math.abs(p.y - h.y) <= tol) return id;
+  }
+  return null;
+}
+
+function insideBox(b: Box, p: { x: number; y: number }): boolean {
+  return (
+    p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height
+  );
+}
+
+/** Index of the box under the pointer: the highlighted one wins, then the topmost. */
+function boxAt(p: { x: number; y: number }): number {
+  const a = state.activeIndex;
+  if (
+    a >= 0 &&
+    a < state.selections.length &&
+    insideBox(state.selections[a], p)
+  )
+    return a;
+  for (let i = state.selections.length - 1; i >= 0; i--) {
+    if (insideBox(state.selections[i], p)) return i;
+  }
+  return -1;
+}
+
+function cursorForHandle(h: HandleId): string {
+  if (h === 'nw' || h === 'se') return 'nwse-resize';
+  if (h === 'ne' || h === 'sw') return 'nesw-resize';
+  if (h === 'n' || h === 's') return 'ns-resize';
+  return 'ew-resize';
+}
+
+function updateCursor(p: { x: number; y: number }) {
+  const o = overlayEl!;
+  const active = activeBox();
+  if (active) {
+    const h = hitHandle(active, p);
+    if (h) {
+      o.style.cursor = cursorForHandle(h);
+      return;
+    }
+  }
+  o.style.cursor = boxAt(p) >= 0 ? 'move' : 'crosshair';
+}
+
+function onPointerDown(e: PointerEvent) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (!overlayEl || drag) return;
+  e.preventDefault();
+  const p = pointerToCanvas(e);
+
+  // 1. A handle of the highlighted box -> resize.
+  const active = activeBox();
+  if (active) {
+    const h = hitHandle(active, p);
+    if (h) {
+      drag = {
+        kind: 'resize',
+        index: state.selections.indexOf(active),
+        handle: h,
+        start: { ...active },
+      };
+      overlayEl.setPointerCapture(e.pointerId);
+      overlayEl.style.cursor = cursorForHandle(h);
+      return;
+    }
+  }
+
+  // 2. Inside an existing box -> highlight it and move.
+  const idx = boxAt(p);
+  if (idx >= 0) {
+    const b = state.selections[idx];
+    state.activeIndex = idx;
+    drag = { kind: 'move', index: idx, offsetX: p.x - b.x, offsetY: p.y - b.y };
+    overlayEl.setPointerCapture(e.pointerId);
+    overlayEl.style.cursor = 'move';
+    renderSelections();
+    syncSelectionUi();
+    return;
+  }
+
+  // 3. Empty area -> start a new box.
+  const c = clampPoint(p);
+  drag = { kind: 'draw', startX: c.x, startY: c.y };
+  state.selections.push({ x: c.x, y: c.y, width: 0, height: 0 });
+  state.activeIndex = state.selections.length - 1;
+  overlayEl.setPointerCapture(e.pointerId);
+  renderSelections();
+}
+
+function onPointerMove(e: PointerEvent) {
+  if (!overlayEl) return;
+  const p = pointerToCanvas(e);
+  if (!drag) {
+    updateCursor(p);
+    return;
+  }
+  e.preventDefault();
+  const c = clampPoint(p);
+  if (drag.kind === 'draw') {
+    state.selections[state.selections.length - 1] = normalizeBox(
+      drag.startX,
+      drag.startY,
+      c.x,
+      c.y
+    );
+  } else if (drag.kind === 'move') {
+    const b = state.selections[drag.index];
+    state.selections[drag.index] = clampBox({
+      x: p.x - drag.offsetX,
+      y: p.y - drag.offsetY,
+      width: b.width,
+      height: b.height,
+    });
+  } else {
+    const st = drag.start;
+    let left = st.x;
+    let top = st.y;
+    let right = st.x + st.width;
+    let bottom = st.y + st.height;
+    if (drag.handle.includes('w')) left = c.x;
+    if (drag.handle.includes('e')) right = c.x;
+    if (drag.handle.includes('n')) top = c.y;
+    if (drag.handle.includes('s')) bottom = c.y;
+    state.selections[drag.index] = normalizeBox(left, top, right, bottom);
+  }
+  renderSelections();
+}
+
+function onPointerUp(e: PointerEvent) {
+  if (!overlayEl || !drag) return;
+  e.preventDefault();
+  if (overlayEl.hasPointerCapture(e.pointerId)) {
+    overlayEl.releasePointerCapture(e.pointerId);
+  }
+  const p = pointerToCanvas(e);
+  const cancelled = e.type === 'pointercancel';
+
+  if (drag.kind === 'draw') {
+    const b = state.selections[state.selections.length - 1];
+    if (cancelled || b.width < MIN_BOX_PX || b.height < MIN_BOX_PX) {
+      // A click (or a cancelled drag): drop the stub and treat it as "select
+      // whatever is under the pointer", or clear the highlight on empty space.
+      state.selections.pop();
+      state.activeIndex = cancelled ? -1 : boxAt(p);
+    }
+  } else if (drag.kind === 'resize') {
+    const b = state.selections[drag.index];
+    if (cancelled || b.width < MIN_BOX_PX || b.height < MIN_BOX_PX) {
+      state.selections[drag.index] = drag.start;
+    }
+  }
+  drag = null;
+  updateCursor(p);
+  renderSelections();
+  syncSelectionUi();
+}
+
+/** Draw every box; the highlighted one gets resize handles. */
+function renderSelections() {
+  const o = overlayEl;
+  if (!o) return;
+  const ctx = o.getContext('2d')!;
+  ctx.clearRect(0, 0, o.width, o.height);
+  const s = overlayScale();
+  const active = activeBox();
+
+  state.selections.forEach((b, i) => {
+    const isActive = b === active;
+    ctx.fillStyle = isActive
+      ? 'rgba(255, 165, 0, 0.32)'
+      : 'rgba(255, 165, 0, 0.18)';
+    ctx.strokeStyle = isActive
+      ? 'rgba(255, 165, 0, 1)'
+      : 'rgba(255, 165, 0, 0.75)';
+    ctx.lineWidth = 2 * s;
+    ctx.fillRect(b.x, b.y, b.width, b.height);
+    ctx.strokeRect(b.x, b.y, b.width, b.height);
+
+    if (state.selections.length > 1 && b.width > 18 * s && b.height > 18 * s) {
+      // Small index badge so the user can tell the boxes apart.
+      const size = 16 * s;
+      ctx.fillStyle = isActive
+        ? 'rgba(255, 165, 0, 1)'
+        : 'rgba(255, 165, 0, 0.75)';
+      ctx.fillRect(b.x, b.y, size, size);
+      ctx.fillStyle = '#111';
+      ctx.font = `bold ${11 * s}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(i + 1), b.x + size / 2, b.y + size / 2 + s);
+    }
+  });
+
+  if (active && drag?.kind !== 'draw') {
+    const half = (HANDLE_SIZE_CSS_PX * s) / 2;
+    const pts = handlePoints(active);
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(255, 140, 0, 1)';
+    ctx.lineWidth = 1.5 * s;
+    for (const id of HANDLE_IDS) {
+      const h = pts[id];
+      ctx.fillRect(h.x - half, h.y - half, half * 2, half * 2);
+      ctx.strokeRect(h.x - half, h.y - half, half * 2, half * 2);
+    }
+  }
+}
+
+/** Enable the process button and update the counter / delete button. */
+function syncSelectionUi() {
+  const n = state.selections.length;
+  const processBtn = document.getElementById(
+    'process-btn'
+  ) as HTMLButtonElement | null;
+  if (processBtn) processBtn.disabled = n === 0;
+
+  const deleteBtn = document.getElementById(
+    'delete-box-btn'
+  ) as HTMLButtonElement | null;
+  if (deleteBtn) deleteBtn.disabled = !activeBox();
+
+  const count = document.getElementById('selection-count');
+  if (count) {
+    count.textContent =
+      n === 0
+        ? 'No area selected yet'
+        : n === 1
+          ? '1 area selected'
+          : `${n} areas selected`;
+  }
+}
+
+/** Remove the highlighted box. Returns true if something was removed. */
+function deleteActiveBox(): boolean {
+  const active = activeBox();
+  if (!active) return false;
+  const idx = state.selections.indexOf(active);
+  state.selections.splice(idx, 1);
+  state.activeIndex = state.selections.length
+    ? Math.min(idx, state.selections.length - 1)
+    : -1;
+  renderSelections();
+  syncSelectionUi();
+  return true;
+}
+
+function clearSelections() {
+  state.selections = [];
+  state.activeIndex = -1;
+  renderSelections();
+  syncSelectionUi();
+}
+
 /**
- * Setup interactive selection rectangle
- * Pattern from redact-pdf-page.ts lines 236-299
+ * Size the overlay to the preview canvas and bind the editor once. Loading a
+ * new image resets the boxes.
  */
 function setupSelectionOverlay(canvas: HTMLCanvasElement) {
-  const overlayCanvas = document.getElementById(
+  const overlay = document.getElementById(
     'selection-overlay'
-  ) as HTMLCanvasElement;
-  if (!overlayCanvas) return;
+  ) as HTMLCanvasElement | null;
+  if (!overlay) return;
 
-  overlayCanvas.width = canvas.width;
-  overlayCanvas.height = canvas.height;
-  overlayCanvas.style.cursor = 'crosshair';
+  overlay.width = canvas.width;
+  overlay.height = canvas.height;
+  overlay.style.cursor = 'crosshair';
+  overlay.style.touchAction = 'none';
+  overlayEl = overlay;
+  drag = null;
 
-  const overlayCtx = overlayCanvas.getContext('2d')!;
+  if (!editorBound) {
+    overlay.addEventListener('pointerdown', onPointerDown);
+    overlay.addEventListener('pointermove', onPointerMove);
+    overlay.addEventListener('pointerup', onPointerUp);
+    overlay.addEventListener('pointercancel', onPointerUp);
+    overlay.addEventListener('pointerleave', () => {
+      if (!drag) overlay.style.cursor = 'crosshair';
+    });
+    // Stop the browser from scrolling/zooming while drawing on touch screens.
+    overlay.addEventListener('touchstart', (e) => e.preventDefault(), {
+      passive: false,
+    });
+    overlay.addEventListener('contextmenu', (e) => e.preventDefault());
+    editorBound = true;
+  }
 
-  // Mouse down: start selection
-  overlayCanvas.addEventListener('mousedown', (e) => {
-    const rect = overlayCanvas.getBoundingClientRect();
-    state.drawStartX = e.clientX - rect.left;
-    state.drawStartY = e.clientY - rect.top;
-    state.isDrawing = true;
-  });
-
-  // Mouse move: draw preview rectangle
-  overlayCanvas.addEventListener('mousemove', (e) => {
-    if (!state.isDrawing) return;
-
-    const rect = overlayCanvas.getBoundingClientRect();
-    const currentX = e.clientX - rect.left;
-    const currentY = e.clientY - rect.top;
-
-    // Clear and redraw
-    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
-    // Draw semi-transparent selection box
-    overlayCtx.fillStyle = 'rgba(255, 165, 0, 0.3)'; // Orange 30% opacity
-    overlayCtx.strokeStyle = 'rgba(255, 165, 0, 1)'; // Orange border
-    overlayCtx.lineWidth = 2;
-
-    const width = currentX - state.drawStartX;
-    const height = currentY - state.drawStartY;
-
-    overlayCtx.fillRect(state.drawStartX, state.drawStartY, width, height);
-    overlayCtx.strokeRect(state.drawStartX, state.drawStartY, width, height);
-  });
-
-  // Mouse up: finalize selection
-  overlayCanvas.addEventListener('mouseup', (e) => {
-    if (!state.isDrawing) return;
-
-    const rect = overlayCanvas.getBoundingClientRect();
-    const currentX = e.clientX - rect.left;
-    const currentY = e.clientY - rect.top;
-
-    // Normalize rectangle (handle dragging in any direction)
-    const width = currentX - state.drawStartX;
-    const height = currentY - state.drawStartY;
-
-    const normalizedX = width < 0 ? currentX : state.drawStartX;
-    const normalizedY = height < 0 ? currentY : state.drawStartY;
-    const normalizedWidth = Math.abs(width);
-    const normalizedHeight = Math.abs(height);
-
-    // Minimum size check (avoid tiny accidental selections)
-    if (normalizedWidth >= 10 && normalizedHeight >= 10) {
-      // Store selection in canvas coordinates
-      state.selectionBox = {
-        x: normalizedX,
-        y: normalizedY,
-        width: normalizedWidth,
-        height: normalizedHeight,
-      };
-
-      // Enable process button
-      const processBtn = document.getElementById(
-        'process-btn'
-      ) as HTMLButtonElement;
-      if (processBtn) processBtn.disabled = false;
-    }
-
-    state.isDrawing = false;
-  });
-
-  // Touch support (for mobile)
-  overlayCanvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const rect = overlayCanvas.getBoundingClientRect();
-    state.drawStartX = touch.clientX - rect.left;
-    state.drawStartY = touch.clientY - rect.top;
-    state.isDrawing = true;
-  });
-
-  overlayCanvas.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    if (!state.isDrawing) return;
-
-    const touch = e.touches[0];
-    const rect = overlayCanvas.getBoundingClientRect();
-    const currentX = touch.clientX - rect.left;
-    const currentY = touch.clientY - rect.top;
-
-    // Same drawing logic as mousemove
-    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-    overlayCtx.fillStyle = 'rgba(255, 165, 0, 0.3)';
-    overlayCtx.strokeStyle = 'rgba(255, 165, 0, 1)';
-    overlayCtx.lineWidth = 2;
-
-    const width = currentX - state.drawStartX;
-    const height = currentY - state.drawStartY;
-
-    overlayCtx.fillRect(state.drawStartX, state.drawStartY, width, height);
-    overlayCtx.strokeRect(state.drawStartX, state.drawStartY, width, height);
-  });
-
-  overlayCanvas.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    // Same finalization logic as mouseup
-    if (!state.isDrawing) return;
-
-    const touch = e.changedTouches[0];
-    const rect = overlayCanvas.getBoundingClientRect();
-    const currentX = touch.clientX - rect.left;
-    const currentY = touch.clientY - rect.top;
-
-    const width = currentX - state.drawStartX;
-    const height = currentY - state.drawStartY;
-
-    const normalizedX = width < 0 ? currentX : state.drawStartX;
-    const normalizedY = height < 0 ? currentY : state.drawStartY;
-    const normalizedWidth = Math.abs(width);
-    const normalizedHeight = Math.abs(height);
-
-    if (normalizedWidth >= 10 && normalizedHeight >= 10) {
-      state.selectionBox = {
-        x: normalizedX,
-        y: normalizedY,
-        width: normalizedWidth,
-        height: normalizedHeight,
-      };
-
-      const processBtn = document.getElementById(
-        'process-btn'
-      ) as HTMLButtonElement;
-      if (processBtn) processBtn.disabled = false;
-    }
-
-    state.isDrawing = false;
-  });
+  clearSelections();
 }
 
 function updateFileDisplay(file: File) {
@@ -473,7 +726,7 @@ async function handleProcess() {
     return;
   }
 
-  if (!state.selectionBox) {
+  if (state.selections.length === 0) {
     showAlert('No Selection', 'Please drag to select the watermark area.');
     return;
   }
@@ -518,10 +771,12 @@ async function handleProcess() {
     updateStatus('Removing watermark...', 'Processing pixels');
     if (progressBar) progressBar.style.width = '40%';
 
-    // Remove watermark
-    removeWatermark(ctx, canvas.width, canvas.height, state.selectionBox);
+    // Blur every marked area
+    for (const box of state.selections) {
+      removeWatermark(ctx, canvas.width, canvas.height, box);
+    }
 
-    // Add replacement logo if selected
+    // Add replacement logo if selected (anchored to the highlighted box)
     if (state.logoPreset !== 'none') {
       updateStatus('Adding logo...', `Placing ${state.logoPreset} logo`);
       if (progressBar) progressBar.style.width = '70%';
@@ -530,7 +785,7 @@ async function handleProcess() {
         canvas.width,
         canvas.height,
         state.logoPreset,
-        state.selectionBox
+        activeBox()!
       );
     }
 
@@ -589,12 +844,12 @@ function updateMethodVisibility() {
 }
 
 /** Convert a selection box (canvas coords incl. padding) to source-image pixels. */
-function selectionToSourcePixels(box: {
+function selectionToSourcePixels(box: Box): {
   x: number;
   y: number;
-  width: number;
-  height: number;
-}): { x: number; y: number; w: number; h: number } {
+  w: number;
+  h: number;
+} {
   const previewCanvas = state.previewCanvas!;
   const scaledImageWidth = previewCanvas.width - CANVAS_PADDING * 2;
   const scaledImageHeight = previewCanvas.height - CANVAS_PADDING * 2;
@@ -619,7 +874,7 @@ function canvasBoxFromSourceBox(src: {
   y: number;
   w: number;
   h: number;
-}): { x: number; y: number; width: number; height: number } {
+}): Box {
   const previewCanvas = state.previewCanvas!;
   const scaleX =
     (previewCanvas.width - CANVAS_PADDING * 2) / state.imgNaturalWidth;
@@ -631,25 +886,6 @@ function canvasBoxFromSourceBox(src: {
     width: src.w * scaleX,
     height: src.h * scaleY,
   };
-}
-
-function drawOverlayBox(box: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}) {
-  const overlay = document.getElementById(
-    'selection-overlay'
-  ) as HTMLCanvasElement;
-  if (!overlay) return;
-  const ctx = overlay.getContext('2d')!;
-  ctx.clearRect(0, 0, overlay.width, overlay.height);
-  ctx.fillStyle = 'rgba(255, 165, 0, 0.3)';
-  ctx.strokeStyle = 'rgba(255, 165, 0, 1)';
-  ctx.lineWidth = 2;
-  ctx.fillRect(box.x, box.y, box.width, box.height);
-  ctx.strokeRect(box.x, box.y, box.width, box.height);
 }
 
 /** Ask the server to locate a known watermark and pre-fill the selection. */
@@ -689,20 +925,22 @@ async function handleAutoDetect() {
       );
       return;
     }
-    const d = data.detections[0];
-    const canvasBox = canvasBoxFromSourceBox({
-      x: d.x,
-      y: d.y,
-      w: d.w,
-      h: d.h,
-    });
-    state.selectionBox = canvasBox;
-    drawOverlayBox(canvasBox);
-
-    const processBtn = document.getElementById(
-      'process-btn'
-    ) as HTMLButtonElement;
-    if (processBtn) processBtn.disabled = false;
+    // Add every detection as its own box (the user can still adjust or
+    // delete them), highlighting the first new one.
+    const firstNew = state.selections.length;
+    for (const d of data.detections as {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    }[]) {
+      state.selections.push(
+        canvasBoxFromSourceBox({ x: d.x, y: d.y, w: d.w, h: d.h })
+      );
+    }
+    state.activeIndex = firstNew;
+    renderSelections();
+    syncSelectionUi();
   } catch (e) {
     showAlert(
       'Auto-detect failed',
@@ -714,10 +952,7 @@ async function handleAutoDetect() {
 }
 
 /** Composite a replacement logo over a cleaned image and return a PNG blob. */
-async function compositeLogo(
-  blob: Blob,
-  selectionBox: { x: number; y: number; width: number; height: number }
-): Promise<Blob> {
+async function compositeLogo(blob: Blob, selectionBox: Box): Promise<Blob> {
   const img = await loadBlobImage(blob);
   const canvas = document.createElement('canvas');
   canvas.width = img.naturalWidth;
@@ -748,10 +983,15 @@ async function runAiRemoval(
     updateStatus('Uploading...', 'Sending to AI inpainting server');
     if (progressBar) progressBar.style.width = '20%';
 
-    const region = selectionToSourcePixels(state.selectionBox!);
+    const regions = state.selections
+      .map(selectionToSourcePixels)
+      .filter((r) => r.w > 0 && r.h > 0);
+    if (regions.length === 0) {
+      throw new Error('The selected area lies outside the image.');
+    }
     const formData = new FormData();
     formData.append('file', state.file!);
-    formData.append('regions', JSON.stringify([region]));
+    formData.append('regions', JSON.stringify(regions));
 
     const res = await fetch(`${API_BASE_URL}/api/remove-image-watermark`, {
       method: 'POST',
@@ -765,9 +1005,10 @@ async function runAiRemoval(
     if (progressBar) progressBar.style.width = '70%';
     let blob = await res.blob();
 
-    if (state.logoPreset !== 'none' && state.selectionBox) {
+    const anchor = activeBox();
+    if (state.logoPreset !== 'none' && anchor) {
       updateStatus('Adding logo...', `Placing ${state.logoPreset} logo`);
-      blob = await compositeLogo(blob, state.selectionBox);
+      blob = await compositeLogo(blob, anchor);
     }
 
     state.resultBlob = blob;
@@ -797,7 +1038,7 @@ function removeWatermark(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  selectionBox: { x: number; y: number; width: number; height: number }
+  selectionBox: Box
 ) {
   const previewCanvas = state.previewCanvas!;
 
@@ -1104,7 +1345,7 @@ async function addReplacementLogo(
   width: number,
   height: number,
   logoPreset: string,
-  selectionBox: { x: number; y: number; width: number; height: number }
+  selectionBox: Box
 ) {
   const logoUrl = LOGO_URLS[logoPreset];
   if (!logoUrl) return;
@@ -1199,7 +1440,8 @@ function resetToUpload() {
   state.file = null;
   state.resultBlob = null;
   state.isProcessing = false;
-  state.selectionBox = null;
+  state.selections = [];
+  state.activeIndex = -1;
   state.previewCanvas = null;
   state.logoPos = null;
   document.getElementById('logo-overlay')?.classList.add('hidden');

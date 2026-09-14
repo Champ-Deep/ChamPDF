@@ -877,6 +877,26 @@ export const categories: Category[] = [
         ],
       },
       {
+        href: B + 'sign-admin.html',
+        name: 'ChampPDF Sign Admin',
+        icon: 'ph-squares-four',
+        subtitle:
+          'Admin portal: every send-out, audit event and signing IP across Champions Group, template access control and resend tracking.',
+        pillar: 'documents',
+        keywords: [
+          'admin',
+          'dashboard',
+          'audit',
+          'ip',
+          'geo',
+          'geoip',
+          'maxmind',
+          'resend',
+          'tracking',
+          'docusign',
+        ],
+      },
+      {
         href: B + 'encrypt-pdf.html',
         name: 'Encrypt PDF',
         icon: 'ph-lock',
