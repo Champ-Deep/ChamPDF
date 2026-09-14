@@ -369,10 +369,18 @@ async def _send_invitations(doc: Dict[str, Any], recipients: List[Dict[str, Any]
     for r in recipients:
         raw = raw_tokens[r["id"]]
         url = signing_url(base_url, raw)
-        wrapped = await beam.wrap_link(url, label=f"sign:{doc['id'][:8]}:{r['role']}", tags=["champdf-sign", doc["template_id"]])
+        wrapped = await beam.wrap_link(
+            url,
+            title=doc["title"],
+            recipient_email=r["email"],
+            role=r["role"],
+            template_id=doc["template_id"],
+            document_id=doc["id"],
+        )
+        link = wrapped["url"] or url
         email = mail.invitation_email(
             to=r["email"], recipient_name=r["name"], sender_name=doc.get("sender_name") or "Champions",
-            sender_email=doc.get("sender_email"), entity=entity, title=doc["title"], link=wrapped["url"],
+            sender_email=doc.get("sender_email"), entity=entity, title=doc["title"], link=link,
             expires_at_text=_fmt_human(doc["expires_at"]), document_id=doc["id"], recipient_id=r["id"],
         )
         message_id: Optional[str] = None
@@ -398,7 +406,7 @@ async def _send_invitations(doc: Dict[str, Any], recipients: List[Dict[str, Any]
                           "error": send_error},
             )
         if not mail.mail_configured():
-            dev_links[r["id"]] = url
+            dev_links[r["id"]] = link
     return dev_links
 
 

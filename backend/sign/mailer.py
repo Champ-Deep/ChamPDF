@@ -223,6 +223,8 @@ def invitation_email(*, to: str, recipient_name: str, sender_name: str, sender_e
         f"<p>Hello {html.escape(recipient_name)},</p>"
         f"<p>{html.escape(sender_name)} at {html.escape(entity)} has sent you <b>{html.escape(title)}</b> for electronic signature.</p>"
         f"{_button(link, 'Review and sign')}"
+        f'<p style="font-size:13px;color:#646c82">If the button does not open, paste this link into your browser:<br>'
+        f'<a href="{html.escape(link, quote=True)}" style="color:#646c82;word-break:break-all">{html.escape(link)}</a></p>'
         f"<p>The link is valid until <b>{html.escape(expires_at_text)}</b>. When you open it we will email a six-digit verification code to this address before anything can be signed.</p>"
     )
     text = (

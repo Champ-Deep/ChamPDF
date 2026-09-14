@@ -171,22 +171,22 @@ Everything is optional; with nothing set the spine works locally (log-only
 mail, local write-once storage, generated self-signed seal, admin-token
 sender). See `backend/.env.example` for the full annotated list.
 
-| Variable                                                                                                                   | Purpose                                                                                                                          |
-| -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `ENABLE_SIGN`                                                                                                              | `false` switches the feature off.                                                                                                |
-| `SIGN_PROVIDER`                                                                                                            | `native` (default) or `documenso`.                                                                                               |
-| `SIGN_PUBLIC_BASE_URL`                                                                                                     | Origin used in links, e.g. `https://champdf.com`. Defaults to the request origin.                                                |
-| `SIGN_ENTITY_NAME`, `SIGN_ENTITY_CIN`, `SIGN_ENTITY_ADDRESS`, `SIGN_ENTITY_SIGNATORY`, `SIGN_ENTITY_SIGNATORY_DESIGNATION` | Contracting entity block. Defaults carry `[CONFIRM: ...]` markers.                                                               |
-| `SIGN_SENDER_EMAIL_DOMAINS`                                                                                                | Who may send (Clerk users). Default `championsmail.com`.                                                                         |
-| `SIGN_ADMIN_EMAIL`, `SIGN_ADMIN_NAME`                                                                                      | Identity for `X-Admin-Token` senders.                                                                                            |
-| `SIGN_SEAL_P12_B64` or `SIGN_SEAL_P12_PATH`, `SIGN_SEAL_P12_PASSWORD`                                                      | Organisation seal certificate. Unset: self-signed, generated once, reported as `seal_self_signed`.                               |
-| `SIGN_SEAL_TIMESTAMP`, `PDF_TSA_URL`                                                                                       | RFC 3161 timestamp on the seal (falls back to no timestamp if the TSA is unreachable, and records `seal.timestamp_unavailable`). |
-| `RESEND_API_KEY`, `SIGN_EMAIL_FROM`, `SIGN_EMAIL_REPLY_TO`, `RESEND_WEBHOOK_SECRET`                                        | Transactional mail.                                                                                                              |
-| `CHAMPBEAM_API_URL`, `CHAMPBEAM_API_TOKEN`                                                                                 | Tracked links. Falls back to the raw link.                                                                                       |
-| `SIGN_STORAGE_BUCKET`, `SIGN_STORAGE_PREFIX`, `SIGN_STORAGE_ENDPOINT`, `SIGN_STORAGE_REGION` + AWS credentials             | S3 / R2 storage. Unset: local disk under the data volume.                                                                        |
-| `DOCUMENSO_BASE_URL`, `DOCUMENSO_API_TOKEN`                                                                                | Only with `SIGN_PROVIDER=documenso`.                                                                                             |
-| `CHAMPDF_DB_PATH`, `CHAMPDF_SIGN_DATA_DIR`                                                                                 | Where the SQLite file and Sign's local artefacts live (`/app/data` volume by default).                                           |
-| `MAXMIND_DB_PATH`                                                                                                          | GeoIP2 .mmdb for admin-portal IP enrichment. Unset: raw IPs only, no geo.                                                        |
+| Variable                                                                                                                   | Purpose                                                                                                                                                                               |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ENABLE_SIGN`                                                                                                              | `false` switches the feature off.                                                                                                                                                     |
+| `SIGN_PROVIDER`                                                                                                            | `native` (default) or `documenso`.                                                                                                                                                    |
+| `SIGN_PUBLIC_BASE_URL`                                                                                                     | Origin used in links, e.g. `https://champdf.com`. Defaults to the request origin.                                                                                                     |
+| `SIGN_ENTITY_NAME`, `SIGN_ENTITY_CIN`, `SIGN_ENTITY_ADDRESS`, `SIGN_ENTITY_SIGNATORY`, `SIGN_ENTITY_SIGNATORY_DESIGNATION` | Contracting entity block. Defaults carry `[CONFIRM: ...]` markers.                                                                                                                    |
+| `SIGN_SENDER_EMAIL_DOMAINS`                                                                                                | Who may send (Clerk users). Default `championsmail.com`.                                                                                                                              |
+| `SIGN_ADMIN_EMAIL`, `SIGN_ADMIN_NAME`                                                                                      | Identity for `X-Admin-Token` senders.                                                                                                                                                 |
+| `SIGN_SEAL_P12_B64` or `SIGN_SEAL_P12_PATH`, `SIGN_SEAL_P12_PASSWORD`                                                      | Organisation seal certificate. Unset: self-signed, generated once, reported as `seal_self_signed`.                                                                                    |
+| `SIGN_SEAL_TIMESTAMP`, `PDF_TSA_URL`                                                                                       | RFC 3161 timestamp on the seal (falls back to no timestamp if the TSA is unreachable, and records `seal.timestamp_unavailable`).                                                      |
+| `RESEND_API_KEY`, `SIGN_EMAIL_FROM`, `SIGN_EMAIL_REPLY_TO`, `RESEND_WEBHOOK_SECRET`                                        | Transactional mail.                                                                                                                                                                   |
+| `CHAMPBEAM_API_URL`, `CHAMPBEAM_API_KEY`                                                                                   | Tracked links: each send-out becomes a ChampBeam link (`POST /api/v1/utm/generate`, `X-API-Key` auth). `CHAMPBEAM_API_TOKEN` accepted as a legacy Bearer. Falls back to the raw link. |
+| `SIGN_STORAGE_BUCKET`, `SIGN_STORAGE_PREFIX`, `SIGN_STORAGE_ENDPOINT`, `SIGN_STORAGE_REGION` + AWS credentials             | S3 / R2 storage. Unset: local disk under the data volume.                                                                                                                             |
+| `DOCUMENSO_BASE_URL`, `DOCUMENSO_API_TOKEN`                                                                                | Only with `SIGN_PROVIDER=documenso`.                                                                                                                                                  |
+| `CHAMPDF_DB_PATH`, `CHAMPDF_SIGN_DATA_DIR`                                                                                 | Where the SQLite file and Sign's local artefacts live (`/app/data` volume by default).                                                                                                |
+| `MAXMIND_DB_PATH`                                                                                                          | GeoIP2 .mmdb for admin-portal IP enrichment. Unset: raw IPs only, no geo.                                                                                                             |
 
 Frontend: `VITE_CLERK_PUBLISHABLE_KEY` (already used by the site) gates the
 console; without it the console offers developer mode with the admin token.
@@ -285,6 +285,40 @@ multi-signer ordering beyond signer + countersigner, SMS OTP, bulk send,
 ChampMail API endpoint, scheduled reminder runs (the portal lists what needs
 a resend and resends on click; the scheduler itself is still manual). Aadhaar
 eSign stays a pluggable provider on the same interface.
+
+## Senior dev test pass
+
+A checklist for whoever reviews the branch, run in this order.
+
+1. **Local spine (no infra).** Run the runbook above with `CHAMPDF_ADMIN_TOKEN=dev`
+   and open `/sign`. Send the mutual NDA to a personal address, sign it with the
+   dev link, download the sealed PDF. The audit chain in the console must read
+   intact and the certificate must carry the chain head.
+2. **New user, admin-provided template (Clerk).** Set `CLERK_ISSUER` and
+   `VITE_CLERK_PUBLISHABLE_KEY`, sign in with a fresh account on an allowed
+   domain (default `championsmail.com`). Expect: member role, and the template
+   list shows only templates the admin has activated. As admin, deactivate
+   `mutual-nda-v1` in the portal; the member's list drops it and sending returns
+   `403 template_inactive`. Reactivate; it returns. A brand-new account with no
+   org claim is a member, so this is exactly how the admin-provided-template
+   contract is exercised.
+3. **Beam-wrapped send-out.** Point `CHAMPBEAM_API_URL` at a ChampBeam instance
+   (or the shared host) and set `CHAMPBEAM_API_KEY` (cb*live* key). Send again.
+   Expect: the invitation holds a `share.../s/...` short URL (not the raw
+   `champdf...` URL), the document row has `beam_id`, and the send-out appears
+   in Beam's UTM link list with campaign = title, content = `<role> <email>`,
+   term = template id. Break the Beam URL; the next send must still mail with
+   the raw link and record a `beam_id: null` warning in the log.
+4. **Admin portal.** Open `/sign-admin.html` with the admin token (or a Clerk
+   admin). Check: dashboard counts match the documents created; the Documents
+   tab lists everything with recipient status; Needs resend lists the pending
+   send-out and a resend re-mails it; Templates toggle persists across reload;
+   the Audit log shows every event with the IP and (when a maxmind .mmdb is
+   mounted at `MAXMIND_DB_PATH`) the geo context.
+5. **Resend transactional email.** With `RESEND_API_KEY` set, confirm the
+   delivered invitation renders one prominent "Review and sign" button on the
+   ChampPDF Sign standard layout, with a plain-text fallback link beneath it,
+   and that the same wrapped URL also appears in the text part.
 
 ## Open questions carried forward
 
