@@ -43,8 +43,10 @@ from fastapi.responses import JSONResponse, Response as RawResponse
 from pydantic import BaseModel, Field
 
 from . import service
+from . import store
+from . import admin as sign_admin
 from . import templates as tpl
-from .auth import Sender, require_sender
+from .auth import Sender, require_role, require_sender
 from .mailer import verify_resend_webhook
 
 logger = logging.getLogger(__name__)
@@ -164,7 +166,15 @@ async def sign_status() -> Dict[str, Any]:
 
 @router.get("/templates", summary="Approved templates")
 async def sign_templates(sender: Sender = Depends(require_sender)) -> Dict[str, Any]:
-    return {"templates": tpl.list_templates(), "entity": tpl.entity_fields(), "role": sender.role}
+    if sender.at_least("legal"):
+        return {
+            "templates": tpl.list_templates(),
+            "entity": tpl.entity_fields(),
+            "role": sender.role,
+            "flags": store.template_flags(),
+        }
+    active = [t for t in tpl.list_templates() if store.template_available(t["id"], t["version"])]
+    return {"templates": active, "entity": tpl.entity_fields(), "role": sender.role}
 
 
 @router.post("/documents/preview", summary="Render a filled template without sending")
@@ -223,6 +233,59 @@ async def sign_resend(doc_id: str, body: ResendIn, request: Request, sender: Sen
 @router.post("/documents/{doc_id}/sync", summary="Hosted engines: pull status and the sealed file")
 async def sign_sync(doc_id: str, request: Request, sender: Sender = Depends(require_sender)) -> Dict[str, Any]:
     return await service.sync_from_provider(sender, doc_id, service.public_base_url(_origin(request)))
+
+
+# --------------------------------------------------------------------------
+# Admin portal (ChampPDF Sign admin / legal)
+# --------------------------------------------------------------------------
+
+admin_by = Depends(require_role("admin"))
+legal_or_admin = Depends(require_role("legal"))
+
+
+@router.get("/admin/summary", summary="Admin dashboard: counts across every document and recipient")
+async def admin_summary(sender: Sender = admin_by) -> Dict[str, Any]:
+    return sign_admin.summary(sender)
+
+
+@router.get("/admin/documents", summary="Every document with recipients and geo (admin)")
+async def admin_documents(
+    status: Optional[str] = None,
+    q: Optional[str] = None,
+    limit: int = 200,
+    sender: Sender = admin_by,
+) -> Dict[str, Any]:
+    return {"documents": sign_admin.list_documents(sender, status=status, q=q, limit=min(limit, 500))}
+
+
+@router.get("/admin/documents/{doc_id}", summary="Full document detail: recipients, events, chain (admin)")
+async def admin_document(doc_id: str, sender: Sender = admin_by) -> Dict[str, Any]:
+    return sign_admin.get_document(sender, doc_id)
+
+
+@router.get("/admin/needs-resend", summary="Send-outs still awaiting a signature (admin)")
+async def admin_needs_resend(sender: Sender = admin_by) -> Dict[str, Any]:
+    return {"items": sign_admin.needs_resend(sender)}
+
+
+@router.get("/admin/events", summary="Recent audit events across every document (admin)")
+async def admin_events(limit: int = 100, sender: Sender = admin_by) -> Dict[str, Any]:
+    return sign_admin.recent_events(sender, limit=min(limit, 500))
+
+
+@router.get("/admin/templates", summary="All templates with access-control flags (legal/admin)")
+async def admin_templates(sender: Sender = legal_or_admin) -> Dict[str, Any]:
+    return sign_admin.templates(sender)
+
+
+@router.post("/admin/templates/{template_id}/activate", summary="Make a template available for sending (legal/admin)")
+async def admin_template_activate(template_id: str, sender: Sender = legal_or_admin) -> Dict[str, Any]:
+    return sign_admin.set_template_active(sender, template_id, True)
+
+
+@router.post("/admin/templates/{template_id}/deactivate", summary="Hide a template from senders (legal/admin)")
+async def admin_template_deactivate(template_id: str, sender: Sender = legal_or_admin) -> Dict[str, Any]:
+    return sign_admin.set_template_active(sender, template_id, False)
 
 
 # --------------------------------------------------------------------------

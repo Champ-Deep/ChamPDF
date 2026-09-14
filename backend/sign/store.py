@@ -283,6 +283,14 @@ CREATE TABLE IF NOT EXISTS sign_rate_hits (
     ts      REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_sign_rate_hits ON sign_rate_hits(bucket, ts);
+
+CREATE TABLE IF NOT EXISTS sign_templates (
+    template_id  TEXT PRIMARY KEY,
+    version      INTEGER NOT NULL,
+    is_active    INTEGER NOT NULL DEFAULT 1,
+    approved_by  TEXT,
+    updated_at   TEXT NOT NULL
+);
 """
 
 
@@ -616,3 +624,133 @@ def rate_hit(bucket: str, limit: int, window_s: int) -> bool:
 
 def default_expiry(days: int = 14) -> str:
     return iso(utcnow() + timedelta(days=days))
+
+
+# --------------------------------------------------------------------------
+# Template registry / access control
+# --------------------------------------------------------------------------
+
+
+def template_available(template_id: str, version: Optional[int] = None) -> bool:
+    """Is a template usable for sending? True when no flag row exists (back
+    compat for a registry that predates admin control) and when is_active."""
+    with connect() as c:
+        if version is not None:
+            row = c.execute(
+                "SELECT is_active FROM sign_templates WHERE template_id = ? AND version = ?",
+                (template_id, version),
+            ).fetchone()
+        else:
+            row = c.execute(
+                "SELECT is_active FROM sign_templates WHERE template_id = ? ORDER BY version DESC LIMIT 1",
+                (template_id,),
+            ).fetchone()
+    if row is None:
+        return True
+    return bool(row[0])
+
+
+def set_template_available(template_id: str, version: int, active: bool, by: Optional[str]) -> Dict[str, Any]:
+    """Admin/legal control over whether a template may be used for sending."""
+    row = {
+        "template_id": template_id,
+        "version": version,
+        "is_active": 1 if active else 0,
+        "approved_by": by,
+        "updated_at": utcnow_iso(),
+    }
+    with connect(immediate=True) as c:
+        c.execute(
+            """
+            INSERT INTO sign_templates (template_id, version, is_active, approved_by, updated_at)
+            VALUES (:template_id, :version, :is_active, :approved_by, :updated_at)
+            ON CONFLICT(template_id) DO UPDATE SET
+              version = excluded.version,
+              is_active = excluded.is_active,
+              approved_by = excluded.approved_by,
+              updated_at = excluded.updated_at
+            """,
+            row,
+        )
+    return row
+
+
+def template_flags() -> Dict[str, Dict[str, Any]]:
+    with connect() as c:
+        rows = c.execute("SELECT * FROM sign_templates").fetchall()
+    return {r["template_id"]: dict(r) for r in rows}
+
+
+def template_usage() -> Dict[str, int]:
+    with connect() as c:
+        rows = c.execute(
+            "SELECT template_id, COUNT(*) AS n FROM sign_documents GROUP BY template_id"
+        ).fetchall()
+    return {r["template_id"]: r["n"] for r in rows}
+
+
+# --------------------------------------------------------------------------
+# Admin aggregation
+# --------------------------------------------------------------------------
+
+
+def documents_by_status() -> Dict[str, int]:
+    with connect() as c:
+        rows = c.execute("SELECT status, COUNT(*) AS n FROM sign_documents GROUP BY status").fetchall()
+    return {r["status"]: r["n"] for r in rows}
+
+
+def count_recipients() -> Dict[str, int]:
+    with connect() as c:
+        total = c.execute("SELECT COUNT(*) FROM sign_recipients").fetchone()[0]
+        pending = c.execute("SELECT COUNT(*) FROM sign_recipients WHERE role != 'cc' AND status != 'signed'").fetchone()[0]
+        signed = c.execute("SELECT COUNT(*) FROM sign_recipients WHERE status = 'signed'").fetchone()[0]
+    return {"total": total, "pending": pending, "signed": signed}
+
+
+def admin_documents(status: Optional[str] = None, limit: int = 200) -> List[Dict[str, Any]]:
+    clauses, params = [], []
+    if status:
+        clauses.append("status = ?")
+        params.append(status)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    with connect() as c:
+        rows = c.execute(
+            f"SELECT * FROM sign_documents {where} ORDER BY created_at DESC LIMIT ?",
+            [*params, limit],
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def recent_events(limit: int = 100) -> List[Dict[str, Any]]:
+    with connect() as c:
+        rows = c.execute(
+            "SELECT * FROM sign_audit_events ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["metadata"] = json.loads(d["metadata"]) if d.get("metadata") else None
+        out.append(d)
+    return out
+
+
+def needs_resend_documents() -> List[Dict[str, Any]]:
+    """Documents awaiting a signature that have at least one pending (unsigned,
+    non-cc) recipient. This is the send-out list the admin portal acts on."""
+    with connect() as c:
+        docs = c.execute(
+            """
+            SELECT * FROM sign_documents
+            WHERE status IN ('sent', 'viewed', 'signed', 'countersigned')
+              AND voided_at IS NULL
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+    out = []
+    for d in docs:
+        recs = get_recipients(d["id"])
+        pending = [r for r in recs if r["role"] != "cc" and r["status"] != "signed"]
+        if pending:
+            out.append({"document": dict(d), "pending": pending})
+    return out

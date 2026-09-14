@@ -52,8 +52,10 @@ execution is printed on the certificate of completion.
 
 Also shipped beyond the list because they cost nothing extra: countersigning
 (sequential, data model already carried it), void (links return 410), resend
-(rotates the token), delivery / bounce webhooks, a verification endpoint, and
-a sender-side audit view.
+(rotates the token), delivery / bounce webhooks, a verification endpoint, a
+sender-side audit view, and the admin portal: template access control (which
+templates senders may use), the needs-resend send-out tracker, and geo
+context (MaxMind) on every recorded IP for admins and legal.
 
 ## Departures from the DPRD, and why
 
@@ -132,6 +134,18 @@ Sender routes take `Authorization: Bearer <Clerk session JWT>` or
 | POST   | `/api/sign/documents/{id}/resend`   | Rotates the link token and resends.                                                                                                                          |
 | POST   | `/api/sign/documents/{id}/sync`     | Hosted engines: pull status and the sealed file.                                                                                                             |
 
+Admin portal (admins and legal; the portal page is `sign-admin.html`):
+
+| Method | Path                                                      | What                                                                            |
+| ------ | --------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| GET    | `/api/sign/admin/summary`                                 | Dashboard counts: documents by status, recipients, templates, needs-resend.     |
+| GET    | `/api/sign/admin/documents`                               | Every document with recipients, IP and geo context. `?status=` `?q=` `?limit=`. |
+| GET    | `/api/sign/admin/documents/{id}`                          | Full detail: recipients, every audit event with geo, chain check.               |
+| GET    | `/api/sign/admin/needs-resend`                            | Send-outs still awaiting a signature, with days since sent and days to expiry.  |
+| GET    | `/api/sign/admin/events`                                  | The hash-chained audit log across every document.                               |
+| GET    | `/api/sign/admin/templates`                               | All templates plus the access-control flag, approver and usage count.           |
+| POST   | `/api/sign/admin/templates/{id}/activate` / `/deactivate` | Sets whether senders may use the template (legal / admin).                      |
+
 Signer routes are public; the 32-byte link token in the path is the
 capability, the signer session (`Authorization: Bearer`) is issued by OTP
 verification. All responses carry `X-Robots-Tag: noindex`,
@@ -172,6 +186,7 @@ sender). See `backend/.env.example` for the full annotated list.
 | `SIGN_STORAGE_BUCKET`, `SIGN_STORAGE_PREFIX`, `SIGN_STORAGE_ENDPOINT`, `SIGN_STORAGE_REGION` + AWS credentials             | S3 / R2 storage. Unset: local disk under the data volume.                                                                        |
 | `DOCUMENSO_BASE_URL`, `DOCUMENSO_API_TOKEN`                                                                                | Only with `SIGN_PROVIDER=documenso`.                                                                                             |
 | `CHAMPDF_DB_PATH`, `CHAMPDF_SIGN_DATA_DIR`                                                                                 | Where the SQLite file and Sign's local artefacts live (`/app/data` volume by default).                                           |
+| `MAXMIND_DB_PATH`                                                                                                          | GeoIP2 .mmdb for admin-portal IP enrichment. Unset: raw IPs only, no geo.                                                        |
 
 Frontend: `VITE_CLERK_PUBLISHABLE_KEY` (already used by the site) gates the
 console; without it the console offers developer mode with the admin token.
@@ -264,10 +279,12 @@ For any executed document:
 
 ## Deferred (the contract), unchanged from the DPRD
 
-Admin dashboard, Database NDA template, template builder UI, multi-signer
-ordering beyond signer + countersigner, SMS OTP, bulk send, ChampMail API
-endpoint, reminders. Aadhaar eSign stays a pluggable provider on the same
-interface.
+Database NDA template, template builder UI (the admin portal toggles access
+to the registry templates; building new ones in the UI is still open),
+multi-signer ordering beyond signer + countersigner, SMS OTP, bulk send,
+ChampMail API endpoint, scheduled reminder runs (the portal lists what needs
+a resend and resends on click; the scheduler itself is still manual). Aadhaar
+eSign stays a pluggable provider on the same interface.
 
 ## Open questions carried forward
 
