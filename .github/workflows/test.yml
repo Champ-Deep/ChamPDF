@@ -1,0 +1,87 @@
+# Test and typecheck. The other workflows build, but a build that passes on a
+# broken tree is why the backend's 130 tests went unrun for months: nothing
+# executed them.
+#
+# Also the tripwire for the TypeScript peer-range break. `npm ci` here is the
+# same command the deploy workflows run, so an ERESOLVE fails here first, with
+# the actual conflict, instead of as an opaque red X on a release.
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+      - "v2-consolidation"
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HUSKY: 0
+
+jobs:
+  frontend:
+    name: Frontend — typecheck, tests, lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      # Fails loudly on the typescript / typescript-eslint peer conflict, which is
+      # how main went red on 2026-10-01: every other workflow failed at this step
+      # and never reached a test.
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npx vitest run
+
+      # Non-blocking, and deliberately so. `npm run lint` reports 20 errors and
+      # 883 warnings on origin/main, unchanged by this branch, most of them
+      # preserve-caught-error and no-useless-assignment across the tool pages.
+      # Making this step blocking would mean a red CI nobody can action while the
+      # baseline is cleaned up. Track it, do not gate on it yet.
+      - name: Lint (non-blocking, see comment)
+        run: npm run lint
+        continue-on-error: true
+
+  backend:
+    name: Backend — pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+
+      # Heavy optional deps (torch, rembg, Real-ESRGAN, faster-whisper) are not
+      # installed here. The sign and storage suites do not import them, and the
+      # media suites degrade rather than fail. Installing torch here would add
+      # several GB and roughly ten minutes to every run.
+      - name: Test
+        run: python -m pytest backend/tests/ -q
+
+      - name: Coverage of the sign layer
+        run: |
+          python -m coverage run --source=backend/sign -m pytest backend/tests/ -q
+          python -m coverage report --include="backend/sign/*"
