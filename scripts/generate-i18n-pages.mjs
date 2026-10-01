@@ -6,8 +6,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DIST_DIR = path.resolve(__dirname, '../dist');
-const LOCALES_DIR = path.resolve(__dirname, '../public/locales');
+const DIST_DIR = path.resolve(
+  process.env.CHAMPDF_DIST_DIR || path.resolve(__dirname, '../dist')
+);
+const LOCALES_DIR = path.resolve(
+  process.env.CHAMPDF_LOCALES_DIR ||
+    path.resolve(__dirname, '../public/locales')
+);
 const SITE_URL = process.env.SITE_URL || 'https://champdf.com';
 const BASE_PATH = (process.env.BASE_URL || '/').replace(/\/$/, '');
 
@@ -184,6 +189,9 @@ async function generateI18nPages() {
       });
 
       fs.writeFileSync(path.join(langDir, file), dom.serialize());
+      // Release the DOM. Without this every page x language pair stays reachable
+      // for the whole run and the build OOMs at the 4GB cap in package.json.
+      dom.window.close();
     }
 
     const dom = new JSDOM(originalContent);
@@ -210,6 +218,7 @@ async function generateI18nPages() {
     document.head.appendChild(defaultLink);
 
     fs.writeFileSync(filePath, dom.serialize());
+    dom.window.close();
   }
 
   console.log('✅ i18n pages generated successfully!');
