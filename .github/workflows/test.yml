@@ -69,10 +69,17 @@ jobs:
             backend/requirements.txt
             backend/requirements-dev.txt
 
+      # realesrgan's legacy setup.py imports pkg_resources, which setuptools
+      # removed in 81.0, so a plain install dies at the build step with
+      # "No module named 'pkg_resources'". backend/Dockerfile.railway already
+      # solves this with setuptools<81 plus --no-build-isolation; CI now does
+      # the same instead of dropping the dependency, so CI and production
+      # install the identical set.
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+          pip install "setuptools<81" wheel
+          pip install --no-build-isolation -r backend/requirements.txt -r backend/requirements-dev.txt
 
       # Heavy optional deps (torch, rembg, Real-ESRGAN, faster-whisper) are not
       # installed here. The sign and storage suites do not import them, and the
