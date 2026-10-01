@@ -512,8 +512,21 @@ async def verify(sender: Sender, doc_id: str) -> Dict[str, Any]:
             report["sealed"] = sealed
         except StorageError as e:
             report["sealed"] = {"ok": False, "error": str(e)}
-        report["chain_head_at_execution"] = doc.get("chain_head_at_execution")
-    report["ok"] = bool(report["chain"]["ok"]) and report.get("draft", {}).get("ok", True) and report.get("sealed", {}).get("ok", True)
+    recorded_head = doc.get("chain_head_at_execution")
+    report["chain_head_at_execution"] = recorded_head
+    if recorded_head:
+        # The anchor. Row-level verification cannot distinguish "the chain was
+        # never touched" from "the chain was rewritten and every hash recomputed",
+        # because both are internally consistent. The head recorded at execution
+        # can: it is printed in the certificate of completion inside the executed
+        # PDF, so rewriting the database alone does not produce a clean report.
+        report["anchor"] = store.verify_anchor(doc_id, recorded_head)
+    report["ok"] = (
+        bool(report["chain"]["ok"])
+        and report.get("anchor", {}).get("ok", True)
+        and report.get("draft", {}).get("ok", True)
+        and report.get("sealed", {}).get("ok", True)
+    )
     return report
 
 

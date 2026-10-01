@@ -481,6 +481,39 @@ def compute_event_hash(prev_hash: str, event: Dict[str, Any]) -> str:
     return hashlib.sha256((prev_hash + canonical_json(event)).encode("utf-8")).hexdigest()
 
 
+def verify_anchor(document_id: str, recorded_head: str) -> Dict[str, Any]:
+    """
+    Check the execution-time anchor.
+
+    ``chain_head_at_execution`` is the head of the chain as it stood immediately
+    before ``document.executed`` was appended, so the live chain is expected to
+    have *grown past* it rather than to equal it. What matters is that the
+    recorded value still appears as the parent link of that event.
+
+    This is the check that a rewritten chain cannot pass. Row-level
+    verification only proves the file is internally consistent; an attacker who
+    edits a row and recomputes every hash after it produces a chain that verifies
+    but whose link into ``document.executed`` no longer matches the head printed
+    in the certificate of completion.
+    """
+    events = list_events(document_id)
+    if not events:
+        return {"ok": False, "reason": "no events to anchor"}
+    for ev in events:
+        if ev["prev_hash"] == recorded_head and ev["event_type"] == "document.executed":
+            return {"ok": True, "event_id": ev["id"], "event_type": ev["event_type"]}
+    # No document.executed event hangs off the recorded head. If one exists at
+    # all, name it: that is the link an attacker rewrote.
+    executed = next((e for e in events if e["event_type"] == "document.executed"), None)
+    return {
+        "ok": False,
+        "reason": "recorded chain head is not the parent of document.executed",
+        "recorded": recorded_head,
+        "found_prev_hash": executed["prev_hash"] if executed else None,
+        "event_id": executed["id"] if executed else None,
+    }
+
+
 def chain_head(document_id: str, conn: sqlite3.Connection) -> str:
     row = conn.execute(
         "SELECT event_hash FROM sign_audit_events WHERE document_id = ? ORDER BY id DESC LIMIT 1",
