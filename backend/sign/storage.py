@@ -45,11 +45,30 @@ class Storage(Protocol):
     def exists(self, key: str) -> bool: ...
 
 
+#: S3 caps an object key at 1024 bytes. A longer key is rejected by the API
+#: with an opaque error, so refuse it here where the message can be useful.
+MAX_KEY_LEN = 1024
+
+
 def _safe_key(key: str) -> str:
+    """
+    Normalise an object key and refuse anything that could address an object
+    outside the intended namespace.
+
+    Keys are built from document ids and titles, so a traversal segment is
+    reachable input. Empty segments are collapsed; ``.`` and ``..`` are refused
+    rather than resolved, because resolving them is what makes a sanitiser
+    bypassable.
+    """
     parts = [p for p in key.split("/") if p]
     if not parts or any(p in ("..", ".") for p in parts):
         raise StorageError(f"unsafe storage key: {key!r}")
-    return "/".join(parts)
+    cleaned = "/".join(parts)
+    if not cleaned.strip():
+        raise StorageError(f"unsafe storage key: {key!r}")
+    if len(cleaned) > MAX_KEY_LEN:
+        raise StorageError(f"storage key exceeds {MAX_KEY_LEN} bytes: {len(cleaned)}")
+    return cleaned
 
 
 class LocalStorage:
@@ -126,8 +145,14 @@ class S3Storage:
             self.client.put_object(**params)
 
     def get(self, key: str) -> bytes:
-        obj = self.client.get_object(Bucket=self.bucket, Key=self._key(key))
-        return obj["Body"].read()
+        # Wrap provider errors as StorageError. Callers (verify, download)
+        # catch StorageError, so a raw botocore ClientError would escape as an
+        # unhandled 500 with a stack trace instead of a clean "object not found".
+        try:
+            obj = self.client.get_object(Bucket=self.bucket, Key=self._key(key))
+            return obj["Body"].read()
+        except Exception as e:  # noqa: BLE001 — boto3 raises a family of ClientErrors
+            raise StorageError(f"object not readable ({self._key(key)}): {e}") from e
 
     def exists(self, key: str) -> bool:
         try:
