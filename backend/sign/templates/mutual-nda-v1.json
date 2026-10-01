@@ -1,0 +1,90 @@
+{
+  "id": "mutual-nda-v1",
+  "version": 1,
+  "name": "Mutual Non-Disclosure Agreement",
+  "short_name": "Mutual NDA",
+  "category": "nda",
+  "instrument_class": "commercial_agreement",
+  "description": "Champions Group Mutual NDA Master Template v1. Post-discovery services exploration where no records or data move. If data moves in either direction, send the Database NDA as well (deferred to phase 2).",
+  "title_format": "Mutual NDA: {{champions_entity}} and {{counterparty_entity}}",
+  "body": "mutual-nda-v1.body.html",
+  "css": "base.css",
+  "docx": "mutual-nda-v1.docx",
+  "roles": [
+    {
+      "role": "signer",
+      "party": "counterparty",
+      "label": "For the Counterparty"
+    },
+    { "role": "countersigner", "party": "champions", "label": "For Champions" }
+  ],
+  "fields": [
+    {
+      "key": "counterparty_entity",
+      "label": "Counterparty registered legal name",
+      "required": true,
+      "placeholder": "Acme Technologies Private Limited",
+      "help": "The registered entity, never a trading name. Trading names cannot hold rights or be sued.",
+      "max_length": 200
+    },
+    {
+      "key": "counterparty_cin",
+      "label": "Counterparty CIN / company number",
+      "required": false,
+      "placeholder": "U72900KA2019PTC123456",
+      "help": "Leave blank only if the counterparty cannot supply it; it will render as a confirm marker.",
+      "empty_text": "[CONFIRM: registration number]",
+      "max_length": 60
+    },
+    {
+      "key": "counterparty_address",
+      "label": "Counterparty registered address",
+      "type": "textarea",
+      "required": true,
+      "max_length": 400
+    },
+    {
+      "key": "counterparty_jurisdiction",
+      "label": "Counterparty country of incorporation",
+      "required": true,
+      "default": "India",
+      "max_length": 80
+    },
+    {
+      "key": "purpose",
+      "label": "Purpose of disclosure",
+      "type": "textarea",
+      "required": true,
+      "placeholder": "Evaluating a potential engagement under which Champions would provide B2B data and demand generation services to the Counterparty.",
+      "help": "One or two sentences. Must match the client note exactly (product names, dates).",
+      "max_length": 600
+    },
+    {
+      "key": "effective_date",
+      "label": "Effective date",
+      "type": "date",
+      "required": true,
+      "default": "today"
+    },
+    {
+      "key": "non_circumvention",
+      "label": "Non-circumvention (24 months)",
+      "type": "select",
+      "options": ["yes", "no"],
+      "default": "yes",
+      "help": "Keep on wherever the purpose involves referrals, introductions, revenue share, brokers or capital sourcing. Never disclaim it against a vendor touching lead flow."
+    }
+  ],
+  "schedule_defaults": {
+    "term": "2 years from the Effective Date",
+    "survival": "3 years from termination; Trade Secrets and Personal Data: perpetual",
+    "governing_law": "India",
+    "venue": "Courts at Bengaluru, Karnataka (exclusive jurisdiction)",
+    "non_solicit": "12 months, mutual",
+    "non_circumvention": "24 months (Clause 14, where switched on)",
+    "incident_notice": "48 hours",
+    "sample_deletion": "15 days from request or the end of the evaluation, whichever is earlier",
+    "residuals": "Expressly excluded; no combination rule",
+    "ai_ingestion": "Prohibited (Clause 8)"
+  }
+}

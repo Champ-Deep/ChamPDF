@@ -8,8 +8,9 @@ timeout, selecting the right element from the model's varied return shapes, and
 downloading bytes. Feature modules (video watermark removal, video matting, GPU
 transcription) build on top of `run_model` / `run_model_raw`.
 
-Everything is env-gated (`VIDEO_GPU_PROVIDER=replicate` + `REPLICATE_API_TOKEN`)
-so a missing key reports unavailable via /api/capabilities rather than erroring.
+Everything is env-gated (`VIDEO_GPU_PROVIDER=replicate` + either `REPLICATE_API_TOKEN`
+or a treg token with the org's Replicate key registered in treg) so a missing key
+reports unavailable via /api/capabilities rather than erroring.
 """
 
 from __future__ import annotations
@@ -30,11 +31,20 @@ def provider() -> str:
     return (os.environ.get("VIDEO_GPU_PROVIDER", "none") or "none").strip().lower()
 
 
+def via_treg() -> bool:
+    """Route SDK calls through treg (https://treg.to), which holds the org's
+    Replicate key and injects it server-side. On by default whenever
+    TREG_TOKEN is set; REPLICATE_VIA_TREG=false forces the direct path."""
+    if not os.environ.get("TREG_TOKEN", "").strip():
+        return False
+    return os.environ.get("REPLICATE_VIA_TREG", "true").strip().lower() not in ("0", "false", "no")
+
+
 def replicate_available() -> bool:
-    """True iff Replicate is selected, credentialed, and the SDK is installed."""
+    """True iff Replicate is selected, credentialed (directly or via treg), and the SDK is installed."""
     if provider() != "replicate":
         return False
-    if not os.environ.get("REPLICATE_API_TOKEN"):
+    if not os.environ.get("REPLICATE_API_TOKEN") and not via_treg():
         return False
     try:
         import replicate  # noqa: F401
@@ -42,6 +52,22 @@ def replicate_available() -> bool:
         return True
     except ImportError:
         return False
+
+
+def _client():
+    """A Replicate client, pointed at treg's URL-prefix proxy when routing via treg."""
+    import replicate
+
+    if not via_treg():
+        return replicate.Client()
+    base = (os.environ.get("TREG_BASE_URL") or "https://treg.to").rstrip("/")
+    headers = {"X-Treg-Token": os.environ["TREG_TOKEN"].strip(), "X-Treg-Meta": "app=champdf, feature=video"}
+    org = os.environ.get("TREG_ORG", "").strip()
+    if org:
+        headers["X-Treg-Org"] = org
+    # treg replaces the Authorization header with the org's real key; the SDK
+    # insists on some token, so hand it a placeholder.
+    return replicate.Client(api_token="treg-managed", base_url=f"{base}/call/https://api.replicate.com", headers=headers)
 
 
 def output_ref(o: Any) -> str:
@@ -83,9 +109,7 @@ def _default_timeout() -> int:
 
 
 def _run_sync(model: str, inputs: dict) -> Any:
-    import replicate
-
-    return replicate.run(model, input=inputs)
+    return _client().run(model, input=inputs)
 
 
 async def run_model_raw(model: str, inputs: dict, *, timeout: Optional[int] = None) -> Any:

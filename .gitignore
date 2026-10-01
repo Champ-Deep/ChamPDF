@@ -60,3 +60,7 @@ backend/outputs/
 /tmp/video-rebrander/
 .vercel
 .env*
+
+# Templates are tracked; real env files above are not.
+!.env.example
+!backend/.env.example

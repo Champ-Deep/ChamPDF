@@ -72,6 +72,16 @@ function createLanguageMiddleware(isDev: boolean): Connect.NextHandleFunction {
       pathname = '/' + pathname;
     }
 
+    // ChampPDF Sign pretty URLs (mirrors the vercel.json / nginx rewrites so
+    // the signing links work on the dev and preview servers too).
+    if (/^\/s\/[A-Za-z0-9_-]{32,64}$/.test(pathname) || pathname === '/sign') {
+      const page = pathname === '/sign' ? 'sign' : 'sign-document';
+      req.url =
+        (isDev ? `/src/pages/${page}.html` : `/${page}.html`) +
+        (queryString ? `?${queryString}` : '');
+      return next();
+    }
+
     const match = pathname.match(LANG_REGEX);
 
     if (match) {
