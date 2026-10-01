@@ -278,6 +278,17 @@ BEGIN
     SELECT RAISE(ABORT, 'sign_audit_events is append-only');
 END;
 
+-- Resend retries webhooks, and each retry carries the same svix-id. Dedupe on
+-- the provider message id so a retry does not append a second audit event, which
+-- would both bloat the chain and read as a repeated delivery failure.
+CREATE TABLE IF NOT EXISTS sign_webhook_seen (
+    provider      TEXT NOT NULL,
+    message_id    TEXT NOT NULL,
+    event_type    TEXT NOT NULL,
+    seen_at       TEXT NOT NULL,
+    PRIMARY KEY (provider, message_id, event_type)
+);
+
 CREATE TABLE IF NOT EXISTS sign_rate_hits (
     bucket  TEXT NOT NULL,
     ts      REAL NOT NULL
@@ -479,6 +490,28 @@ def canonical_json(event: Dict[str, Any]) -> str:
 
 def compute_event_hash(prev_hash: str, event: Dict[str, Any]) -> str:
     return hashlib.sha256((prev_hash + canonical_json(event)).encode("utf-8")).hexdigest()
+
+
+def webhook_seen(provider: str, message_id: str, event_type: str) -> bool:
+    """
+    True if this provider event was already recorded, in which case the caller
+    must not append a second audit event. The INSERT is the check, so two
+    concurrent retries of the same webhook cannot both win.
+    """
+    if not message_id:
+        return False
+    try:
+        with connect(immediate=True) as c:
+            cur = c.execute(
+                "INSERT OR IGNORE INTO sign_webhook_seen (provider, message_id, event_type, seen_at) VALUES (?,?,?,?)",
+                (provider, message_id, event_type, utcnow_iso()),
+            )
+            # rowcount is 1 when this call is the one that inserted the row, 0 when
+            # the unique index already had it, i.e. a provider retry.
+            return cur.rowcount == 0
+    except sqlite3.Error as e:  # noqa: BLE001
+        logger.warning("webhook dedupe unavailable (%s); recording anyway", e)
+        return False
 
 
 def verify_anchor(document_id: str, recorded_head: str) -> Dict[str, Any]:

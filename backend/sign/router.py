@@ -397,9 +397,18 @@ async def resend_webhook(request: Request) -> Dict[str, Any]:
             document_id, recipient_id = rec["document_id"], rec["id"]
     if not document_id:
         return {"ok": True, "ignored": "no document reference"}
+    # Resend retries webhooks, and every retry carries the same message id.
+    # Recording each one would append a duplicate audit event, inflating the
+    # chain and making one delivery look like several.
+    svix_id = str(request.headers.get("svix-id") or "")
+    resend_id = str(data.get("email_id") or "")
+    message_key = svix_id or resend_id
+    if message_key and store.webhook_seen("resend", message_key, event_type):
+        return {"ok": True, "recorded": False, "duplicate": True}
     recorded = service.record_delivery_event(
         event_type, document_id, recipient_id,
-        {"message_id": data.get("email_id"), "kind": tags.get("kind"), "provider_event": payload.get("type"),
-         "created_at": payload.get("created_at"), "bounce": data.get("bounce")},
+        {"message_id": resend_id, "webhook_id": svix_id, "kind": tags.get("kind"),
+         "provider_event": payload.get("type"), "created_at": payload.get("created_at"),
+         "bounce": data.get("bounce")},
     )
     return {"ok": True, "recorded": recorded}

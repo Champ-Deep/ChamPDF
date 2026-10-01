@@ -8,9 +8,13 @@ would silently stop contracts arriving. See DPRD section 07.
 
 Backends
   ResendMailer   when RESEND_API_KEY is set. Uses Resend's HTTP API with no
-                 extra dependency. Delivery / bounce / complaint webhooks are
-                 verified in ``verify_resend_webhook`` and recorded as audit
-                 events by the router.
+                 extra dependency. Every request carries a stable
+                 ``Idempotency-Key`` (see ``idempotency_key``) so a retry
+                 collapses onto the original message instead of delivering a
+                 second copy. Transient failures are retried with backoff.
+                 Delivery / bounce / complaint webhooks are verified in
+                 ``verify_resend_webhook`` and recorded as audit events by the
+                 router, deduplicated on the provider message id.
   LogMailer      default. Logs the message and keeps the last 200 in memory
                  (the dry run and the tests read OTPs from here).
 
@@ -44,7 +48,11 @@ DEFAULT_FROM = "Champions Superior Capital <notifications@sign.championsmail.com
 
 
 class MailError(Exception):
-    pass
+    """A send that did not succeed. ``retryable`` marks transient conditions."""
+
+    def __init__(self, message: str, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 @dataclass
@@ -81,15 +89,42 @@ class LogMailer:
         return f"log-{int(time.time() * 1000)}"
 
 
+def idempotency_key(email: Email) -> str:
+    """
+    A stable key for one logical send, so a retry never delivers a second copy.
+
+    Resend treats a repeated Idempotency-Key as the same message and returns the
+    original id. The key must therefore be derived from the message's identity
+    and content, never from the clock: an OTP resend carries a new code and so
+    gets a new key, while a retry of the same invitation collapses into one
+    delivery.
+    """
+    parts = [
+        email.tags.get("kind", "unknown"),
+        email.tags.get("document_id", ""),
+        email.tags.get("recipient_id", ""),
+        "|".join(sorted(t.lower() for t in email.to)),
+        email.subject,
+        email.text,
+    ]
+    return "champdf-" + hashlib.sha256("\x1f".join(parts).encode("utf-8")).hexdigest()[:48]
+
+
 class ResendMailer:
     name = "resend"
     configured = True
+    #: Transient conditions worth one more attempt. 5xx and 429 are Resend-side
+    #: and usually clear in seconds. A 4xx is our request being wrong and will
+    #: never succeed, so it is raised immediately rather than burning quota.
+    RETRY_STATUSES = frozenset({408, 409, 425, 429, 500, 502, 503, 504})
+    RETRIES = 2
+    BACKOFF_S = 0.5
 
     def __init__(self, api_key: str, from_addr: str) -> None:
         self.api_key = api_key
         self.from_addr = from_addr
 
-    def _send_sync(self, email: Email) -> Optional[str]:
+    def _send_once(self, email: Email) -> Optional[str]:
         body: Dict[str, Any] = {
             "from": self.from_addr,
             "to": email.to,
@@ -111,17 +146,40 @@ class ResendMailer:
             "https://api.resend.com/emails",
             data=json.dumps(body).encode("utf-8"),
             method="POST",
-            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                # Resend collapses a repeated key onto the original message, so a
+                # retry after a timeout cannot double-deliver an invitation.
+                "Idempotency-Key": idempotency_key(email),
+            },
         )
         try:
             with urllib.request.urlopen(req, timeout=20) as resp:  # nosec - fixed host
                 data = json.loads(resp.read().decode("utf-8") or "{}")
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")[:300]
-            raise MailError(f"Resend rejected the message ({e.code}): {detail}") from e
-        except urllib.error.URLError as e:
-            raise MailError(f"Resend unreachable: {e.reason}") from e
+            retryable = e.code in self.RETRY_STATUSES
+            raise MailError(
+                f"Resend rejected the message ({e.code}): {detail}",
+                retryable=retryable,
+            ) from e
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            raise MailError(f"Resend unreachable: {e}", retryable=True) from e
         return data.get("id")
+
+    def _send_sync(self, email: Email) -> Optional[str]:
+        """Send with bounded retries on transient failures."""
+        last: Optional[MailError] = None
+        for attempt in range(self.RETRIES + 1):
+            try:
+                return self._send_once(email)
+            except MailError as e:
+                last = e
+                if not e.retryable or attempt == self.RETRIES:
+                    raise
+                time.sleep(self.BACKOFF_S * (2**attempt))
+        raise last  # pragma: no cover - loop always returns or raises
 
     async def send(self, email: Email) -> Optional[str]:
         return await asyncio.to_thread(self._send_sync, email)
