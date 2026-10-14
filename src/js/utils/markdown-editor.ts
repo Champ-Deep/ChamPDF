@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it';
+type MarkdownItInstance = InstanceType<typeof MarkdownIt>;
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -266,7 +267,7 @@ Start editing to see the magic happen!
 
 export class MarkdownEditor {
   private container: HTMLElement;
-  private md: MarkdownIt;
+  private md: MarkdownItInstance;
   private editor: HTMLTextAreaElement | null = null;
   private preview: HTMLElement | null = null;
   private onBack?: () => void;
@@ -589,9 +590,9 @@ export class MarkdownEditor {
   }
 
 
-  private createMarkdownIt(): MarkdownIt {
+  private createMarkdownIt(): MarkdownItInstance {
     // Use preset if commonmark or zero
-    let md: MarkdownIt;
+    let md: MarkdownItInstance;
     if (this.currentPreset === 'commonmark') {
       md = new MarkdownIt('commonmark');
     } else if (this.currentPreset === 'zero') {
@@ -625,7 +626,7 @@ export class MarkdownEditor {
         .use(ins)           // Inserted text: ++text++ -> <ins>text</ins>
         .use(mark)          // Marked text: ==text== -> <mark>text</mark>
         .use(taskLists, { enabled: true, label: true, labelAfter: true })  // Task lists: - [x] done
-        .use(anchor, { permalink: false })  // Header anchors
+        .use(anchor)  // Header anchors
         .use(tocDoneRight); // Table of contents: ${toc}
     }
 
