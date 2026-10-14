@@ -52,6 +52,7 @@ export function moveRegion(
     ...region,
     x: clamp(region.x + dx, 0, 1 - region.width),
     y: clamp(region.y + dy, 0, 1 - region.height),
+    autoMaskId: dx === 0 && dy === 0 ? region.autoMaskId : undefined,
   };
 }
 
@@ -74,7 +75,14 @@ export function resizeRegion(
     y = clamp(y + dy, 0, bottom - Math.min(minHeight, bottom));
   if (handle.includes('s'))
     bottom = clamp(bottom + dy, y + Math.min(minHeight, 1 - y), 1);
-  return { ...region, x, y, width: right - x, height: bottom - y };
+  return {
+    ...region,
+    x,
+    y,
+    width: right - x,
+    height: bottom - y,
+    autoMaskId: dx === 0 && dy === 0 ? region.autoMaskId : undefined,
+  };
 }
 
 const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];

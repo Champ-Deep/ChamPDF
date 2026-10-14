@@ -18,6 +18,16 @@ const region: WatermarkRegion = {
 };
 
 describe('region coordinate mapping', () => {
+  it('preserves evidence on selection, clears it on manual edits, and retains it in undo snapshots', () => {
+    const automatic = { ...region, autoMaskId: 42 };
+    expect(moveRegion(automatic, 0, 0).autoMaskId).toBe(42);
+    expect(resizeRegion(automatic, 'se', 0, 0, 0.01, 0.01).autoMaskId).toBe(42);
+    expect(moveRegion(automatic, -0.01, 0).autoMaskId).toBeUndefined();
+    expect(
+      resizeRegion(automatic, 'se', -0.01, 0, 0.01, 0.01).autoMaskId
+    ).toBeUndefined();
+    expect(fractionToPixels(automatic, 1376, 768).autoMaskId).toBe(42);
+  });
   it.each([
     [1376, 768],
     [2064, 1152],
@@ -160,7 +170,7 @@ describe('DOM region editor', () => {
       },
       () => 2
     );
-    editor.replace([region]);
+    editor.replace([{ ...region, autoMaskId: 42 }]);
     expect(overlay.querySelectorAll('[data-region]')).toHaveLength(1);
     expect(overlay.querySelectorAll('[data-handle]')).toHaveLength(0);
     expect(info.querySelectorAll('[data-delete-region]')).toHaveLength(1);
@@ -168,6 +178,7 @@ describe('DOM region editor', () => {
     expect(regions).toHaveLength(0);
     editor.undo();
     expect(regions).toHaveLength(1);
+    expect(regions[0].autoMaskId).toBe(42);
     editor.clear();
     expect(regions).toHaveLength(0);
     expect(canvas.width).toBe(300);

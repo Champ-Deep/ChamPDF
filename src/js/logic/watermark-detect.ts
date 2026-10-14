@@ -617,7 +617,8 @@ export function detectWatermark(pages: Raster[]): WatermarkBox | null {
  */
 export function buildGlyphMask(
   image: Raster,
-  regions: PixelRect[]
+  regions: PixelRect[],
+  dilate = true
 ): Uint8Array {
   const { width, height } = image;
   const mask = new Uint8Array(width * height);
@@ -664,7 +665,11 @@ export function buildGlyphMask(
       }
     }
   }
-  // Dilate seeds by a radius-2 disk.
+  return dilate ? dilateMask(mask, width, height) : mask;
+}
+
+export function dilateMask(mask: Uint8Array, width: number, height: number) {
+  // Dilate seeds by a radius-2 disk at the output resolution, not preview DPR.
   const seeds: number[] = [];
   for (let p = 0; p < mask.length; p++) if (mask[p]) seeds.push(p);
   const offsets: [number, number][] = [];

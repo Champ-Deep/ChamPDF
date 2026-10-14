@@ -5,6 +5,8 @@ export interface WatermarkRegion {
   width: number;
   height: number;
   pageIndex: number;
+  /** Document-local repeating glyph evidence. Cleared on manual adjustment. */
+  autoMaskId?: number;
 }
 
 export interface RemoveWatermarkState {

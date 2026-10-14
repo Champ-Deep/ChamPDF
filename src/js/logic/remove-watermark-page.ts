@@ -19,6 +19,11 @@ import {
   buildGlyphMask,
   type Raster,
 } from './watermark-detect';
+import {
+  buildRepeatingWatermarkMask,
+  repeatingMaskToPixels,
+  type WatermarkMask,
+} from './watermark-mask';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -43,6 +48,8 @@ let editor: WatermarkRegionEditor;
 let renderTask: pdfjsLib.RenderTask | null = null;
 let renderGeneration = 0;
 let busy = false;
+const automaticMasks = new Map<number, WatermarkMask>();
+let nextMaskId = 0;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializePage);
@@ -135,6 +142,7 @@ async function handleFiles(files: FileList) {
     pageState.totalPages = pdfJsDoc.numPages;
     pageState.currentPage = 1;
     pageState.regions = [];
+    automaticMasks.clear();
     editor.reset();
     resetLogoStep();
     document.getElementById('server-detect-btn')?.classList.add('hidden');
@@ -192,6 +200,7 @@ function resetState() {
   pageState.currentPage = 1;
   pageState.totalPages = 0;
   pageState.regions = [];
+  automaticMasks.clear();
   editor.reset();
   pdfJsDoc = null;
   resetLogoStep();
@@ -332,12 +341,31 @@ async function autoDetectWatermarks(useServer = false) {
         canvas.width = Math.ceil(viewport.width);
         canvas.height = Math.ceil(viewport.height);
         const context = canvas.getContext('2d')!;
-        await samplePage.render({ canvas, canvasContext: context, viewport })
-          .promise;
+        // Fit the viewport exactly to integer backing dimensions. Otherwise
+        // ceil(height) leaves a repeated partial white row that looks like ink.
+        await samplePage.render({
+          canvas,
+          canvasContext: context,
+          viewport,
+          transform: [
+            canvas.width / viewport.width,
+            0,
+            0,
+            canvas.height / viewport.height,
+            0,
+            0,
+          ],
+        }).promise;
         samples.push(context.getImageData(0, 0, canvas.width, canvas.height));
       }
       const box = detectWatermark(samples);
-      if (box) {
+      const evidence = box ? buildRepeatingWatermarkMask(samples, box) : null;
+      // Inconclusive multi-page evidence must not become a broad per-page
+      // contrast mask that could erase nearby document content.
+      if (box && (samples.length === 1 || evidence)) {
+        const autoMaskId = evidence ? ++nextMaskId : undefined;
+        if (evidence && autoMaskId !== undefined)
+          automaticMasks.set(autoMaskId, evidence);
         const regions = [...pageState.regions];
         for (let pageIndex = 0; pageIndex < pageState.totalPages; pageIndex++) {
           if (
@@ -350,13 +378,13 @@ async function autoDetectWatermarks(useServer = false) {
                 Math.abs(r.height - box.height) < 0.002
             )
           )
-            regions.push({ ...box, pageIndex });
+            regions.push({ ...box, pageIndex, autoMaskId });
         }
         editor.replace(regions);
         document.getElementById('server-detect-btn')?.classList.add('hidden');
         showAlert(
           'On-device detection complete',
-          `Selected the same corner region on all ${pageState.totalPages} pages. Review and adjust the boxes before removal.`,
+          `Selected the same corner region on all ${pageState.totalPages} pages. Automatic multi-page removal uses repeating glyphs only. Moving or resizing a box switches it to manual local-contrast removal.`,
           'success'
         );
       } else {
@@ -698,10 +726,27 @@ function inpaintWithOpenCV(
   const src = cv.matFromImageData(imgData);
   const glyphMask = buildGlyphMask(
     imgData,
-    regions.map((region) =>
-      fractionToPixels(region, tempCanvas.width, tempCanvas.height)
-    )
+    regions
+      .filter((region) => region.autoMaskId === undefined)
+      .map((region) =>
+        fractionToPixels(region, tempCanvas.width, tempCanvas.height)
+      )
   );
+  for (const region of regions) {
+    if (region.autoMaskId === undefined) continue;
+    const evidence = automaticMasks.get(region.autoMaskId);
+    if (!evidence)
+      throw new Error(
+        'Watermark evidence expired. Run on-device detection again.'
+      );
+    const repeated = repeatingMaskToPixels(
+      evidence,
+      tempCanvas.width,
+      tempCanvas.height
+    );
+    for (let i = 0; i < glyphMask.length; i++)
+      if (repeated[i]) glyphMask[i] = 255;
+  }
   const mask = new cv.Mat(src.rows, src.cols, cv.CV_8UC1);
   mask.data.set(glyphMask);
 
