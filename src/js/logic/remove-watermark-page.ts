@@ -8,6 +8,7 @@ import {
   InpaintingOptions,
 } from '@/types';
 import * as pdfjsLib from 'pdfjs-dist';
+import { initializeOpenCV } from './watermark-opencv';
 import {
   WatermarkRegionEditor,
   fractionToPixels,
@@ -583,13 +584,7 @@ async function removeWatermarks() {
 
 async function loadOpenCV(): Promise<void> {
   if ((window as any).cv?.Mat) return;
-  const module = await import('@techstark/opencv-js');
-  let cv: any = module.default;
-  if (cv instanceof Promise) cv = await cv;
-  if (!cv.Mat)
-    await new Promise<void>((resolve) => {
-      cv.onRuntimeInitialized = resolve;
-    });
+  const { cv } = await initializeOpenCV();
   (window as any).cv = cv;
 }
 
