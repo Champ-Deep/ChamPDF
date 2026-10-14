@@ -73,7 +73,7 @@ describe('signing text boxes', () => {
     (type) => {
       const container = document.createElement('div');
       const layer = new AnnotationLayer(container, vi.fn(), vi.fn());
-      const annotation = textAnnotation('\"/><img src=x onerror=alert(1)>');
+      const annotation = textAnnotation('"/><img src=x onerror=alert(1)>');
       annotation.type = type;
       layer.addAnnotation(annotation);
       expect(container.querySelector('input')!.value).toBe(
