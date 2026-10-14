@@ -1,14 +1,17 @@
-"""Real local watermark removal gate. Requires Python playwright and pymupdf.
+"""Real local watermark removal gate. Requires playwright, pymupdf and Pillow.
 
 Start npm run dev (or preview) first, then run:
   python3 scripts/verify-watermark-browser.py --output /absolute/scratch/path
 External fixture PDFs are never copied into the repo. No backend or keys needed.
 """
 import argparse
+import base64
+import io
 import json
 from pathlib import Path
 
 import pymupdf
+from PIL import Image, ImageChops, ImageDraw
 from playwright.sync_api import sync_playwright
 
 
@@ -38,9 +41,23 @@ def verify(browser, base, fixture, output, name, page_count, first_only=False):
             page.locator("#selection-info button").last.click()
     page.evaluate("""() => {
         window.encodedRasters = [];
+        window.cornerProof = {before: [], after: []};
         const original = HTMLCanvasElement.prototype.toDataURL;
+        const corner = canvas => {
+            const crop = document.createElement('canvas');
+            crop.width = 216; crop.height = 58;
+            crop.getContext('2d').drawImage(canvas, 1160, 710, 216, 58, 0, 0, 216, 58);
+            return original.call(crop, 'image/png');
+        };
+        const get = CanvasRenderingContext2D.prototype.getImageData;
+        CanvasRenderingContext2D.prototype.getImageData = function(...args) {
+            if (args[0] === 0 && args[1] === 0 && args[2] === 1376 && args[3] === 768)
+                window.cornerProof.before.push(corner(this.canvas));
+            return get.apply(this, args);
+        };
         HTMLCanvasElement.prototype.toDataURL = function(type, quality) {
             window.encodedRasters.push({width:this.width,height:this.height,type,quality});
+            window.cornerProof.after.push(corner(this));
             return original.call(this, type, quality);
         };
     }""")
@@ -51,6 +68,7 @@ def verify(browser, base, fixture, output, name, page_count, first_only=False):
     target = output / (name + "-clean.pdf")
     download.value.save_as(str(target))
     rasters = page.evaluate("window.encodedRasters")
+    corners = page.evaluate("window.cornerProof")
     source, result = pymupdf.open(fixture), pymupdf.open(target)
     assert len(result) == len(source) == page_count
     expected_count = 1 if first_only else page_count
@@ -63,18 +81,51 @@ def verify(browser, base, fixture, output, name, page_count, first_only=False):
     if first_only:
         for index in range(1, len(source)):
             assert source[index].get_pixmap().samples == result[index].get_pixmap().samples
-    for label, document in [("before", source), ("after", result)]:
-        rect = document[0].rect
-        clip = pymupdf.Rect(rect.width * .85, rect.height * .9, rect.width, rect.height)
-        document[0].get_pixmap(clip=clip, matrix=pymupdf.Matrix(3, 3)).save(output / f"{name}-{label}.png")
+    quality = verify_corner_quality(source, result, corners, output, name, expected_count)
     assert not errors, errors
     assert not api_requests, api_requests
     report = {"name": name, "pages": len(result), "processed": expected_count,
               "input_bytes": fixture.stat().st_size, "output_bytes": target.stat().st_size,
               "rasters": rasters, "box": box, "api_requests": api_requests,
+              "quality": quality,
               "untouched_pages_pixel_identical": page_count - 1 if first_only else None}
     page.close()
     return report
+
+
+def verify_corner_quality(source, result, corners, output, name, count):
+    """Independent annotated glyph envelope, NOT the detector's broad bbox.
+
+    This leaves the reported scale/architectural labels, badge border, navy
+    rectangle and ruler lines protected. Compare lossless browser pixels so
+    JPEG roundtrip noise cannot hide collateral erasure. Also save all actual
+    downloaded PDF corners for visual grading, not just the first page.
+    """
+    assert len(corners["before"]) == len(corners["after"]) == count
+    # Native 1376x768 fixture coordinates, includes the 2px glyph dilation.
+    allowed = (1266 - 1160, 744 - 710, 1372 - 1160, 761 - 710)
+    sheet = Image.new("RGB", (1320, count * 190), "white")
+    rows = []
+    for index in range(count):
+        before, after = [Image.open(io.BytesIO(base64.b64decode(corners[k][index].split(',')[1]))).convert("RGB")
+                         for k in ["before", "after"]]
+        difference = ImageChops.difference(before, after)
+        protected = difference.copy()
+        ImageDraw.Draw(protected).rectangle((allowed[0], allowed[1], allowed[2] - 1, allowed[3] - 1), fill=(0, 0, 0))
+        changed = sum(pixel != (0, 0, 0) for pixel in protected.getdata())
+        before.save(output / f"{name}-{index+1:02}-lossless-before.png")
+        after.save(output / f"{name}-{index+1:02}-lossless-after.png")
+        protected.save(output / f"{name}-{index+1:02}-protected-difference.png")
+        assert changed == 0, (name, index + 1, "collateral pixels", changed, protected.getbbox())
+        assert difference.getbbox(), (name, index + 1, "nothing removed")
+        for column, document in enumerate([source, result]):
+            pix = document[index].get_pixmap(clip=pymupdf.Rect(1160, 710, 1376, 768), matrix=pymupdf.Matrix(3, 3))
+            crop = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+            sheet.paste(crop, (column * 660, index * 190 + 16))
+        ImageDraw.Draw(sheet).text((0, index * 190), f"{name} page {index+1}: source left, exported PDF right", fill="black")
+        rows.append({"page": index + 1, "changed_protected_pixels": changed})
+    sheet.save(output / f"{name}-all-pages.png")
+    return rows
 
 
 def verify_timeout(browser, base, fixture):
