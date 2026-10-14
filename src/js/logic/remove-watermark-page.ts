@@ -8,9 +8,22 @@ import {
   InpaintingOptions,
 } from '@/types';
 import * as pdfjsLib from 'pdfjs-dist';
+import {
+  WatermarkRegionEditor,
+  fractionToPixels,
+  pixelsToFraction,
+} from './watermark-regions';
+import {
+  detectWatermark,
+  buildGlyphMask,
+  type Raster,
+} from './watermark-detect';
 
 // Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
 
 const pageState: RemoveWatermarkState = {
   file: null,
@@ -19,15 +32,16 @@ const pageState: RemoveWatermarkState = {
   totalPages: 0,
   scale: 1.5,
   regions: [],
-  isDrawing: false,
-  startX: 0,
-  startY: 0,
+
   canvas: null,
   ctx: null,
 };
 
 let pdfJsDoc: any = null;
-let currentRect: WatermarkRegion | null = null;
+let editor: WatermarkRegionEditor;
+let renderTask: pdfjsLib.RenderTask | null = null;
+let renderGeneration = 0;
+let busy = false;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializePage);
@@ -82,7 +96,10 @@ function initializePage() {
 
   const autoDetectBtn = document.getElementById('auto-detect-btn');
   if (autoDetectBtn)
-    autoDetectBtn.addEventListener('click', autoDetectWatermarks);
+    autoDetectBtn.addEventListener('click', () => void autoDetectWatermarks());
+  document
+    .getElementById('server-detect-btn')
+    ?.addEventListener('click', () => void autoDetectWatermarks(true));
 
   setupCanvas();
   setupSettings();
@@ -95,6 +112,7 @@ function handleFileUpload(e: Event) {
 }
 
 async function handleFiles(files: FileList) {
+  if (busy) return;
   const file = files[0];
   if (!file || file.type !== 'application/pdf') {
     showAlert('Invalid File', 'Please upload a valid PDF file.');
@@ -102,6 +120,7 @@ async function handleFiles(files: FileList) {
   }
 
   showLoader('Loading PDF...');
+  busy = true;
 
   try {
     // Load with pdf-lib for later reconstruction
@@ -114,6 +133,10 @@ async function handleFiles(files: FileList) {
     pdfJsDoc = await loadingTask.promise;
     pageState.totalPages = pdfJsDoc.numPages;
     pageState.currentPage = 1;
+    pageState.regions = [];
+    editor.reset();
+    resetLogoStep();
+    document.getElementById('server-detect-btn')?.classList.add('hidden');
 
     updateFileDisplay();
     document.getElementById('canvas-panel')?.classList.remove('hidden');
@@ -122,6 +145,7 @@ async function handleFiles(files: FileList) {
     console.error(error);
     showAlert('Error', 'Failed to load PDF file.');
   } finally {
+    busy = false;
     hideLoader();
   }
 }
@@ -159,11 +183,15 @@ function updateFileDisplay() {
 }
 
 function resetState() {
+  if (busy) return;
+  renderGeneration++;
+  renderTask?.cancel();
   pageState.file = null;
   pageState.pdfDoc = null;
   pageState.currentPage = 1;
   pageState.totalPages = 0;
   pageState.regions = [];
+  editor.reset();
   pdfJsDoc = null;
   resetLogoStep();
 
@@ -183,24 +211,39 @@ function resetState() {
 
 async function renderPage(pageNum: number) {
   if (!pdfJsDoc) return;
-
+  const generation = ++renderGeneration;
+  const previous = renderTask;
+  previous?.cancel();
+  if (previous) await previous.promise.catch(() => {});
   const page = await pdfJsDoc.getPage(pageNum);
-  const viewport = page.getViewport({ scale: pageState.scale });
-
-  if (!pageState.canvas) return;
-
-  pageState.canvas.width = viewport.width;
-  pageState.canvas.height = viewport.height;
-
-  const renderContext = {
+  if (!pageState.canvas || generation !== renderGeneration) return;
+  const base = page.getViewport({ scale: 1 });
+  const cssWidth = Math.min(
+    base.width * pageState.scale,
+    pageState.canvas.parentElement!.clientWidth
+  );
+  const viewport = page.getViewport({ scale: cssWidth / base.width });
+  const dpr = window.devicePixelRatio || 1;
+  pageState.canvas.width = Math.round(viewport.width * dpr);
+  pageState.canvas.height = Math.round(viewport.height * dpr);
+  pageState.canvas.style.width = `${viewport.width}px`;
+  pageState.canvas.style.height = 'auto';
+  editor.pageChanged();
+  renderTask = page.render({
+    canvas: pageState.canvas,
     canvasContext: pageState.ctx!,
-    viewport: viewport,
-  };
-
-  await page.render(renderContext).promise;
-
-  // Draw existing selections for this page
-  drawSelections();
+    viewport,
+    transform: [dpr, 0, 0, dpr, 0, 0],
+  });
+  try {
+    await renderTask.promise;
+  } catch (error) {
+    if (generation !== renderGeneration) return;
+    throw error;
+  }
+  if (generation !== renderGeneration) return;
+  renderTask = null;
+  editor.sync();
 
   // Update page info
   const pageInfo = document.getElementById('page-info');
@@ -223,141 +266,42 @@ function setupCanvas() {
 
   pageState.ctx = pageState.canvas.getContext('2d');
 
-  // Mouse events for drawing selections
-  pageState.canvas.addEventListener('mousedown', handleMouseDown);
-  pageState.canvas.addEventListener('mousemove', handleMouseMove);
-  pageState.canvas.addEventListener('mouseup', handleMouseUp);
-}
-
-function handleMouseDown(e: MouseEvent) {
-  const rect = pageState.canvas!.getBoundingClientRect();
-  pageState.isDrawing = true;
-  pageState.startX = e.clientX - rect.left;
-  pageState.startY = e.clientY - rect.top;
-
-  currentRect = {
-    x: pageState.startX,
-    y: pageState.startY,
-    width: 0,
-    height: 0,
-    pageIndex: pageState.currentPage - 1,
-  };
-}
-
-function handleMouseMove(e: MouseEvent) {
-  if (!pageState.isDrawing || !currentRect) return;
-
-  const rect = pageState.canvas!.getBoundingClientRect();
-  const currentX = e.clientX - rect.left;
-  const currentY = e.clientY - rect.top;
-
-  currentRect.width = currentX - pageState.startX;
-  currentRect.height = currentY - pageState.startY;
-
-  // Redraw
-  renderPage(pageState.currentPage);
-  drawCurrentSelection();
-}
-
-function handleMouseUp() {
-  if (!pageState.isDrawing || !currentRect) return;
-
-  pageState.isDrawing = false;
-
-  // Only add if the selection has meaningful size
-  if (Math.abs(currentRect.width) > 10 && Math.abs(currentRect.height) > 10) {
-    // Normalize negative dimensions
-    if (currentRect.width < 0) {
-      currentRect.x += currentRect.width;
-      currentRect.width = Math.abs(currentRect.width);
-    }
-    if (currentRect.height < 0) {
-      currentRect.y += currentRect.height;
-      currentRect.height = Math.abs(currentRect.height);
-    }
-
-    pageState.regions.push({ ...currentRect });
-    updateSelectionInfo();
-  }
-
-  currentRect = null;
-  renderPage(pageState.currentPage);
-}
-
-function drawCurrentSelection() {
-  if (!currentRect || !pageState.ctx) return;
-
-  pageState.ctx.strokeStyle = '#ef4444';
-  pageState.ctx.lineWidth = 2;
-  pageState.ctx.setLineDash([5, 5]);
-  pageState.ctx.strokeRect(
-    currentRect.x,
-    currentRect.y,
-    currentRect.width,
-    currentRect.height
+  editor = new WatermarkRegionEditor(
+    pageState.canvas,
+    document.getElementById('region-overlay')!,
+    document.getElementById('selection-info')!,
+    () => pageState.regions,
+    (regions) => {
+      pageState.regions = regions;
+    },
+    () => pageState.currentPage - 1
   );
-  pageState.ctx.fillStyle = 'rgba(239, 68, 68, 0.1)';
-  pageState.ctx.fillRect(
-    currentRect.x,
-    currentRect.y,
-    currentRect.width,
-    currentRect.height
-  );
-  pageState.ctx.setLineDash([]);
-}
-
-function drawSelections() {
-  if (!pageState.ctx) return;
-
-  const currentPageRegions = pageState.regions.filter(
-    (r) => r.pageIndex === pageState.currentPage - 1
-  );
-
-  currentPageRegions.forEach((region) => {
-    pageState.ctx!.strokeStyle = '#ef4444';
-    pageState.ctx!.lineWidth = 2;
-    pageState.ctx!.strokeRect(region.x, region.y, region.width, region.height);
-    pageState.ctx!.fillStyle = 'rgba(239, 68, 68, 0.2)';
-    pageState.ctx!.fillRect(region.x, region.y, region.width, region.height);
-  });
-}
-
-function updateSelectionInfo() {
-  const infoDiv = document.getElementById('selection-info');
-  if (!infoDiv) return;
-
-  const count = pageState.regions.length;
-  const currentPageCount = pageState.regions.filter(
-    (r) => r.pageIndex === pageState.currentPage - 1
-  ).length;
-
-  infoDiv.innerHTML = `
-    <span class="text-sm text-gray-400">
-      ${count} total region${count !== 1 ? 's' : ''} selected
-      ${currentPageCount > 0 ? `(${currentPageCount} on this page)` : ''}
-    </span>
-  `;
 }
 
 function changePage(delta: number) {
+  if (busy) return;
   const newPage = pageState.currentPage + delta;
   if (newPage < 1 || newPage > pageState.totalPages) return;
 
+  editor.pageChanged();
   pageState.currentPage = newPage;
-  renderPage(newPage);
+  void renderPage(newPage).catch((error) =>
+    showAlert('Preview failed', error.message)
+  );
 }
 
 function clearAllSelections() {
-  pageState.regions = [];
-  updateSelectionInfo();
-  renderPage(pageState.currentPage);
+  if (!busy) editor.clear();
 }
 
-async function autoDetectWatermarks() {
+async function autoDetectWatermarks(useServer = false) {
+  if (busy) return;
   if (!pageState.pdfDoc || !pageState.canvas) {
     showAlert('Error', 'Please upload a PDF file first.');
     return;
   }
+  busy = true;
+  editor.setEnabled(false);
 
   const btn = document.getElementById(
     'auto-detect-btn'
@@ -370,6 +314,61 @@ async function autoDetectWatermarks() {
   }
 
   try {
+    if (!useServer) {
+      const samples: Raster[] = [];
+      const count = Math.min(6, pageState.totalPages);
+      for (let i = 0; i < count; i++) {
+        const index =
+          count === 1
+            ? 1
+            : 1 + Math.round((i * (pageState.totalPages - 1)) / (count - 1));
+        const samplePage = await pdfJsDoc.getPage(index);
+        const base = samplePage.getViewport({ scale: 1 });
+        const viewport = samplePage.getViewport({
+          scale: Math.min(1.5, 1600 / base.width),
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const context = canvas.getContext('2d')!;
+        await samplePage.render({ canvas, canvasContext: context, viewport })
+          .promise;
+        samples.push(context.getImageData(0, 0, canvas.width, canvas.height));
+      }
+      const box = detectWatermark(samples);
+      if (box) {
+        const regions = [...pageState.regions];
+        for (let pageIndex = 0; pageIndex < pageState.totalPages; pageIndex++) {
+          if (
+            !regions.some(
+              (r) =>
+                r.pageIndex === pageIndex &&
+                Math.abs(r.x - box.x) < 0.002 &&
+                Math.abs(r.y - box.y) < 0.002 &&
+                Math.abs(r.width - box.width) < 0.002 &&
+                Math.abs(r.height - box.height) < 0.002
+            )
+          )
+            regions.push({ ...box, pageIndex });
+        }
+        editor.replace(regions);
+        document.getElementById('server-detect-btn')?.classList.add('hidden');
+        showAlert(
+          'On-device detection complete',
+          `Selected the same corner region on all ${pageState.totalPages} pages. Review and adjust the boxes before removal.`,
+          'success'
+        );
+      } else {
+        document
+          .getElementById('server-detect-btn')
+          ?.classList.remove('hidden');
+        showAlert(
+          'No local watermark found',
+          'Draw a region manually, or choose the optional server detection button. Server detection uploads this page and requires a configured API key.'
+        );
+      }
+      return;
+    }
     // Render the current page to a canvas at the same scale used for
     // selection so coordinates line up with pageState.regions.
     if (!pdfJsDoc) throw new Error('PDF not yet loaded');
@@ -424,20 +423,29 @@ async function autoDetectWatermarks() {
       return;
     }
 
-    // Append (don't replace) so users can keep manual selections too.
+    // The server returns image-pixel boxes; normalize exactly once.
+    const detected: WatermarkRegion[] = [];
     for (const wm of watermarks) {
-      pageState.regions.push({
-        x: wm.x,
-        y: wm.y,
-        width: wm.w,
-        height: wm.h,
-        pageIndex: pageState.currentPage - 1,
-      });
+      if (
+        ![wm.x, wm.y, wm.w, wm.h].every(Number.isFinite) ||
+        wm.w <= 0 ||
+        wm.h <= 0
+      )
+        continue;
+      const x = Math.max(0, wm.x),
+        y = Math.max(0, wm.y);
+      const width = Math.min(tempCanvas.width, wm.x + wm.w) - x;
+      const height = Math.min(tempCanvas.height, wm.y + wm.h) - y;
+      if (width > 0 && height > 0)
+        detected.push(
+          pixelsToFraction(
+            { x, y, width, height, pageIndex: pageState.currentPage - 1 },
+            tempCanvas.width,
+            tempCanvas.height
+          )
+        );
     }
-
-    updateSelectionInfo();
-    renderPage(pageState.currentPage);
-    drawSelections();
+    editor.replace([...pageState.regions, ...detected]);
 
     showAlert(
       'Auto-detect complete',
@@ -450,6 +458,8 @@ async function autoDetectWatermarks() {
       err instanceof Error ? err.message : 'Unknown error'
     );
   } finally {
+    busy = false;
+    editor.setEnabled(true);
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = originalLabel;
@@ -466,10 +476,7 @@ async function autoDetectWatermarks() {
 }
 
 function undoLastSelection() {
-  if (pageState.regions.length === 0) return;
-  pageState.regions.pop();
-  updateSelectionInfo();
-  renderPage(pageState.currentPage);
+  if (!busy) editor.undo();
 }
 
 function setupSettings() {
@@ -500,6 +507,7 @@ function setupSettings() {
 }
 
 async function removeWatermarks() {
+  if (busy) return;
   if (!pageState.pdfDoc || pageState.regions.length === 0) {
     showAlert(
       'Error',
@@ -509,6 +517,8 @@ async function removeWatermarks() {
   }
 
   showLoader('Removing watermarks...');
+  busy = true;
+  editor.setEnabled(false);
   const loaderProgress = document.getElementById('loader-progress');
 
   try {
@@ -564,38 +574,23 @@ async function removeWatermarks() {
       error.message || 'Failed to remove watermarks. Please try again.'
     );
   } finally {
+    busy = false;
+    if (document.getElementById('logo-panel')?.classList.contains('hidden'))
+      editor.setEnabled(true);
     hideLoader();
   }
 }
 
 async function loadOpenCV(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).cv && (window as any).cv.Mat) {
-      resolve();
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = 'https://docs.opencv.org/4.x/opencv.js';
-    script.async = true;
-    script.onload = () => {
-      // Wait for OpenCV to be ready
-      const checkOpenCV = setInterval(() => {
-        if ((window as any).cv && (window as any).cv.Mat) {
-          clearInterval(checkOpenCV);
-          resolve();
-        }
-      }, 100);
-
-      // Timeout after 10 seconds
-      setTimeout(() => {
-        clearInterval(checkOpenCV);
-        reject(new Error('OpenCV.js failed to load'));
-      }, 10000);
-    };
-    script.onerror = () => reject(new Error('Failed to load OpenCV.js'));
-    document.head.appendChild(script);
-  });
+  if ((window as any).cv?.Mat) return;
+  const module = await import('@techstark/opencv-js');
+  let cv: any = module.default;
+  if (cv instanceof Promise) cv = await cv;
+  if (!cv.Mat)
+    await new Promise<void>((resolve) => {
+      cv.onRuntimeInitialized = resolve;
+    });
+  (window as any).cv = cv;
 }
 
 async function processPageWithInpainting(
@@ -605,46 +600,84 @@ async function processPageWithInpainting(
   regions: WatermarkRegion[],
   options: InpaintingOptions
 ) {
-  // Render page to canvas at higher resolution
+  // Render at the embedded full-page raster's native size where available.
   const page = await pdfJsDoc.getPage(pageIndex + 1);
-  const scale = 2.0; // Higher resolution for better quality
+  const viewport1 = page.getViewport({ scale: 1 });
+  let nativeWidth = viewport1.width;
+  let nativeHeight = viewport1.height;
+  let pngLike = false;
+  const ops = await page.getOperatorList();
+  for (let i = 0; i < ops.fnArray.length; i++) {
+    const fn = ops.fnArray[i];
+    if (
+      fn !== pdfjsLib.OPS.paintImageXObject &&
+      fn !== pdfjsLib.OPS.paintInlineImageXObject
+    )
+      continue;
+    const arg = ops.argsArray[i]?.[0];
+    try {
+      const image =
+        typeof arg === 'string'
+          ? await new Promise<any>((resolve) => page.objs.get(arg, resolve))
+          : arg;
+      if (
+        image?.width &&
+        image?.height &&
+        image.width * image.height > nativeWidth * nativeHeight * 0.8
+      ) {
+        nativeWidth = image.width;
+        nativeHeight = image.height;
+        pngLike =
+          image.kind === pdfjsLib.ImageKind.RGBA_32BPP ||
+          image.kind === pdfjsLib.ImageKind.GRAYSCALE_1BPP;
+      }
+    } catch {
+      /* PDF.js may not expose this image; keep viewport dimensions. */
+    }
+  }
+  const scale = Math.max(
+    1,
+    nativeWidth / viewport1.width,
+    nativeHeight / viewport1.height
+  );
   const viewport = page.getViewport({ scale });
 
   const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = viewport.width;
-  tempCanvas.height = viewport.height;
+  tempCanvas.width = Math.round(viewport.width);
+  tempCanvas.height = Math.round(viewport.height);
   const tempCtx = tempCanvas.getContext('2d')!;
 
   await page.render({
     canvasContext: tempCtx,
+    canvas: tempCanvas,
     viewport: viewport,
   }).promise;
-
-  const scaleRatio = scale / pageState.scale;
 
   let imageBytes: Uint8Array;
 
   if (options.method === 'gemini') {
-    imageBytes = await inpaintWithGemini(tempCanvas, regions, scaleRatio);
+    imageBytes = await inpaintWithGemini(tempCanvas, regions);
   } else {
     imageBytes = inpaintWithOpenCV(
       tempCanvas,
       tempCtx,
       regions,
-      scaleRatio,
-      options
+      options,
+      pngLike
     );
   }
 
   // Replace page in PDF with processed image
   const pdfPage = pdfLibDoc.getPage(pageIndex);
-  const jpgImage =
+  const embeddedImage =
     options.method === 'gemini'
       ? await pdfLibDoc.embedPng(imageBytes)
-      : await pdfLibDoc.embedJpg(imageBytes);
+      : pngLike
+        ? await pdfLibDoc.embedPng(imageBytes)
+        : await pdfLibDoc.embedJpg(imageBytes);
 
   const { width, height } = pdfPage.getSize();
-  pdfPage.drawImage(jpgImage, {
+  pdfPage.drawImage(embeddedImage, {
     x: 0,
     y: 0,
     width: width,
@@ -656,8 +689,8 @@ function inpaintWithOpenCV(
   tempCanvas: HTMLCanvasElement,
   tempCtx: CanvasRenderingContext2D,
   regions: WatermarkRegion[],
-  scaleRatio: number,
-  options: InpaintingOptions
+  options: InpaintingOptions,
+  pngLike: boolean
 ): Uint8Array {
   const cv = (window as any).cv;
 
@@ -668,44 +701,41 @@ function inpaintWithOpenCV(
     tempCanvas.height
   );
   const src = cv.matFromImageData(imgData);
-  const mask = new cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
-
-  regions.forEach((region) => {
-    const rect = new cv.Rect(
-      Math.floor(region.x * scaleRatio),
-      Math.floor(region.y * scaleRatio),
-      Math.floor(region.width * scaleRatio),
-      Math.floor(region.height * scaleRatio)
-    );
-    cv.rectangle(
-      mask,
-      rect.tl(),
-      rect.br(),
-      new cv.Scalar(255, 255, 255, 255),
-      -1
-    );
-  });
+  const glyphMask = buildGlyphMask(
+    imgData,
+    regions.map((region) =>
+      fractionToPixels(region, tempCanvas.width, tempCanvas.height)
+    )
+  );
+  const mask = new cv.Mat(src.rows, src.cols, cv.CV_8UC1);
+  mask.data.set(glyphMask);
 
   const dst = new cv.Mat();
   const inpaintFlag =
     options.method === 'telea' ? cv.INPAINT_TELEA : cv.INPAINT_NS;
-  cv.inpaint(src, mask, dst, options.radius, inpaintFlag);
-
-  cv.imshow(tempCanvas, dst);
+  const rgb = new cv.Mat();
+  cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+  cv.inpaint(rgb, mask, dst, options.radius, inpaintFlag);
+  const rgba = new cv.Mat();
+  cv.cvtColor(dst, rgba, cv.COLOR_RGB2RGBA);
+  cv.imshow(tempCanvas, rgba);
 
   src.delete();
   mask.delete();
   dst.delete();
+  rgb.delete();
+  rgba.delete();
 
-  return dataUrlToBytes(tempCanvas.toDataURL('image/jpeg', 0.95));
+  return dataUrlToBytes(
+    tempCanvas.toDataURL(pngLike ? 'image/png' : 'image/jpeg', 0.95)
+  );
 }
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || '';
 
 async function inpaintWithGemini(
   tempCanvas: HTMLCanvasElement,
-  regions: WatermarkRegion[],
-  scaleRatio: number
+  regions: WatermarkRegion[]
 ): Promise<Uint8Array> {
   // Build a binary mask matching the rendered canvas size: white = inpaint.
   const maskCanvas = document.createElement('canvas');
@@ -716,11 +746,16 @@ async function inpaintWithGemini(
   maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
   maskCtx.fillStyle = '#fff';
   regions.forEach((region) => {
+    const pixels = fractionToPixels(
+      region,
+      tempCanvas.width,
+      tempCanvas.height
+    );
     maskCtx.fillRect(
-      Math.floor(region.x * scaleRatio),
-      Math.floor(region.y * scaleRatio),
-      Math.floor(region.width * scaleRatio),
-      Math.floor(region.height * scaleRatio)
+      Math.floor(pixels.x),
+      Math.floor(pixels.y),
+      Math.ceil(pixels.width),
+      Math.ceil(pixels.height)
     );
   });
 
@@ -859,6 +894,7 @@ function setupLogoStep() {
 }
 
 function enterLogoStep(processedCount: number) {
+  editor.setEnabled(false);
   // Hide the selection settings; reveal the logo panel.
   document.getElementById('logo-panel')?.classList.remove('hidden');
   const processBtn = document.getElementById('process-btn');
@@ -870,9 +906,6 @@ function enterLogoStep(processedCount: number) {
       processedCount !== 1 ? 's' : ''
     }. Now add a logo (optional).</span>`;
   }
-
-  // Make the canvas non-crosshair during placement.
-  pageState.canvas?.classList.remove('cursor-crosshair');
 
   // Default to the LakeB2B preset preview.
   logoState.source = 'lakeb2b';
