@@ -180,6 +180,7 @@ async function generateI18nPages() {
       });
 
       fs.writeFileSync(path.join(langDir, file), dom.serialize());
+      dom.window.close();
     }
 
     const dom = new JSDOM(originalContent);
@@ -206,6 +207,7 @@ async function generateI18nPages() {
     document.head.appendChild(defaultLink);
 
     fs.writeFileSync(filePath, dom.serialize());
+    dom.window.close();
   }
 
   console.log('✅ i18n pages generated successfully!');
