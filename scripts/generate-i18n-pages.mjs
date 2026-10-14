@@ -180,6 +180,9 @@ async function generateI18nPages() {
       });
 
       fs.writeFileSync(path.join(langDir, file), dom.serialize());
+      dom.window.close();
+      // Release pending document tasks between iterations, not after the entire build.
+      await new Promise((resolve) => setImmediate(resolve));
     }
 
     const dom = new JSDOM(originalContent);
@@ -206,6 +209,8 @@ async function generateI18nPages() {
     document.head.appendChild(defaultLink);
 
     fs.writeFileSync(filePath, dom.serialize());
+    dom.window.close();
+    await new Promise((resolve) => setImmediate(resolve));
   }
 
   console.log('✅ i18n pages generated successfully!');

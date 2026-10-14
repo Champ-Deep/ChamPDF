@@ -112,6 +112,7 @@ async function handleFile(file: File) {
     return;
   }
 
+  cleanup();
   currentFile = file;
   updateFileDisplay(file);
   showLoader('Loading PDF...');
@@ -232,7 +233,12 @@ async function handleSave() {
   } catch (error) {
     hideLoader();
     console.error('Failed to save PDF:', error);
-    showAlert('Error', 'Failed to save the PDF. Please try again.');
+    showAlert(
+      'Error',
+      error instanceof Error
+        ? error.message
+        : 'Failed to save the PDF. Please try again.'
+    );
   }
 }
 
@@ -268,6 +274,6 @@ function resetToUpload() {
 }
 
 function cleanup() {
-  // Any cleanup needed (e.g., revoking object URLs)
+  signer?.destroy();
   signer = null;
 }
