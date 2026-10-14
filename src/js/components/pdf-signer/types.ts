@@ -2,6 +2,12 @@
  * Type definitions for the PDF Signer component
  */
 
+export interface TextStyle {
+  fontFamily: 'Helvetica' | 'TimesRoman' | 'Courier';
+  fontSize: number; // PDF points, independent of editor zoom
+  color: string;
+}
+
 export interface Annotation {
   id: string;
   type: 'signature' | 'date' | 'text' | 'initials' | 'checkbox';
@@ -12,8 +18,12 @@ export interface Annotation {
   height: number; // percentage of page height
   data: {
     imageUrl?: string; // for signature/initials
+    originalImageUrl?: string; // retained for non-destructive background cleanup
     text?: string; // for text/date
     checked?: boolean; // for checkbox
+    fontFamily?: TextStyle['fontFamily'];
+    fontSize?: number;
+    color?: string;
   };
 }
 
