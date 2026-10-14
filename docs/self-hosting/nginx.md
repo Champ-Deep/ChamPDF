@@ -121,7 +121,7 @@ http {
     # Increase buffer sizes
     # Reserve multipart overhead around a 100 MiB video file.
     client_max_body_size 101M;
-
+    
     # Worker connections
     worker_connections 2048;
 }

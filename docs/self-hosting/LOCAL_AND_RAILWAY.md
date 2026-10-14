@@ -72,28 +72,26 @@ Nginx) and **champdf-backend** (`backend/Dockerfile.railway`, FastAPI). Nginx pr
 3. Set environment variables (Dashboard → each service → Variables):
 
 **champdf-backend**
-
-| Variable                                                | Value                            | Notes                                                                                  |
-| ------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------- |
-| `ALLOWED_ORIGINS`                                       | `https://<your-frontend-domain>` | Comma-separated; your public frontend URL(s)                                           |
-| `DEVICE`                                                | `cpu`                            | or `cuda` on a GPU host                                                                |
-| `WHISPER_MODEL_SIZE`                                    | `base`                           | `tiny` for speed, `small`/`medium` for accuracy                                        |
-| `MAX_CONCURRENT_JOBS`                                   | `2`                              | Lower if memory-constrained                                                            |
-| `ENABLE_UPSCALE` / `ENABLE_CAPTIONS` / `ENABLE_INPAINT` | `true`                           | Turn features off to save memory                                                       |
-| `GEMINI_API_KEY`                                        | `...`                            | Optional. Enables AI Image Editor (prompt mode) + multimodal YouTube **Analyze video** |
-| `OPENROUTER_API_KEY`                                    | `sk-or-...`                      | Optional. Enables the Video Downloader's transcript → **AI summary**                   |
-| `VIDEO_GPU_PROVIDER`                                    | `replicate`                      | Optional. Enables **Best (GPU)** video removal. Default `none`                         |
-| `REPLICATE_API_TOKEN`                                   | `r8_...`                         | Required when `VIDEO_GPU_PROVIDER=replicate`                                           |
-| `REPLICATE_PROPAINTER_MODEL`                            | `jd7h/propainter`                | Optional. Override the hosted ProPainter model slug                                    |
-| `GPU_VIDEO_TIMEOUT` / `GPU_VIDEO_MAX_SECONDS`           | `600` / `120`                    | Optional. Wait cap and max clip length to offload                                      |
+| Variable | Value | Notes |
+|---|---|---|
+| `ALLOWED_ORIGINS` | `https://<your-frontend-domain>` | Comma-separated; your public frontend URL(s) |
+| `DEVICE` | `cpu` | or `cuda` on a GPU host |
+| `WHISPER_MODEL_SIZE` | `base` | `tiny` for speed, `small`/`medium` for accuracy |
+| `MAX_CONCURRENT_JOBS` | `2` | Lower if memory-constrained |
+| `ENABLE_UPSCALE` / `ENABLE_CAPTIONS` / `ENABLE_INPAINT` | `true` | Turn features off to save memory |
+| `GEMINI_API_KEY` | `...` | Optional. Enables AI Image Editor (prompt mode) + multimodal YouTube **Analyze video** |
+| `OPENROUTER_API_KEY` | `sk-or-...` | Optional. Enables the Video Downloader's transcript → **AI summary** |
+| `VIDEO_GPU_PROVIDER` | `replicate` | Optional. Enables **Best (GPU)** video removal. Default `none` |
+| `REPLICATE_API_TOKEN` | `r8_...` | Required when `VIDEO_GPU_PROVIDER=replicate` |
+| `REPLICATE_PROPAINTER_MODEL` | `jd7h/propainter` | Optional. Override the hosted ProPainter model slug |
+| `GPU_VIDEO_TIMEOUT` / `GPU_VIDEO_MAX_SECONDS` | `600` / `120` | Optional. Wait cap and max clip length to offload |
 
 **champdf-frontend**
-
-| Variable                        | Value                                          | Notes                                                                                                                                                                                                                                                           |
-| ------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BACKEND_URL`                   | `http://champdf-backend.railway.internal:8000` | Railway private networking; Nginx `proxy_pass` target                                                                                                                                                                                                           |
-| (do **not** set `VITE_API_URL`) | —                                              | Leave empty so the app uses relative `/api/...` through the proxy                                                                                                                                                                                               |
-| `VITE_CLERK_PUBLISHABLE_KEY`    | `pk_test_…` / `pk_live_…`                      | Optional. Enables Clerk sign-in. **Build-time** var — Vite bakes it in, so it must be set on the frontend service before the build. Publishable key is public/safe. Unset → falls back to the built-in auth modal. Get it from clerk.com → your app → API keys. |
+| Variable | Value | Notes |
+|---|---|---|
+| `BACKEND_URL` | `http://champdf-backend.railway.internal:8000` | Railway private networking; Nginx `proxy_pass` target |
+| (do **not** set `VITE_API_URL`) | — | Leave empty so the app uses relative `/api/...` through the proxy |
+| `VITE_CLERK_PUBLISHABLE_KEY` | `pk_test_…` / `pk_live_…` | Optional. Enables Clerk sign-in. **Build-time** var — Vite bakes it in, so it must be set on the frontend service before the build. Publishable key is public/safe. Unset → falls back to the built-in auth modal. Get it from clerk.com → your app → API keys. |
 
 4. Verify after deploy:
 
