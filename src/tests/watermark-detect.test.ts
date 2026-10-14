@@ -217,6 +217,31 @@ function makeRasterWhiteLockup(): Raster {
 }
 
 describe('buildGlyphMask (synthetic)', () => {
+  it('cannot seed from ink outside a non-cell-aligned selection', () => {
+    const image = makeRaster(80, 80);
+    for (const [x, y] of [
+      [16, 16],
+      [17, 22],
+      [22, 17],
+      [30, 22],
+      [22, 30],
+    ]) {
+      fillRect(image, x, y, 1, 1, 0);
+    }
+    const region = { x: 18, y: 18, width: 12, height: 12 };
+    expect(buildGlyphMask(image, [region]).some(Boolean)).toBe(false);
+
+    fillRect(image, 18, 18, 1, 1, 0);
+    const mask = buildGlyphMask(image, [region]);
+    for (let y = 0; y < 80; y++) {
+      for (let x = 0; x < 80; x++) {
+        expect(mask[y * 80 + x]).toBe(
+          (x - 18) ** 2 + (y - 18) ** 2 <= 4 ? 255 : 0
+        );
+      }
+    }
+  });
+
   it('keeps glyph strokes and does not fill the whole region', () => {
     const image = makeRaster(200, 120, 250);
     const region = { x: 40, y: 60, width: 100, height: 30 };
@@ -349,6 +374,24 @@ describe.skipIf(!hasFixtures)('detectWatermark (real fixtures)', () => {
       height: box.height * page.height,
     };
     const mask = buildGlyphMask(page, [region]);
+    let outside = 0;
+    for (let y = 0; y < page.height; y++) {
+      for (let x = 0; x < page.width; x++) {
+        if (!mask[y * page.width + x]) continue;
+        const dx = Math.max(
+          Math.floor(region.x) - x,
+          0,
+          x - (Math.ceil(region.x + region.width) - 1)
+        );
+        const dy = Math.max(
+          Math.floor(region.y) - y,
+          0,
+          y - (Math.ceil(region.y + region.height) - 1)
+        );
+        if (dx * dx + dy * dy > 4) outside++;
+      }
+    }
+    expect(outside).toBe(0);
     let ink = 0;
     const x1 = Math.floor(region.x + region.width);
     const y1 = Math.floor(region.y + region.height);

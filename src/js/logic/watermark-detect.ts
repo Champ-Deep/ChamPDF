@@ -61,7 +61,8 @@ const BR_Y_FRACTION = 0.85;
 const MAX_FRAMES = 6;
 
 /** Max luminance drift (0..255) for a pixel to count as stable. */
-const STABILITY_TOLERANCE = 4;
+// Raster antialiasing and translucent ink can drift slightly across pages.
+const STABILITY_TOLERANCE = 8;
 
 /** Min summed per-channel distance from the stable background colour. */
 const FOREGROUND_DISTANCE = 48;
@@ -623,10 +624,9 @@ export function buildGlyphMask(
   for (const region of regions) {
     const rx0 = Math.max(0, Math.floor(region.x));
     const ry0 = Math.max(0, Math.floor(region.y));
-    const rx1 = Math.min(width - 1, Math.ceil(region.x + region.width));
-    const ry1 = Math.min(height - 1, Math.ceil(region.y + region.height));
+    const rx1 = Math.min(width - 1, Math.ceil(region.x + region.width) - 1);
+    const ry1 = Math.min(height - 1, Math.ceil(region.y + region.height) - 1);
     if (rx1 < rx0 || ry1 < ry0) continue;
-    const cellsX = Math.ceil(width / BACKGROUND_CELL);
     const bucket: number[] = [];
     for (
       let cy = Math.floor(ry0 / BACKGROUND_CELL);
@@ -640,8 +640,8 @@ export function buildGlyphMask(
       ) {
         bucket.length = 0;
         const ex = Math.min(ry1, (cy + 1) * BACKGROUND_CELL - 1);
-        const sx = cx * BACKGROUND_CELL;
-        const sy = cy * BACKGROUND_CELL;
+        const sx = Math.max(rx0, cx * BACKGROUND_CELL);
+        const sy = Math.max(ry0, cy * BACKGROUND_CELL);
         for (let y = sy; y <= ex; y++) {
           const rowEnd = Math.min(rx1, (cx + 1) * BACKGROUND_CELL - 1);
           for (let x = sx; x <= rowEnd; x++) {
