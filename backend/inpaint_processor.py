@@ -140,7 +140,7 @@ async def _inpaint_with_gemini(
     prompt = user_prompt or default_prompt
 
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    model = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image-preview")
+    model = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
 
     response = client.models.generate_content(
         model=model,
@@ -360,7 +360,7 @@ async def edit_image_with_prompt(
         from google.genai import types
 
         client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-        model = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image-preview")
+        model = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
 
         response = client.models.generate_content(
             model=model,

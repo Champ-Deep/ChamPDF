@@ -1,9 +1,12 @@
 export interface WatermarkRegion {
+  /** Top-left origin and size, normalized to page fractions in [0, 1]. */
   x: number;
   y: number;
   width: number;
   height: number;
   pageIndex: number;
+  /** Document-local repeating glyph evidence. Cleared on manual adjustment. */
+  autoMaskId?: number;
 }
 
 export interface RemoveWatermarkState {
@@ -13,9 +16,6 @@ export interface RemoveWatermarkState {
   totalPages: number;
   scale: number;
   regions: WatermarkRegion[];
-  isDrawing: boolean;
-  startX: number;
-  startY: number;
   canvas: HTMLCanvasElement | null;
   ctx: CanvasRenderingContext2D | null;
 }

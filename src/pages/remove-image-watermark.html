@@ -150,18 +150,19 @@
             Step 2: Select Watermark Area
           </h3>
 
-          <div class="relative inline-block">
-            <!-- Main canvas showing image -->
+          <div class="relative inline-block max-w-full">
+            <!-- Main canvas showing image (CSS-scaled to the card width) -->
             <canvas
               id="preview-canvas"
-              class="border-2 border-gray-700 rounded-lg"
+              class="block max-w-full h-auto border-2 border-gray-700 rounded-lg"
             ></canvas>
 
-            <!-- Overlay canvas for selection drawing -->
+            <!-- Overlay canvas for the selection editor; tracks the preview size -->
             <canvas
               id="selection-overlay"
-              class="absolute top-0 left-0 border-2 border-transparent"
-              style="cursor: crosshair"
+              class="absolute inset-0 w-full h-full border-2 border-transparent select-none"
+              style="cursor: crosshair; touch-action: none"
+              aria-label="Watermark selection editor"
             ></canvas>
 
             <!-- Draggable logo preview (shown when a logo is selected) -->
@@ -182,11 +183,13 @@
 
           <p class="text-sm text-gray-400 mt-3">
             <i data-lucide="info" class="w-4 h-4 inline"></i>
-            Drag to select the watermark area you want to remove
+            Drag on the image to draw a box around the watermark. Drag a box to
+            move it, pull its corner or edge handles to resize it, and draw
+            again to add another box. Delete removes the highlighted box.
           </p>
 
           <!-- Selection controls -->
-          <div class="mt-4 flex flex-wrap gap-3">
+          <div class="mt-4 flex flex-wrap items-center gap-3">
             <button
               id="auto-detect-btn"
               class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
@@ -195,12 +198,23 @@
               Auto-detect watermark
             </button>
             <button
+              id="delete-box-btn"
+              disabled
+              class="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
+            >
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+              Remove selected box
+            </button>
+            <button
               id="clear-selection-btn"
               class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
             >
               <i data-lucide="x" class="w-4 h-4"></i>
-              Clear Selection
+              Clear all
             </button>
+            <span id="selection-count" class="text-sm text-gray-400"
+              >No area selected yet</span
+            >
           </div>
         </div>
 
