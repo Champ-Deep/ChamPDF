@@ -107,5 +107,5 @@ curl -X POST $BASE/api/v1/admin/keys \
 curl $BASE/api/v1/whoami -H "Authorization: Bearer champdf_live_..."
 ```
 
-Full API reference: [`backend/API_V1.md`](../backend/API_V1.md) ·
+Full API reference: [`backend/API_V1.md`](https://github.com/Champ-Deep/ChamPDF/blob/main/backend/API_V1.md) ·
 public docs: `/developers.html` and `/llms.txt` on the deployed frontend.

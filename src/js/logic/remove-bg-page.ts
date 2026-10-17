@@ -1,6 +1,7 @@
 import { createIcons, icons } from 'lucide';
 import { showAlert } from '../ui.js';
 import { formatBytes, downloadFile } from '../utils/helpers.js';
+import { readProcessedMedia } from '../utils/media-response.js';
 import JSZip from 'jszip';
 import {
   initDropZoneAnimation,
@@ -201,14 +202,7 @@ async function handleProcess() {
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ detail: 'Unknown error' }));
-        throw new Error(errorData.detail || `Server error: ${response.status}`);
-      }
-
-      const blob = await response.blob();
+      const blob = await readProcessedMedia(response, 'image/png', '10MB');
       state.results.push({
         originalFile: file,
         blob: blob,
