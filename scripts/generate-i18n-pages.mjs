@@ -192,6 +192,8 @@ async function generateI18nPages() {
       // Release the DOM. Without this every page x language pair stays reachable
       // for the whole run and the build OOMs at the 4GB cap in package.json.
       dom.window.close();
+      // Release pending document tasks between iterations, not after the entire build.
+      await new Promise((resolve) => setImmediate(resolve));
     }
 
     const dom = new JSDOM(originalContent);
@@ -219,6 +221,7 @@ async function generateI18nPages() {
 
     fs.writeFileSync(filePath, dom.serialize());
     dom.window.close();
+    await new Promise((resolve) => setImmediate(resolve));
   }
 
   console.log('✅ i18n pages generated successfully!');

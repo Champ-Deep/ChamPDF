@@ -220,15 +220,13 @@ async function displayMetadata() {
 
     // Interactive Form Fields Section
     const fieldsSection = createSection('Interactive Form Fields');
-    if (fieldObjects && Object.keys(fieldObjects).length > 0) {
-      for (const fieldName in fieldObjects) {
-        const field = (
-          fieldObjects as unknown as Record<
-            string,
-            Array<{ fieldValue?: unknown }>
-          >
-        )[fieldName][0];
-        const value = field.fieldValue || '- Not Set -';
+    if (fieldObjects && fieldObjects.size > 0) {
+      for (const [fieldName, fieldList] of fieldObjects) {
+        const field = fieldList[0];
+        const value =
+          field && 'value' in field
+            ? (field.value ?? '- Not Set -')
+            : '- Not Set -';
         fieldsSection.ul.appendChild(createListItem(fieldName, String(value)));
       }
     } else {

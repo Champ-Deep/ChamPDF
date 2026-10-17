@@ -105,3 +105,11 @@ ChamPDF offers **50+ tools** for working with PDFs. All tools run entirely in yo
 | **Fix Page Size**      | Standardize all pages to a uniform size.                           |
 | **Page Dimensions**    | Analyze page size, orientation, and units.                         |
 | **Remove Restrictions**| Remove password protection and security restrictions.              |
+
+### Sign PDF: text boxes and image backgrounds
+
+In Sign PDF, choose Text Box and type directly on the page. Select the box to set its font (sans serif, serif or monospace), size (6 to 72 PDF points) and color. Drag the border to move it or the corner to resize it. These settings survive page navigation and zoom and are embedded in the downloaded PDF. If the text does not fit, enlarge the box or reduce the font size before saving. The built-in PDF fonts support Latin text; unsupported characters produce an explicit error rather than a misleading successful download.
+
+Choose image to upload a PNG or JPEG signature or logo, up to 10 MB and 16 million pixels. Select the image and use Remove light background to make white or light pixels transparent. Increase the tolerance to remove darker gray pixels; Restore original image undoes the change. Processing stays in the browser, needs no API key and does not change saved signature-library images. Colored backgrounds and pale artwork may require a different tool, since cleanup applies to all matching light pixels.
+
+For a logo or watermark already embedded in the PDF, use the separate Remove an embedded PDF logo link to open the existing PDF Watermark Remover, then sign the resulting PDF. Image transparency cleanup does not delete content from the source PDF. Sign PDF adds visible electronic signatures, not certificate-based cryptographic signatures.
