@@ -55,6 +55,17 @@ Railway (IPv6-only private DNS) — non-Railway hosts must set
 Frontend build vars: `VITE_API_URL` (baked at build time), optional
 `VITE_CLERK_PUBLISHABLE_KEY`.
 
+**ChampPDF Sign** (`/sign`, `/s/<token>`, `/api/sign/*`) works with nothing
+extra set (log-only mail, local write-once storage under `/app/data/sign`,
+a generated self-signed seal, admin-token senders). Before any external send
+configure `RESEND_API_KEY` + `SIGN_EMAIL_FROM` (dedicated
+`sign.championsmail.com` subdomain), `SIGN_SEAL_P12_B64` +
+`SIGN_SEAL_P12_PASSWORD`, `SIGN_ENTITY_CIN` / `SIGN_ENTITY_ADDRESS`,
+`SIGN_PUBLIC_BASE_URL`, and optionally `SIGN_STORAGE_BUCKET` (R2 / S3) and
+`CHAMPBEAM_API_URL`. Senders are Clerk users whose email domain is in
+`SIGN_SENDER_EMAIL_DOMAINS` (default `championsmail.com`). Full reference:
+[`docs/sign/README.md`](./sign/README.md).
+
 **Persistent storage (don't skip):** mount a volume at `/app/data` — the API
 key store (`champdf.db`, SQLite) lives there. Without it every redeploy wipes
 all issued keys. Everything else is stateless.

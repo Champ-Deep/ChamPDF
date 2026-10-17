@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChampPDF Sign | Admin portal</title>
+    <meta
+      name="description"
+      content="Admin portal for ChampPDF Sign: every document, recipient and audit event across Champions Group, with geo context for each recorded IP, template access control, and the send-outs still awaiting a signature."
+    />
+    <meta name="robots" content="noindex, follow" />
+    <link href="/src/css/styles.css" rel="stylesheet" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  </head>
+
+  <body class="antialiased bg-gray-900">
+    {{> navbar }}
+
+    <div id="admin-portal" class="min-h-screen py-10 px-4 bg-gray-900">
+      <div class="max-w-7xl mx-auto text-gray-200">
+        <button
+          id="back-to-tools"
+          class="flex items-center gap-2 text-orange-400 hover:text-orange-300 mb-6 font-semibold"
+        >
+          <i data-lucide="arrow-left" class="cursor-pointer"></i>
+          <span class="cursor-pointer">Back to Tools</span>
+        </button>
+
+        <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+          <div>
+            <h1 class="text-3xl font-bold text-white">
+              Cham<span class="text-orange-500">PDF</span> Sign Admin
+            </h1>
+            <p class="text-gray-400 mt-1 max-w-2xl">
+              Complete visibility across every send-out: documents, recipients,
+              the hash-chained audit log, and geo context for each recorded IP.
+              Control which templates senders can use, and act on the send-outs
+              that still need a signature.
+            </p>
+          </div>
+          <div id="sign-status" class="text-xs text-gray-500 space-x-2"></div>
+        </div>
+
+        <!-- Auth gate -->
+        <section
+          id="auth-gate"
+          class="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-6 hidden"
+        >
+          <div id="auth-clerk" class="hidden">
+            <p class="text-white font-medium mb-1">Sign in as an admin</p>
+            <p class="text-gray-400 text-sm mb-4">
+              The admin portal is for Champions Group admins and legal. Use your
+              work account.
+            </p>
+            <button
+              id="auth-sign-in"
+              class="bg-orange-600 hover:bg-orange-500 text-white font-medium px-5 py-2.5 rounded-lg"
+            >
+              Sign in
+            </button>
+          </div>
+          <div id="auth-dev" class="hidden">
+            <p class="text-white font-medium mb-1">Developer mode</p>
+            <p class="text-gray-400 text-sm mb-4">
+              Clerk is not configured on this build, so the portal authenticates
+              with the backend admin token (<code class="text-orange-400"
+                >CHAMPDF_ADMIN_TOKEN</code
+              >). Stored for this tab only.
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <input
+                id="auth-admin-token"
+                type="password"
+                placeholder="Admin token"
+                autocomplete="off"
+                class="flex-1 min-w-[240px] px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+              <button
+                id="auth-admin-save"
+                class="bg-orange-600 hover:bg-orange-500 text-white font-medium px-5 py-2 rounded-lg"
+              >
+                Use token
+              </button>
+            </div>
+          </div>
+          <p id="auth-feedback" class="hidden mt-3 text-sm text-red-300"></p>
+        </section>
+
+        <!-- Portal (visible after auth) -->
+        <div id="portal" class="hidden">
+          <div class="flex flex-wrap items-center gap-2 mb-6">
+            <button
+              data-tab="dashboard"
+              class="tab-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 font-medium px-4 py-2 rounded-lg"
+            >
+              Dashboard
+            </button>
+            <button
+              data-tab="documents"
+              class="tab-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 font-medium px-4 py-2 rounded-lg"
+            >
+              Documents
+            </button>
+            <button
+              data-tab="needs-resend"
+              class="tab-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 font-medium px-4 py-2 rounded-lg"
+            >
+              Needs resend
+              <span
+                id="needs-resend-badge"
+                class="ml-1 inline-block rounded-full bg-orange-500/20 text-orange-300 px-2 py-0.5 text-[11px] font-bold"
+                >0</span
+              >
+            </button>
+            <button
+              data-tab="templates"
+              class="tab-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 font-medium px-4 py-2 rounded-lg"
+            >
+              Templates
+            </button>
+            <button
+              data-tab="audit"
+              class="tab-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 font-medium px-4 py-2 rounded-lg"
+            >
+              Audit log
+            </button>
+            <span id="role-chip" class="ml-auto text-xs text-gray-500"></span>
+          </div>
+
+          <!-- Dashboard -->
+          <section id="tab-dashboard" class="tab-panel hidden">
+            <div
+              id="dashboard-stats"
+              class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6"
+            ></div>
+            <div id="dashboard-status-breakdown" class="mb-6"></div>
+            <div id="dashboard-outstanding" class="mb-6"></div>
+            <p id="dashboard-geo" class="text-xs text-gray-500"></p>
+          </section>
+
+          <!-- Documents -->
+          <section id="tab-documents" class="tab-panel hidden">
+            <div class="flex flex-wrap gap-2 mb-4">
+              <input
+                id="doc-search"
+                type="search"
+                placeholder="Search title, sender, recipient email"
+                class="flex-1 min-w-[240px] px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+              <select
+                id="doc-status"
+                class="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              >
+                <option value="">All statuses</option>
+                <option>draft</option>
+                <option>sent</option>
+                <option>viewed</option>
+                <option>signed</option>
+                <option>executed</option>
+                <option>voided</option>
+                <option>expired</option>
+              </select>
+            </div>
+            <div id="documents-table" class="overflow-x-auto"></div>
+          </section>
+
+          <!-- Needs resend -->
+          <section id="tab-needs-resend" class="tab-panel hidden">
+            <p class="text-gray-400 text-sm mb-4">
+              Send-outs that still await a signature. Resending rotates the link
+              token (the old link dies) and emails a fresh invitation.
+            </p>
+            <div id="needs-resend-list" class="space-y-4"></div>
+          </section>
+
+          <!-- Templates -->
+          <section id="tab-templates" class="tab-panel hidden">
+            <p class="text-gray-400 text-sm mb-4">
+              Switch which templates senders can access. Deactivated templates
+              stay in the registry and keep their audit history; they just
+              cannot be used for a new send-out.
+            </p>
+            <div id="templates-table" class="overflow-x-auto"></div>
+          </section>
+
+          <!-- Audit log -->
+          <section id="tab-audit" class="tab-panel hidden">
+            <p class="text-gray-400 text-sm mb-4">
+              The append-only, hash-chained event log across every document.
+              Each row records the actor, the raw IP and, where MaxMind is
+              configured, its geo context.
+            </p>
+            <div id="audit-table" class="overflow-x-auto"></div>
+          </section>
+
+          <!-- Document detail -->
+          <section id="doc-detail" class="hidden mb-6"></section>
+        </div>
+      </div>
+    </div>
+
+    {{> footer }}
+
+    <script type="module" src="/src/js/utils/lucide-init.ts"></script>
+    <script type="module" src="/src/js/utils/full-width.ts"></script>
+    <script type="module" src="/src/js/utils/simple-mode-footer.ts"></script>
+    <script type="module" src="/src/version.ts"></script>
+    <script type="module" src="/src/js/logic/sign-admin-page.ts"></script>
+    <script type="module" src="/src/js/mobileMenu.ts"></script>
+    <script type="module" src="/src/js/main.ts"></script>
+  </body>
+</html>
