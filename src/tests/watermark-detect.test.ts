@@ -358,7 +358,8 @@ describe.skipIf(!hasFixtures)('detectWatermark (real fixtures)', () => {
       expect(box.x).toBeGreaterThan(0.65);
       expect(box.y).toBeGreaterThan(0.85);
     }
-  });
+    // 1.4s alone, over 10s under full-suite worker contention.
+  }, 60_000);
 
   it('builds a glyph mask over the detected watermark region', () => {
     const page = fixtures['new-page1'];

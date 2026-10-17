@@ -109,7 +109,8 @@ describe('generate-i18n-pages', () => {
     expect(de).toContain('href="https://example.test/de/merge-pdf"');
     // Internal links get the language prefix; external/asset ones do not.
     expect(de).toContain('href="/de/merge-pdf"');
-  });
+    // 3s alone (spawns a node child), over 10s under full-suite worker contention.
+  }, 120_000);
 
   it('leaves the English-only signer page out of the language copies', () => {
     // sign-document.html is served via the /s/<token> rewrite and is never
