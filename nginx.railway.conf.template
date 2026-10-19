@@ -37,7 +37,7 @@ http {
         # =================================================================
         # API REVERSE PROXY - Forward /api/* requests to FastAPI backend
         # =================================================================
-        location /api/ {
+        location ^~ /api/ {
             proxy_pass ${BACKEND_URL};
             proxy_http_version 1.1;
 
@@ -75,8 +75,9 @@ http {
             proxy_ssl_server_name on;
             proxy_redirect off;
 
-            # Allow large file uploads (100MB for videos)
-            client_max_body_size 100M;
+            # FastAPI enforces 100 MiB video / 10 MiB image file limits.
+            # Reserve 1 MiB for multipart boundaries and form fields.
+            client_max_body_size 101M;
         }
 
         # =================================================================
@@ -175,6 +176,19 @@ http {
         }
 
         # Default SPA routing - all other requests fall back to index.html
+        # ChampPDF Sign: pretty URLs for the console and the signing links.
+        # /s/<token> carries a capability token; the page itself reads it.
+        location = /sign {
+            try_files /sign.html =404;
+            add_header Cache-Control "no-store";
+        }
+        location ~ "^/s/[A-Za-z0-9_-]{32,64}$" {
+            try_files /sign-document.html =404;
+            add_header Cache-Control "no-store";
+            add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+            add_header Referrer-Policy "no-referrer" always;
+        }
+
         location / {
             try_files $uri $uri/ $uri.html /index.html;
             expires 5m;

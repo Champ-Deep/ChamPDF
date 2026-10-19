@@ -3,11 +3,15 @@
  */
 
 import type { Annotation } from './types.js';
+import { getTextStyle, TEXT_FONTS } from './text-style.js';
 
 export class AnnotationLayer {
   private container: HTMLElement;
   private annotations: Map<string, HTMLElement> = new Map();
   private selectedId: string | null = null;
+  private scale = 1;
+  private events = new AbortController();
+  private containerEvents = new AbortController();
   private onUpdate: (annotation: Annotation) => void;
   private onSelect: (id: string | null) => void;
 
@@ -24,11 +28,15 @@ export class AnnotationLayer {
 
   private setupContainerEvents() {
     // Deselect when clicking container background
-    this.container.addEventListener('click', (e) => {
-      if (e.target === this.container) {
-        this.select(null);
-      }
-    });
+    this.container.addEventListener(
+      'click',
+      (e) => {
+        if (e.target === this.container) {
+          this.select(null);
+        }
+      },
+      { signal: this.containerEvents.signal }
+    );
   }
 
   addAnnotation(annotation: Annotation): HTMLElement {
@@ -61,11 +69,10 @@ export class AnnotationLayer {
         el.innerHTML = `<img src="${annotation.data.imageUrl}" class="w-full h-full object-contain pointer-events-none" alt="Initials">`;
       } else {
         // Render initials as editable text input in signature style
-        const initials = annotation.data.text || '';
         el.innerHTML = `
           <div class="w-full h-full flex items-center justify-center bg-white/90 border-2 border-indigo-400 rounded">
             <input type="text"
-              value="${initials}"
+
               placeholder="AB"
               maxlength="4"
               class="w-full h-full text-center text-2xl bg-transparent border-none outline-none text-indigo-800 pointer-events-auto uppercase"
@@ -75,6 +82,10 @@ export class AnnotationLayer {
         `;
         // Handle input changes
         const input = el.querySelector('input');
+        if (input) {
+          input.value = annotation.data.text || '';
+          input.setAttribute('aria-label', 'Initials');
+        }
         input?.addEventListener('input', (e) => {
           annotation.data.text = (
             e.target as HTMLInputElement
@@ -85,16 +96,19 @@ export class AnnotationLayer {
         input?.addEventListener('mousedown', (e) => e.stopPropagation());
       }
     } else if (annotation.type === 'date') {
-      const dateText = annotation.data.text || new Date().toLocaleDateString();
       el.innerHTML = `
         <div class="w-full h-full flex items-center justify-center bg-yellow-100/80 border border-yellow-400 rounded">
           <input type="text"
-            value="${dateText}"
+
             class="w-full h-full text-center bg-transparent border-none outline-none text-gray-800 pointer-events-auto text-sm"
           >
         </div>
       `;
       const input = el.querySelector('input');
+      if (input) {
+        input.value = annotation.data.text ?? new Date().toLocaleDateString();
+        input.setAttribute('aria-label', 'Date');
+      }
       input?.addEventListener('input', (e) => {
         annotation.data.text = (e.target as HTMLInputElement).value;
         this.onUpdate(annotation);
@@ -102,21 +116,29 @@ export class AnnotationLayer {
       input?.addEventListener('click', (e) => e.stopPropagation());
       input?.addEventListener('mousedown', (e) => e.stopPropagation());
     } else if (annotation.type === 'text') {
-      const textVal = annotation.data.text || '';
       el.innerHTML = `
         <div class="w-full h-full flex items-center bg-blue-100/80 border border-blue-400 rounded">
           <textarea
             placeholder="Type text here..."
             class="w-full h-full p-1 bg-transparent border-none outline-none text-gray-800 pointer-events-auto resize-none text-sm leading-tight"
-          >${textVal}</textarea>
+            aria-label="Text box content"
+          ></textarea>
         </div>
       `;
       const input = el.querySelector('textarea');
+      if (input) {
+        input.value = annotation.data.text || '';
+        this.applyTextStyle(input, annotation);
+        input.addEventListener('focus', () => this.select(annotation.id));
+      }
       input?.addEventListener('input', (e) => {
         annotation.data.text = (e.target as HTMLTextAreaElement).value;
         this.onUpdate(annotation);
       });
-      input?.addEventListener('click', (e) => e.stopPropagation());
+      input?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.select(annotation.id);
+      });
       input?.addEventListener('mousedown', (e) => e.stopPropagation());
     } else if (annotation.type === 'checkbox') {
       const checked = annotation.data.checked ? 'checked' : '';
@@ -186,8 +208,12 @@ export class AnnotationLayer {
     };
 
     el.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
+    document.addEventListener('mousemove', onMouseMove, {
+      signal: this.events.signal,
+    });
+    document.addEventListener('mouseup', onMouseUp, {
+      signal: this.events.signal,
+    });
   }
 
   private makeSelectable(el: HTMLElement, annotation: Annotation) {
@@ -248,31 +274,39 @@ export class AnnotationLayer {
       e.preventDefault();
     });
 
-    document.addEventListener('mousemove', (e) => {
-      if (!isResizing) return;
-      const containerRect = this.container.getBoundingClientRect();
-      const dw = ((e.clientX - startX) / containerRect.width) * 100;
-      const dh = ((e.clientY - startY) / containerRect.height) * 100;
+    document.addEventListener(
+      'mousemove',
+      (e) => {
+        if (!isResizing) return;
+        const containerRect = this.container.getBoundingClientRect();
+        const dw = ((e.clientX - startX) / containerRect.width) * 100;
+        const dh = ((e.clientY - startY) / containerRect.height) * 100;
 
-      annotation.width = Math.max(
-        5,
-        Math.min(100 - annotation.x, startWidth + dw)
-      );
-      annotation.height = Math.max(
-        3,
-        Math.min(100 - annotation.y, startHeight + dh)
-      );
+        annotation.width = Math.max(
+          5,
+          Math.min(100 - annotation.x, startWidth + dw)
+        );
+        annotation.height = Math.max(
+          3,
+          Math.min(100 - annotation.y, startHeight + dh)
+        );
 
-      el.style.width = `${annotation.width}%`;
-      el.style.height = `${annotation.height}%`;
-    });
+        el.style.width = `${annotation.width}%`;
+        el.style.height = `${annotation.height}%`;
+      },
+      { signal: this.events.signal }
+    );
 
-    document.addEventListener('mouseup', () => {
-      if (isResizing) {
-        isResizing = false;
-        this.onUpdate(annotation);
-      }
-    });
+    document.addEventListener(
+      'mouseup',
+      () => {
+        if (isResizing) {
+          isResizing = false;
+          this.onUpdate(annotation);
+        }
+      },
+      { signal: this.events.signal }
+    );
   }
 
   updateAnnotationContent(annotation: Annotation) {
@@ -287,6 +321,8 @@ export class AnnotationLayer {
   }
 
   clear() {
+    this.events.abort();
+    this.events = new AbortController();
     this.annotations.forEach((el) => el.remove());
     this.annotations.clear();
     this.selectedId = null;
@@ -294,5 +330,32 @@ export class AnnotationLayer {
 
   getSelectedId(): string | null {
     return this.selectedId;
+  }
+
+  setScale(scale: number) {
+    this.scale = scale;
+  }
+
+  destroy() {
+    this.clear();
+    this.containerEvents.abort();
+  }
+
+  private applyTextStyle(input: HTMLTextAreaElement, annotation: Annotation) {
+    const style = getTextStyle(annotation.data);
+    input.style.fontSize = `${style.fontSize * this.scale}px`;
+    input.style.fontFamily = TEXT_FONTS[style.fontFamily].css;
+    input.style.color = style.color;
+    input.style.lineHeight = '1.2';
+    input.style.padding = `${2 * this.scale}px`;
+    input.style.overflowWrap = 'anywhere';
+    input.style.whiteSpace = 'pre-wrap';
+  }
+
+  updateTextStyle(annotation: Annotation) {
+    const input = this.annotations
+      .get(annotation.id)
+      ?.querySelector('textarea');
+    if (input) this.applyTextStyle(input, annotation);
   }
 }

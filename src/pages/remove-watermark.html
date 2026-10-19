@@ -154,8 +154,9 @@
               <span data-i18n="upload.orDragAndDrop">or drag and drop</span>
             </p>
             <p class="text-xs text-gray-500">PDF file</p>
-            <p class="text-xs text-gray-500" data-i18n="upload.filesNeverLeave">
-              Your files never leave your device.
+            <p class="text-xs text-gray-400">
+              Local tools keep files on-device. Optional server tools upload
+              pages.
             </p>
           </div>
           <input
@@ -178,7 +179,7 @@
                 <span
                   class="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded"
                 >
-                  Drag to select
+                  Draw, move, resize
                 </span>
               </div>
               <div class="flex items-center gap-2 text-sm text-gray-300">
@@ -204,10 +205,15 @@
               class="relative bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center"
               style="min-height: 400px"
             >
-              <canvas
-                id="pdf-canvas"
-                class="max-w-full cursor-crosshair border border-gray-600"
-              ></canvas>
+              <canvas id="pdf-canvas" class="max-w-full block"></canvas>
+              <div
+                id="region-overlay"
+                class="absolute cursor-crosshair"
+                tabindex="0"
+                role="group"
+                aria-label="Watermark regions. Drag to draw or move. Select a box to resize. Delete removes it; Escape cancels."
+                style="touch-action: none; user-select: none"
+              ></div>
               <img
                 id="logo-overlay"
                 alt="logo preview"
@@ -274,7 +280,11 @@
               </div>
             </div>
 
-            <div class="flex gap-2">
+            <p class="text-sm text-gray-300">
+              Drag empty space to draw. Drag a box to move, or its handles to
+              resize. Delete removes the selected box. Escape cancels a drag.
+            </p>
+            <div class="flex flex-wrap gap-2">
               <button
                 id="clear-selections"
                 class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
@@ -292,10 +302,17 @@
               <button
                 id="auto-detect-btn"
                 class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors"
-                title="Use AI to find watermarks on this page automatically"
+                title="Find NotebookLM or Gemini Notebook marks on-device and select the same region on every page"
               >
                 <i data-lucide="sparkles" class="w-4 h-4 inline mr-1"></i>
-                Auto-detect
+                Auto-detect (on-device)
+              </button>
+              <button
+                id="server-detect-btn"
+                class="hidden px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+                title="Upload this page to the server for Gemini detection"
+              >
+                Try server detection (uploads page)
               </button>
             </div>
           </div>
@@ -316,7 +333,7 @@
             </h3>
             <p class="text-sm text-gray-400">
               Watermarks removed. Pick a logo, <strong>drag it</strong> on the
-              preview to position it, and set its size — it will be applied to
+              preview to position it, and set its size. It will be applied to
               <strong>all pages</strong>.
             </p>
 
@@ -621,8 +638,8 @@
             <i data-lucide="chevron-down" class="w-5 h-5"></i>
           </summary>
           <p class="mt-3 text-gray-400">
-            Absolutely! All processing happens in your browser using OpenCV.js.
-            Your files never leave your device, ensuring complete privacy.
+            On-device detection and local removal run in your browser. Only
+            optional server detection or Gemini removal uploads page images.
           </p>
         </details>
         <details class="bg-gray-800 p-5 rounded-lg border border-gray-700">

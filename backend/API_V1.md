@@ -50,7 +50,18 @@ Optional features degrade cleanly: if the backing engine isn't installed
 `/api/v1/capabilities` reports it as `false` — clients can feature-detect.
 
 Auto-generated docs at `GET /docs` (Swagger UI) and `GET /openapi.json`.
-v1 endpoints show under the **v1** tag.
+v1 endpoints show under the **v1** tag. The spec declares the production server
+URL and both auth schemes (`apiKey` bearer, `adminToken` header), so it imports
+into an API client as a working request set.
+
+## Postman
+
+A curated collection lives in [`postman/`](../postman/): 31 requests in 8
+folders, with per-request documentation, tests, saved response examples, and the
+Salesforce signing pipeline as a runnable folder in call order. Import it in
+preference to `openapi.json` — the spec also describes the 17 unversioned
+`/api/*` endpoints that back the web app, which integrators should not build
+against. Setup, publishing and workspace conventions: [`postman/README.md`](../postman/README.md).
 
 ## Salesforce integration
 
