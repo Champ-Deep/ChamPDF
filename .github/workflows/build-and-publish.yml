@@ -73,12 +73,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v4.6.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4.6.0
         with:
@@ -109,7 +103,6 @@ jobs:
           build-args: |
             SIMPLE_MODE=${{ matrix.mode.simple_mode }}
           tags: |
-            champdf/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }}-amd64
             ghcr.io/${{ github.repository_owner }}/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }}-amd64
           platforms: linux/amd64
           cache-from: type=gha,scope=amd64-${{ matrix.mode.name }}
@@ -123,7 +116,6 @@ jobs:
           build-args: |
             SIMPLE_MODE=${{ matrix.mode.simple_mode }}
           tags: |
-            champdf/champdf${{ matrix.mode.suffix }}:edge-amd64
             ghcr.io/${{ github.repository_owner }}/champdf${{ matrix.mode.suffix }}:edge-amd64
           platforms: linux/amd64
           cache-from: type=gha,scope=amd64-${{ matrix.mode.name }}
@@ -149,12 +141,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v4.6.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4.6.0
@@ -186,7 +172,6 @@ jobs:
           build-args: |
             SIMPLE_MODE=${{ matrix.mode.simple_mode }}
           tags: |
-            champdf/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }}-arm64
             ghcr.io/${{ github.repository_owner }}/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }}-arm64
           platforms: linux/arm64
           cache-from: type=gha,scope=arm64-${{ matrix.mode.name }}
@@ -200,7 +185,6 @@ jobs:
           build-args: |
             SIMPLE_MODE=${{ matrix.mode.simple_mode }}
           tags: |
-            champdf/champdf${{ matrix.mode.suffix }}:edge-arm64
             ghcr.io/${{ github.repository_owner }}/champdf${{ matrix.mode.suffix }}:edge-arm64
           platforms: linux/arm64
           cache-from: type=gha,scope=arm64-${{ matrix.mode.name }}
@@ -221,12 +205,6 @@ jobs:
           - name: simple
             suffix: "-simple"
     steps:
-      - name: Login to DockerHub
-        uses: docker/login-action@v4.6.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4.6.0
         with:
@@ -252,19 +230,6 @@ jobs:
       - name: Create and push manifest (release)
         if: steps.version.outputs.is_release == 'true'
         run: |
-          # DockerHub manifests
-          docker buildx imagetools create -t champdf/champdf${{ matrix.mode.suffix }}:latest \
-            champdf/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }}-amd64 \
-            champdf/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }}-arm64
-          
-          docker buildx imagetools create -t champdf/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }} \
-            champdf/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }}-amd64 \
-            champdf/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }}-arm64
-          
-          docker buildx imagetools create -t champdf/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version_without_v }} \
-            champdf/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }}-amd64 \
-            champdf/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }}-arm64
-          
           # GHCR manifests
           docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/champdf${{ matrix.mode.suffix }}:latest \
             ghcr.io/${{ github.repository_owner }}/champdf${{ matrix.mode.suffix }}:${{ steps.version.outputs.version }}-amd64 \
@@ -281,15 +246,6 @@ jobs:
       - name: Create and push manifest (edge)
         if: steps.version.outputs.is_release == 'false'
         run: |
-          # DockerHub manifests
-          docker buildx imagetools create -t champdf/champdf${{ matrix.mode.suffix }}:edge \
-            champdf/champdf${{ matrix.mode.suffix }}:edge-amd64 \
-            champdf/champdf${{ matrix.mode.suffix }}:edge-arm64
-          
-          docker buildx imagetools create -t champdf/champdf${{ matrix.mode.suffix }}:sha-${{ steps.version.outputs.short_sha }} \
-            champdf/champdf${{ matrix.mode.suffix }}:edge-amd64 \
-            champdf/champdf${{ matrix.mode.suffix }}:edge-arm64
-          
           # GHCR manifests
           docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/champdf${{ matrix.mode.suffix }}:edge \
             ghcr.io/${{ github.repository_owner }}/champdf${{ matrix.mode.suffix }}:edge-amd64 \
