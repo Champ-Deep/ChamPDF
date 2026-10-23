@@ -22,6 +22,13 @@ import aiofiles
 import logging
 
 from config import settings
+
+# api_v1 and sign both default to the Docker volume /app/data, which does not
+# exist on a laptop (every key and sign route then 500s). Outside Docker, keep
+# the SQLite file inside the checkout instead.
+if not os.environ.get("CHAMPDF_DB_PATH") and not os.path.isdir("/app/data"):
+    os.environ["CHAMPDF_DB_PATH"] = str(Path(__file__).parent / "data" / "champdf.db")
+
 from video_processor import VideoProcessor
 from image_processor import ImageProcessor
 from media_downloader import (
@@ -79,6 +86,9 @@ import treg_client
 from media_providers import MediaError
 from table_extractor import extract_tables, table_extraction_available, TableExtractionError
 
+# Honour LOG_LEVEL; without this INFO is dropped, so the log-only sign mailer
+# (invitation links, OTP codes) prints nothing on a dev machine.
+logging.basicConfig(level=settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
 # Global semaphore to limit concurrency

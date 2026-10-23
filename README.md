@@ -257,6 +257,8 @@ Want to help translate ChamPDF into your language? Check out our [Translation Gu
 
 ## 🚀 Getting Started
 
+> **Testing the full product (frontend, backend, Sign)?** Follow [`docs/TESTING.md`](./docs/TESTING.md).
+
 You can run ChamPDF locally for development or personal use.
 
 ### Prerequisites
