@@ -1,0 +1,30 @@
+[
+  {
+    "name": "interactive BEGIN is rejected (store.connect(immediate=True) cannot be ported 1:1)",
+    "ok": true,
+    "error": "D1_EXEC_ERROR: Error in line 1: BEGIN IMMEDIATE: To execute a transaction, please use the state.storage.transaction() or"
+  },
+  {
+    "name": "batch() is atomic: a failing 2nd statement rolls back the 1st",
+    "ok": true,
+    "rows_left": 0
+  },
+  {
+    "name": "append-only trigger blocks UPDATE of an audit row",
+    "ok": true
+  },
+  {
+    "name": "append-only trigger blocks DELETE of an audit row",
+    "ok": true
+  },
+  {
+    "name": "two appends on the same chain head: second is rejected (optimistic retry needed)",
+    "ok": true,
+    "error": "D1_ERROR: UNIQUE constraint failed: sign_audit_events.document_id, sign_audit_events.prev_hash: SQLI"
+  },
+  {
+    "name": "same race WITHOUT the candidate unique index forks the chain",
+    "ok": true,
+    "children_of_h1": 2
+  }
+]

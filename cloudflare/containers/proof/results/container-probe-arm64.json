@@ -1,0 +1,124 @@
+{
+  "image": "champdf-backend-proof:fa74159",
+  "ops": {
+    "convert_docx_to_pdf": {
+      "status": 200,
+      "secs": 2.8,
+      "bytes": 37077,
+      "magic": "%PDF-1.7"
+    },
+    "pdf_to_text_10p": {
+      "status": 200,
+      "secs": 0.99,
+      "bytes": 15683,
+      "magic": null
+    },
+    "ocr_scanned_pdf_11MB": {
+      "status": 200,
+      "secs": 4.52,
+      "bytes": 185564,
+      "magic": "%PDF-1.7"
+    },
+    "pdf_sign": {
+      "status": 200,
+      "secs": 0.81,
+      "bytes": 74963,
+      "magic": "%PDF-1.7"
+    },
+    "image_remove_bg_1024": {
+      "status": 200,
+      "secs": 26.59,
+      "bytes": 43438,
+      "magic": "\u0089PNG\r\n\u001a\n"
+    },
+    "image_remove_bg_transparent_in": {
+      "status": 200,
+      "secs": 2.68,
+      "bytes": 20877,
+      "magic": "\u0089PNG\r\n\u001a\n"
+    },
+    "video_remove_logo_720p_5s": {
+      "status": 200,
+      "secs": 9.32,
+      "bytes": 2720751,
+      "magic": "ftyp"
+    },
+    "video_remove_logo_1080p_30s_21MB": {
+      "status": 200,
+      "secs": 110.7,
+      "bytes": 32196898,
+      "magic": "ftyp"
+    },
+    "verify_signature": {
+      "status": 200,
+      "secs": 0.13,
+      "bytes": 245,
+      "report_head": "{\"signature_count\":1,\"signatures\":[{\"field\":\"Signature1\",\"intact\":true,\"valid\":true,\"coverage\":\"SignatureCoverageLevel.ENTIRE_FILE\",\"signer\":\"Common Name: ChamPDF Container Proof\",\"signing_time\":\"2026-10-24 00:17:25+00:00\",\"timestamped\":false}]}"
+    },
+    "verify_signature_tampered": {
+      "status": 200,
+      "secs": 0.03,
+      "bytes": 246,
+      "report_head": "{\"signature_count\":1,\"signatures\":[{\"field\":\"Signature1\",\"intact\":false,\"valid\":true,\"coverage\":\"SignatureCoverageLevel.ENTIRE_FILE\",\"signer\":\"Common Name: ChamPDF Container Proof\",\"signing_time\":\"2026-10-24 00:17:25+00:00\",\"timestamped\":false}]}"
+    }
+  },
+  "tests": {
+    "concurrent_ocr_x4": {
+      "wall_s": 9.18,
+      "each": [
+        {
+          "status": 200,
+          "secs": 2.43,
+          "bytes": 185564
+        },
+        {
+          "status": 200,
+          "secs": 4.74,
+          "bytes": 185564
+        },
+        {
+          "status": 200,
+          "secs": 7.05,
+          "bytes": 185564
+        },
+        {
+          "status": 200,
+          "secs": 9.15,
+          "bytes": 185565
+        }
+      ]
+    },
+    "key_after_docker_restart_same_disk": 200,
+    "key_after_replacement_fresh_disk": 401,
+    "interrupted_video_request": {
+      "client_saw": {
+        "status": null,
+        "error": "RemoteDisconnected",
+        "secs": 5.07,
+        "bytes": 0
+      },
+      "key_after_replacement": 401,
+      "job_status_endpoint_exists": 404
+    },
+    "multi_instance": {
+      "key_on_A_seen_by_A": 200,
+      "key_on_A_seen_by_B": 401
+    }
+  },
+  "image_size_bytes": 3216563928,
+  "image_id": "sha256:7fc32b5d1676a64b1f7a494f0073d085856d96665810282809e3e74ec1887951",
+  "cold_start_to_health_s": 6.06,
+  "idle_mem_mib": 257.7,
+  "api_key_prefix_ok": true,
+  "peak_mem_mib_after_ops": 1303,
+  "peak_cpu_pct_after_ops": 451.46,
+  "warm_repeat": [
+    0.05,
+    0.02,
+    0.02,
+    0.01,
+    0.02
+  ],
+  "peak_mem_mib_final": 1303,
+  "peak_cpu_pct_final": 451.46
+}
