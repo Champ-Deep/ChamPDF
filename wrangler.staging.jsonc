@@ -1,0 +1,21 @@
+{
+  // ChamPDF frontend on Cloudflare. API traffic is proxied to the VPS backend.
+  // Preview: npx wrangler deploy (runs the build)
+  // Production domains are added in the dashboard, see the cutover runbook.
+  "name": "champdf-v3-staging",
+  "main": "cloudflare/frontend-worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  // Same bundle Railway builds: no docs (Dockerfile.frontend's .dockerignore drops *.md).
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/libreoffice-wasm/soffice.wasm.gz", "/libreoffice-wasm/soffice.data.gz"]
+  },
+  "r2_buckets": [{ "binding": "WASM", "bucket_name": "champdf-wasm" }],
+  "vars": {
+    "BACKEND_ORIGIN": "https://champdf-api.64.227.154.215.sslip.io"
+  }
+}
