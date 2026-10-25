@@ -1,0 +1,6 @@
+# Cloudflare Workers assets: 25 MiB per file cap, so skip files that exceed it,
+# and skip precompressed twins (the edge compresses by itself).
+*.br
+libreoffice-wasm/soffice.wasm.gz
+libreoffice-wasm/soffice.data.gz
+libreoffice-wasm/node_modules
