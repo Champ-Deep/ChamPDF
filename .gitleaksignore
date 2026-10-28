@@ -1,0 +1,10 @@
+# reviewed false positive, t_06979714: curl examples with placeholder bearer in docs; sign-api.test.ts TOKEN is a parse-shape fixture (32 url-safe chars)
+f496bacc5a884f1b050420b91b7bba8880eaea41:src/tests/sign-api.test.ts:generic-api-key:13
+60d356818537a84380feb07035ecaa4c769375f4:docs/DEPLOYMENT.md:curl-auth-header:90
+f940308dd29b10a5808140ba2a7659bf647d98bd:public/llms.txt:curl-auth-header:157
+f940308dd29b10a5808140ba2a7659bf647d98bd:public/llms.txt:curl-auth-header:163
+d94df89c3e60ae9be20d02c1b3bc582ed9b92a07:DEPLOY_DEEPIFY_VERCEL.md:curl-auth-header:82
+d94df89c3e60ae9be20d02c1b3bc582ed9b92a07:DEPLOY_DEEPIFY_VERCEL.md:curl-auth-header:83
+f940308dd29b10a5808140ba2a7659bf647d98bd:src/pages/developers.html:curl-auth-header:162
+1ff5212381f7edb36723bcd15b0e92a4a7c8f4d8:backend/API_V1.md:curl-auth-header:76
+1ff5212381f7edb36723bcd15b0e92a4a7c8f4d8:backend/API_V1.md:curl-auth-header:82
