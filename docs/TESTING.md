@@ -103,7 +103,7 @@ and `CLERK_ISSUER`; skip it and use the admin token.
 ```bash
 npx tsc --noEmit            # expect no output
 npx vitest run              # frontend, expect 315 passed, 7 skipped (about 25s). Do not run it alongside the backend tests: under load it times out
-python -m pytest backend/tests -q   # expect 147 passed, 2 skipped
+python -m pytest backend/tests -q   # expect 149 passed, 2 skipped
 ```
 
 ## Known limits

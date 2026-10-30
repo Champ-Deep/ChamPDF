@@ -4,6 +4,8 @@ import io
 import math
 import statistics
 import zlib
+
+import numpy as np
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -471,6 +473,20 @@ def interpret(page_index: int, instructions: List[Any], resources: Any) -> List[
     return items
 
 
+def _smask_translucent(xobj: Any) -> bool:
+    smask = xobj.get("/SMask")
+    if not isinstance(smask, pikepdf.Stream):
+        return False
+    try:
+        alpha = np.asarray(pikepdf.PdfImage(smask).as_pil_image().convert("L"))
+    except Exception:
+        return False
+    visible = alpha > 8
+    if not visible.any():
+        return False
+    return float((alpha[visible] < 230).mean()) >= 0.6
+
+
 def _area(bbox: Tuple[float, float, float, float]) -> float:
     return (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
 
@@ -514,6 +530,9 @@ def score_items(pages: List[Tuple[PageGeometry, List[Item]]]) -> None:
             if it.alpha < 0.95:
                 s += 2
                 why.append(f"{round(it.alpha * 100)}% opacity")
+            elif it.kind == "image" and _smask_translucent(it.xobject):
+                s += 2
+                why.append("translucent image")
             if page_count >= 2 and len(sig_pages.get(_signature(it), ())) >= repeat_floor:
                 s += 2
                 why.append("repeated on most pages")
@@ -699,6 +718,32 @@ def _inpaint_window(rgb: Any, box: Tuple[int, int, int, int], inpaint: Callable[
     return result
 
 
+def _clear_document_marks(rgb: Any, box: Tuple[int, int, int, int]) -> Any:
+    from PIL import Image
+
+    x0, y0, x1, y1 = box
+    arr = np.asarray(rgb).copy()
+    region = arr[y0:y1, x0:x1].astype(np.float32)
+    lum = region[..., 0] * 0.299 + region[..., 1] * 0.587 + region[..., 2] * 0.114
+    paper = float(np.percentile(lum, 95))
+    ink = float(np.percentile(lum, 2))
+    if paper < 170 or paper - ink < 40:
+        return None
+    ceiling = min(ink + 0.45 * (paper - ink), paper * 0.55)
+    is_ink = lum <= ceiling
+    padded = np.pad(is_ink, 1)
+    near_ink = np.zeros_like(is_ink)
+    h, w = is_ink.shape
+    for dy in range(3):
+        for dx in range(3):
+            near_ink |= padded[dy:dy + h, dx:dx + w]
+    paper_colour = region[lum >= paper - 2].mean(axis=0)
+    clear = ~near_ink & (lum < paper - 10)
+    region[clear] = paper_colour
+    arr[y0:y1, x0:x1] = region.round().clip(0, 255).astype(np.uint8)
+    return Image.fromarray(arr)
+
+
 def _patch_image(pdf: Any, page: Any, it: Item, box: Tuple[int, int, int, int],
                  inpaint: Callable[[bytes, bytes], bytes]) -> bool:
     try:
@@ -706,7 +751,12 @@ def _patch_image(pdf: Any, page: Any, it: Item, box: Tuple[int, int, int, int],
     except Exception:
         return False
     grey = pil.mode in ("L", "1")
-    rgb = _inpaint_window(pil.convert("RGB"), box, inpaint)
+    rgb = pil.convert("RGB")
+    x0, y0, x1, y1 = box
+    cleared = None
+    if (x1 - x0) * (y1 - y0) >= 0.06 * rgb.width * rgb.height:
+        cleared = _clear_document_marks(rgb, box)
+    rgb = cleared if cleared is not None else _inpaint_window(rgb, box, inpaint)
     if grey:
         rgb = rgb.convert("L")
 

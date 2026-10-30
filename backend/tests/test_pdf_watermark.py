@@ -235,3 +235,54 @@ def test_password_protected_pdf_has_a_clear_error():
     src = doc.tobytes(encryption=fitz.PDF_ENCRYPT_AES_256, owner_pw="o", user_pw="u")
     with pytest.raises(pw.WatermarkError, match="password"):
         pw.detect(src)
+
+
+def test_translucent_png_logo_repeated_on_every_page_is_removed():
+    from PIL import Image, ImageDraw
+
+    logo = Image.new("RGBA", (300, 300), (0, 0, 0, 0))
+    ImageDraw.Draw(logo).ellipse((20, 20, 280, 280), fill=(230, 90, 20, 90))
+    buf = io.BytesIO()
+    logo.save(buf, "PNG")
+    doc = fitz.open()
+    for i in range(3):
+        page = _body_page(doc, i + 1)
+        page.insert_image(fitz.Rect(150, 270, 445, 565), stream=buf.getvalue())
+    src = doc.tobytes()
+    found = pw.detect(src)["regions"]
+    assert len(found) == 3 and all(r["kind"] == "image" for r in found)
+    out, report = pw.remove(src)
+    assert report["removed"] == 3
+    with fitz.open(stream=out, filetype="pdf") as d:
+        assert all(not p.get_images() for p in d)
+
+
+def test_large_box_on_a_scan_clears_the_mark_without_inpainting_the_text():
+    from PIL import Image
+
+    img = Image.new("RGB", (1000, 1400), (250, 250, 247))
+    px = img.load()
+    for y in range(500, 900):
+        for x in range(0, 600):
+            px[x, y] = (215, 215, 213)
+    for y in range(600, 612):
+        for x in range(100, 800):
+            px[x, y] = (30, 30, 30)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    doc = fitz.open()
+    page = doc.new_page(width=500, height=700)
+    page.insert_image(page.rect, stream=buf.getvalue())
+
+    def no_inpaint(image_png: bytes, mask_png: bytes) -> bytes:
+        raise AssertionError("document boxes should not go through LaMa")
+
+    region = {"pageIndex": 0, "x": 0.0, "y": 0.35, "width": 0.62, "height": 0.30}
+    out, report = pw.remove(doc.tobytes(), regions=[region], inpaint=no_inpaint)
+    assert report["imagePatches"] == 1
+    with pikepdf.open(io.BytesIO(out)) as pdf:
+        xobjs = pdf.pages[0].Resources.XObject
+        result = pikepdf.PdfImage(xobjs[list(xobjs.keys())[0]]).as_pil_image().convert("RGB")
+    assert result.getpixel((300, 700)) == (250, 250, 247)
+    assert result.getpixel((300, 606)) == (30, 30, 30)
+    assert result.getpixel((750, 606)) == (30, 30, 30)
