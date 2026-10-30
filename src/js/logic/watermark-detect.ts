@@ -692,3 +692,83 @@ export function dilateMask(mask: Uint8Array, width: number, height: number) {
   }
   return mask;
 }
+
+export function clearDocumentMarks(
+  image: Raster,
+  regions: PixelRect[]
+): number {
+  const { width, height, data } = image;
+  let cleared = 0;
+  for (const region of regions) {
+    const x0 = Math.max(0, Math.floor(region.x));
+    const y0 = Math.max(0, Math.floor(region.y));
+    const x1 = Math.min(width, Math.ceil(region.x + region.width));
+    const y1 = Math.min(height, Math.ceil(region.y + region.height));
+    if (x1 - x0 < 2 || y1 - y0 < 2) continue;
+
+    const lums: number[] = [];
+    for (let y = y0; y < y1; y++)
+      for (let x = x0; x < x1; x++) lums.push(luminanceAt(image, x, y));
+    const sorted = [...lums].sort((a, b) => a - b);
+    const ink = sorted[Math.floor(sorted.length * 0.02)];
+    const paper = sorted[Math.floor(sorted.length * 0.95)];
+    if (paper - ink < 40) continue;
+    const inkCeiling = Math.min(ink + 0.45 * (paper - ink), paper * 0.55);
+
+    let pr = 0;
+    let pg = 0;
+    let pb = 0;
+    let pn = 0;
+    const w = x1 - x0;
+    const isInk = new Uint8Array(w * (y1 - y0));
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const i = (width * y + x) << 2;
+        const l = lums[(y - y0) * w + (x - x0)];
+        if (l <= inkCeiling) isInk[(y - y0) * w + (x - x0)] = 1;
+        if (l >= paper - 2) {
+          pr += data[i];
+          pg += data[i + 1];
+          pb += data[i + 2];
+          pn++;
+        }
+      }
+    }
+    if (!pn) continue;
+    pr = Math.round(pr / pn);
+    pg = Math.round(pg / pn);
+    pb = Math.round(pb / pn);
+
+    const nearInk = (x: number, y: number) => {
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx - x0;
+          const ny = y + dy - y0;
+          if (
+            nx >= 0 &&
+            ny >= 0 &&
+            nx < w &&
+            ny < y1 - y0 &&
+            isInk[ny * w + nx]
+          )
+            return true;
+        }
+      return false;
+    };
+
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const k = (y - y0) * w + (x - x0);
+        if (isInk[k]) continue;
+        const l = lums[k];
+        if (l >= paper - 10 || nearInk(x, y)) continue;
+        const i = (width * y + x) << 2;
+        data[i] = pr;
+        data[i + 1] = pg;
+        data[i + 2] = pb;
+        cleared++;
+      }
+    }
+  }
+  return cleared;
+}
