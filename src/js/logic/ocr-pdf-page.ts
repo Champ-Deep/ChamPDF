@@ -189,16 +189,17 @@ function resetState() {
   langCheckboxes.forEach(function (cb) {
     cb.checked = false;
   });
+  selectDefaultLanguage();
+}
 
-  const selectedLangsDisplay = document.getElementById(
-    'selected-langs-display'
-  );
-  if (selectedLangsDisplay) selectedLangsDisplay.textContent = 'None';
-
-  const processBtn = document.getElementById(
-    'process-btn'
-  ) as HTMLButtonElement;
-  if (processBtn) processBtn.disabled = true;
+function selectDefaultLanguage() {
+  const langList = document.getElementById('lang-list');
+  const english = langList?.querySelector(
+    '.lang-checkbox[value="eng"]'
+  ) as HTMLInputElement | null;
+  if (!langList || !english) return;
+  english.checked = true;
+  langList.dispatchEvent(new Event('change'));
 }
 
 async function runOCR() {
@@ -596,6 +597,8 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
+
+  selectDefaultLanguage();
 
   // Whitelist preset
   if (presetSelect && whitelistInput) {

@@ -44,6 +44,7 @@ interface TemplateInfo {
   description: string;
   fields: TemplateField[];
   source: string;
+  roles?: { role: string; party: string; label: string }[];
 }
 
 interface Recipient {
@@ -250,6 +251,10 @@ function currentTemplate(): TemplateInfo | undefined {
 function renderFields(): void {
   const t = currentTemplate();
   const box = el('template-fields');
+  const counter = countersignerRole(t);
+  el('countersigner-section').classList.toggle('hidden', !counter);
+  if (counter)
+    el('countersigner-label').textContent = `Countersigner · ${counter.label}`;
   if (!t) {
     box.innerHTML = '';
     return;
@@ -291,31 +296,44 @@ function collectFields(): Record<string, string> {
   const out: Record<string, string> = {};
   for (const f of t?.fields || []) {
     const node = document.getElementById(`field-${f.key}`) as
-      | HTMLInputElement
-      | HTMLTextAreaElement
-      | HTMLSelectElement
-      | null;
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
     if (node) out[f.key] = node.value;
   }
   return out;
 }
 
-function collectSigner(): { name: string; email: string; designation: string } {
+function countersignerRole(t: TemplateInfo | undefined) {
+  return t?.roles?.find((r) => r.role === 'countersigner');
+}
+
+function collectPerson(prefix: 'signer' | 'countersigner'): {
+  name: string;
+  email: string;
+  designation: string;
+} {
   return {
-    name: el<HTMLInputElement>('signer-name').value.trim(),
-    email: el<HTMLInputElement>('signer-email').value.trim(),
-    designation: el<HTMLInputElement>('signer-designation').value.trim(),
+    name: el<HTMLInputElement>(`${prefix}-name`).value.trim(),
+    email: el<HTMLInputElement>(`${prefix}-email`).value.trim(),
+    designation: el<HTMLInputElement>(`${prefix}-designation`).value.trim(),
   };
+}
+
+function collectSigner() {
+  return collectPerson('signer');
 }
 
 function highlightField(key?: string): void {
   document
-    .querySelectorAll('[id^="field-"], #signer-name, #signer-email')
+    .querySelectorAll(
+      '[id^="field-"], #signer-name, #signer-email, #countersigner-name, #countersigner-email'
+    )
     .forEach((n) => n.classList.remove('ring-2', 'ring-red-500'));
   if (!key) return;
-  const id = key.startsWith('signer.')
-    ? `signer-${key.split('.')[1]}`
-    : `field-${key}`;
+  const [head, sub] = key.split('.');
+  const id =
+    (head === 'signer' || head === 'countersigner') && sub
+      ? `${head}-${sub}`
+      : `field-${key}`;
   document.getElementById(id)?.classList.add('ring-2', 'ring-red-500');
 }
 
@@ -330,6 +348,9 @@ async function preview(): Promise<void> {
       template_id: t.id,
       fields: collectFields(),
       signer: signerOrNull(),
+      countersigner: countersignerRole(t)
+        ? personOrNull('countersigner', 'Countersigner')
+        : null,
     },
     headers: authHeaders,
   });
@@ -343,15 +364,19 @@ async function preview(): Promise<void> {
   el('preview-modal').classList.remove('hidden');
 }
 
-function signerOrNull() {
-  const s = collectSigner();
+function personOrNull(prefix: 'signer' | 'countersigner', fallback: string) {
+  const s = collectPerson(prefix);
   return s.name || s.email
     ? {
-        name: s.name || 'Signer',
-        email: s.email || 'signer@example.com',
+        name: s.name || fallback,
+        email: s.email || `${prefix}@example.com`,
         designation: s.designation,
       }
     : null;
+}
+
+function signerOrNull() {
+  return personOrNull('signer', 'Signer');
 }
 
 async function send(): Promise<void> {
@@ -365,6 +390,29 @@ async function send(): Promise<void> {
     highlightField(!signer.name ? 'signer.name' : 'signer.email');
     return;
   }
+  const counter = countersignerRole(t);
+  const countersigner = counter ? collectPerson('countersigner') : null;
+  if (countersigner && (!countersigner.name || !countersigner.email)) {
+    feedback(
+      'form-feedback',
+      `${counter!.label} must countersign. Enter the countersigner's name and email.`
+    );
+    highlightField(
+      !countersigner.name ? 'countersigner.name' : 'countersigner.email'
+    );
+    return;
+  }
+  if (
+    countersigner &&
+    countersigner.email.toLowerCase() === signer.email.toLowerCase()
+  ) {
+    feedback(
+      'form-feedback',
+      'The signer and countersigner need different email addresses.'
+    );
+    highlightField('countersigner.email');
+    return;
+  }
   const btn = el<HTMLButtonElement>('btn-send');
   btn.disabled = true;
   btn.textContent = 'Rendering and sending…';
@@ -373,6 +421,7 @@ async function send(): Promise<void> {
       template_id: t.id,
       fields: collectFields(),
       signer,
+      ...(countersigner ? { countersigner } : {}),
       expires_in_days: Number(el<HTMLSelectElement>('expires').value),
     },
   });
@@ -395,6 +444,9 @@ function renderSendResult(doc: DocumentView): void {
   let html = `<p class="text-green-300 font-medium mb-1">Sent ${statusChip(doc.status)}</p>
     <p class="text-gray-300">${escapeHtml(doc.title)}</p>
     <p class="text-gray-500 text-xs mt-1">Invitation to ${escapeHtml(rec?.email || '')} · valid until ${escapeHtml(formatDateTime(doc.expires_at))}</p>`;
+  const counter = doc.recipients.find((x) => x.role === 'countersigner');
+  if (counter)
+    html += `<p class="text-gray-500 text-xs mt-1">${escapeHtml(counter.name)} (${escapeHtml(counter.email)}) is invited to countersign once the counterparty has signed.${doc.dev_links ? ' With log-only mail, that link is printed in the backend log.' : ''}</p>`;
   if (doc.dev_links) {
     for (const [rid, link] of Object.entries(doc.dev_links)) {
       const r = doc.recipients.find((x) => x.id === rid);

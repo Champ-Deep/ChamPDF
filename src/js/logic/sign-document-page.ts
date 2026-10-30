@@ -62,14 +62,7 @@ interface Landing {
 }
 
 type State =
-  | 'loading'
-  | 'error'
-  | 'landing'
-  | 'otp'
-  | 'view'
-  | 'sign'
-  | 'hosted'
-  | 'done';
+  'loading' | 'error' | 'landing' | 'otp' | 'view' | 'sign' | 'hosted' | 'done';
 
 const STATES: State[] = [
   'loading',
@@ -253,6 +246,7 @@ async function requestCode(): Promise<void> {
   el('otp-sent-to').textContent = res.data.sent_to;
   feedback('otp-feedback', null);
   el<HTMLInputElement>('otp-code').value = '';
+  el<HTMLButtonElement>('btn-verify').disabled = false;
   startResendCooldown(30);
   show('otp');
   el<HTMLInputElement>('otp-code').focus();
@@ -285,6 +279,7 @@ async function verifyCode(): Promise<void> {
     return;
   }
   const btn = el<HTMLButtonElement>('btn-verify');
+  if (btn.disabled) return;
   btn.disabled = true;
   feedback('otp-feedback', null);
   const res = await api<{
@@ -292,8 +287,8 @@ async function verifyCode(): Promise<void> {
     next: Landing['next'];
     signing_url: string | null;
   }>('/otp/verify', { method: 'POST', body: { code } });
-  btn.disabled = false;
   if (!res.ok || !res.data) {
+    btn.disabled = false;
     if (
       res.error?.code === 'locked' ||
       res.error?.code === 'voided' ||
@@ -636,7 +631,7 @@ function renderDone(): void {
       ? 'Signed. Awaiting the other party.'
       : 'Nothing more to do here';
   el('done-message').textContent = executed
-    ? `${d.title} is fully executed. A sealed copy with the certificate of completion has been emailed to both parties.`
+    ? `${d.title} is fully executed. A sealed copy with the certificate of completion has been emailed to everyone who signed.`
     : r.status === 'signed'
       ? 'Your signature has been recorded. You will receive the sealed PDF by email once everyone has signed.'
       : 'This link is for your information only.';
