@@ -730,18 +730,89 @@ def _clear_document_marks(rgb: Any, box: Tuple[int, int, int, int]) -> Any:
     if paper < 170 or paper - ink < 40:
         return None
     ceiling = min(ink + 0.45 * (paper - ink), paper * 0.55)
-    is_ink = lum <= ceiling
-    padded = np.pad(is_ink, 1)
-    near_ink = np.zeros_like(is_ink)
-    h, w = is_ink.shape
-    for dy in range(3):
-        for dx in range(3):
-            near_ink |= padded[dy:dy + h, dx:dx + w]
     paper_colour = region[lum >= paper - 2].mean(axis=0)
-    clear = ~near_ink & (lum < paper - 10)
+    _unblend_mark(region, lum, paper_colour, ceiling, paper)
+    lum = region[..., 0] * 0.299 + region[..., 1] * 0.587 + region[..., 2] * 0.114
+    clear = ~_near(lum <= ceiling) & (lum < paper - 10)
     region[clear] = paper_colour
     arr[y0:y1, x0:x1] = region.round().clip(0, 255).astype(np.uint8)
     return Image.fromarray(arr)
+
+
+def _near(mask: Any) -> Any:
+    padded = np.pad(mask, 1)
+    out = np.zeros_like(mask)
+    h, w = mask.shape
+    for dy in range(3):
+        for dx in range(3):
+            out |= padded[dy:dy + h, dx:dx + w]
+    return out
+
+
+def _lum(rgb: Any) -> Any:
+    return rgb[..., 0] * 0.299 + rgb[..., 1] * 0.587 + rgb[..., 2] * 0.114
+
+
+def _darkest(pixels: Any) -> Any:
+    lum = _lum(pixels)
+    return np.median(pixels[lum <= np.percentile(lum, 20)], axis=0)
+
+
+def _common_tone(pixels: Any, true_ink: Any) -> Any:
+    if len(pixels) < 30:
+        return None
+    lum = _lum(pixels)
+    apart = np.abs(lum - _lum(true_ink)) > 8
+    if apart.sum() < 30:
+        return None
+    hist, edges = np.histogram(lum[apart], bins=64, range=(0, 256))
+    peak = int(hist.argmax())
+    near = apart & (lum >= edges[peak] - 4) & (lum <= edges[peak + 1] + 4)
+    return np.median(pixels[near], axis=0)
+
+
+def _unblend_mark(region: Any, lum: Any, paper_colour: Any, ceiling: float, paper: float) -> None:
+    import cv2
+
+    is_ink = lum <= ceiling
+    over_paper = ~_near(is_ink) & (lum < paper - 10)
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(over_paper.astype(np.uint8), connectivity=8)
+    keep = [i for i in range(1, count) if stats[i, cv2.CC_STAT_AREA] >= 40]
+    over_paper = np.isin(labels, keep)
+    if over_paper.sum() < 200:
+        return
+    size = max(5, round(min(region.shape[:2]) / 150)) | 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size, size))
+    mark = (cv2.morphologyEx(over_paper.astype(np.uint8), cv2.MORPH_CLOSE, kernel) > 0) | over_paper
+    reach = max(size, round(min(region.shape[:2]) * 0.025)) | 1
+    wide = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (reach, reach))
+    area = (cv2.morphologyEx(over_paper.astype(np.uint8), cv2.MORPH_CLOSE, wide) > 0) | mark
+    ink_free = is_ink & ~(cv2.dilate(area.astype(np.uint8), kernel) > 0)
+    if ink_free.sum() < 30:
+        return
+    true_ink = _darkest(region[ink_free])
+    ink_under = is_ink & mark
+    if ink_under.sum() >= 30:
+        seen_ink = _darkest(region[ink_under])
+    else:
+        seen_ink = _common_tone(region[is_ink & area], true_ink)
+        if seen_ink is None:
+            return
+    seen_paper = np.median(region[over_paper], axis=0)
+    contrast = float(_lum(paper_colour) - _lum(true_ink))
+    if contrast <= 1:
+        return
+    keep_share = float(np.clip((_lum(seen_paper) - _lum(seen_ink)) / contrast, 0.05, 1.0))
+    if keep_share > 0.97:
+        return
+    tint = seen_paper - keep_share * paper_colour
+    seen = region[area]
+    restored = (seen - tint) / keep_share
+    chroma_before = seen.max(axis=1) - seen.min(axis=1)
+    chroma_after = restored.max(axis=1) - restored.min(axis=1)
+    plausible = (restored.min(axis=1) >= -20) & (chroma_after <= chroma_before + 8)
+    seen[plausible] = np.minimum(restored[plausible], paper_colour).clip(0, 255)
+    region[area] = seen
 
 
 def _patch_image(pdf: Any, page: Any, it: Item, box: Tuple[int, int, int, int],

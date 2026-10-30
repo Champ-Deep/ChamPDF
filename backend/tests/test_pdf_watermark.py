@@ -286,3 +286,33 @@ def test_large_box_on_a_scan_clears_the_mark_without_inpainting_the_text():
     assert result.getpixel((300, 700)) == (250, 250, 247)
     assert result.getpixel((300, 606)) == (30, 30, 30)
     assert result.getpixel((750, 606)) == (30, 30, 30)
+
+
+def test_translucent_mark_over_scanned_text_is_unblended_back_to_black():
+    from PIL import Image, ImageDraw
+
+    clean = Image.new("RGB", (900, 1200), (250, 250, 248))
+    draw = ImageDraw.Draw(clean)
+    for row in range(40):
+        for col in range(12):
+            draw.rectangle((40 + col * 70, 30 + row * 29, 90 + col * 70, 44 + row * 29), fill=(25, 25, 25))
+    marked = clean.copy()
+    overlay = Image.new("RGBA", clean.size, (0, 0, 0, 0))
+    ImageDraw.Draw(overlay).rectangle((150, 300, 750, 800), fill=(210, 30, 30, 90))
+    marked = Image.alpha_composite(marked.convert("RGBA"), overlay).convert("RGB")
+    buf = io.BytesIO()
+    marked.save(buf, "PNG")
+    doc = fitz.open()
+    page = doc.new_page(width=450, height=600)
+    page.insert_image(page.rect, stream=buf.getvalue())
+
+    region = {"pageIndex": 0, "x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0}
+    out, report = pw.remove(doc.tobytes(), regions=[region], inpaint=lambda a, b: a)
+    assert report["imagePatches"] == 1
+    with pikepdf.open(io.BytesIO(out)) as pdf:
+        xobjs = pdf.pages[0].Resources.XObject
+        result = pikepdf.PdfImage(xobjs[list(xobjs.keys())[0]]).as_pil_image().convert("RGB")
+    ink = result.getpixel((205, 30 + 12 * 29 + 7))
+    paper = result.getpixel((240, 30 + 12 * 29 + 20))
+    assert max(abs(a - b) for a, b in zip(ink, (25, 25, 25))) <= 12
+    assert max(abs(a - b) for a, b in zip(paper, (250, 250, 248))) <= 12
