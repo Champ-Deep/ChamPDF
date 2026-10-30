@@ -75,6 +75,7 @@ class PreviewIn(BaseModel):
     template_id: str = Field(min_length=1, max_length=80)
     fields: Dict[str, Any] = Field(default_factory=dict)
     signer: Optional[RecipientIn] = None
+    countersigner: Optional[RecipientIn] = None
 
 
 class CreateDocumentIn(BaseModel):
@@ -179,7 +180,8 @@ async def sign_templates(sender: Sender = Depends(require_sender)) -> Dict[str, 
 
 @router.post("/documents/preview", summary="Render a filled template without sending")
 async def sign_preview(body: PreviewIn, sender: Sender = Depends(require_sender)) -> Response:
-    pdf = await service.preview(sender, body.template_id, body.fields, body.signer.model_dump() if body.signer else None)
+    pdf = await service.preview(sender, body.template_id, body.fields, body.signer.model_dump() if body.signer else None,
+                                body.countersigner.model_dump() if body.countersigner else None)
     return _pdf(pdf, "preview.pdf", inline=True, extra={"Cache-Control": "no-store"})
 
 

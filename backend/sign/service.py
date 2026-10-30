@@ -239,16 +239,18 @@ def _client_meta(ip: Optional[str], ua: Optional[str]) -> Dict[str, Optional[str
 # --------------------------------------------------------------------------
 
 
-async def preview(sender: Sender, template_id: str, values: Dict[str, Any], signer: Optional[Dict[str, Any]]) -> bytes:
+async def preview(sender: Sender, template_id: str, values: Dict[str, Any], signer: Optional[Dict[str, Any]],
+                  countersigner: Optional[Dict[str, Any]] = None) -> bytes:
     """Render the filled instrument without creating anything. Sender only."""
     _require_enabled()
     template = _template(template_id)
     _ensure_sendable(sender, template)
     clean = _values(template, values)
     recipients = []
-    if signer and (signer.get("name") or signer.get("email")):
-        recipients.append({"role": "signer", "name": str(signer.get("name") or ""), "email": str(signer.get("email") or ""),
-                           "designation": str(signer.get("designation") or "")})
+    for role, person in (("signer", signer), ("countersigner", countersigner)):
+        if person and (person.get("name") or person.get("email")):
+            recipients.append({"role": role, "name": str(person.get("name") or ""), "email": str(person.get("email") or ""),
+                               "designation": str(person.get("designation") or "")})
     try:
         result = await tpl.render_pdf(template, clean, recipients, footer_label="PREVIEW, not for signature")
     except tpl.TemplateError as e:
