@@ -59,12 +59,28 @@ export class PDFSigner {
       (id) => {
         this.state.selectedAnnotation = id;
         this.toolbar.setHasSelection(id !== null);
+        this.toolbar.setTextSelection(
+          this.state.annotations.find((a) => a.id === id)
+        );
       }
     );
 
     this.toolbar = new SignerToolbar(toolbarContainer, {
       onAddAnnotation: (type, data) => this.addAnnotation(type, data),
       onDeleteSelected: () => this.deleteSelected(),
+      onTextSizeChange: (size) => {
+        const annotation = this.state.annotations.find(
+          (a) => a.id === this.state.selectedAnnotation
+        );
+        if (annotation?.type !== 'text') return;
+        annotation.data.fontSize = size;
+        annotation.height = Math.max(
+          annotation.height,
+          ((size * 1.25 + 16) / this.renderer.getOriginalPageHeight()) * 100
+        );
+        annotation.y = Math.min(annotation.y, 100 - annotation.height);
+        this.annotationLayer.updateAnnotationContent(annotation);
+      },
     });
 
     this.setupDropZone();
@@ -89,6 +105,8 @@ export class PDFSigner {
 
     // Clear and re-render annotations for this page
     this.annotationLayer.clear();
+    this.annotationLayer.setScale(this.state.scale);
+    this.toolbar.setTextSelection();
     this.state.annotations
       .filter((a) => a.page === this.state.currentPage)
       .forEach((a) => this.annotationLayer.addAnnotation(a));
@@ -190,6 +208,7 @@ export class PDFSigner {
         imageUrl: data?.imageUrl,
         text: type === 'date' ? new Date().toLocaleDateString() : undefined,
         checked: type === 'checkbox' ? false : undefined,
+        fontSize: type === 'text' ? 12 : undefined,
       },
     };
 
@@ -370,7 +389,12 @@ export class PDFSigner {
             image = await pdfDoc.embedPng(imageBytes);
           }
 
-          page.drawImage(image, { x, y, width: w, height: h });
+          const fitted = image.scaleToFit(w, h);
+          page.drawImage(image, {
+            x: x + (w - fitted.width) / 2,
+            y: y + (h - fitted.height) / 2,
+            ...fitted,
+          });
         } catch (err) {
           console.error('Failed to embed signature image:', err);
         }
@@ -387,14 +411,20 @@ export class PDFSigner {
         if (text) {
           // Adjust font size based on bounding box
           // For dates and texts, a simple fit can use bounding box height, or default to 12
-          const fontSize = Math.min(12, Math.max(8, h * 0.8));
+          const fontSize =
+            annotation.type === 'text'
+              ? (annotation.data.fontSize ?? 12)
+              : Math.min(12, Math.max(8, h * 0.8));
           page.drawText(text, {
             x: x + 2, // Slight padding
-            y: y + (h - fontSize) / 2, // Center vertically
+            y:
+              annotation.type === 'text'
+                ? y + h - fontSize - 4
+                : y + (h - fontSize) / 2,
             size: fontSize,
             maxWidth: w - 4,
             wordBreaks: [' '],
-            lineHeight: fontSize * 1.2
+            lineHeight: fontSize * 1.2,
           });
         }
       } else if (annotation.type === 'checkbox' && annotation.data.checked) {

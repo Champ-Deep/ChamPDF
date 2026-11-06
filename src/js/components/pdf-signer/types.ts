@@ -13,6 +13,7 @@ export interface Annotation {
   data: {
     imageUrl?: string; // for signature/initials
     text?: string; // for text/date
+    fontSize?: number; // PDF points for text fields
     checked?: boolean; // for checkbox
   };
 }

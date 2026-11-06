@@ -8,6 +8,7 @@ export class AnnotationLayer {
   private container: HTMLElement;
   private annotations: Map<string, HTMLElement> = new Map();
   private selectedId: string | null = null;
+  private scale = 1;
   private onUpdate: (annotation: Annotation) => void;
   private onSelect: (id: string | null) => void;
 
@@ -108,10 +109,15 @@ export class AnnotationLayer {
           <textarea
             placeholder="Type text here..."
             class="w-full h-full p-1 bg-transparent border-none outline-none text-gray-800 pointer-events-auto resize-none text-sm leading-tight"
-          >${textVal}</textarea>
+          ></textarea>
         </div>
       `;
-      const input = el.querySelector('textarea');
+      const input = el.querySelector('textarea')!;
+      input.value = textVal;
+      input.setAttribute('aria-label', 'Text field');
+      input.style.fontSize = `${(annotation.data.fontSize ?? 12) * this.scale}px`;
+      input.style.fontFamily = 'Helvetica, Arial, sans-serif';
+      input.addEventListener('focus', () => this.select(annotation.id));
       input?.addEventListener('input', (e) => {
         annotation.data.text = (e.target as HTMLTextAreaElement).value;
         this.onUpdate(annotation);
@@ -275,9 +281,15 @@ export class AnnotationLayer {
     });
   }
 
+  setScale(scale: number) {
+    this.scale = scale;
+  }
+
   updateAnnotationContent(annotation: Annotation) {
     const el = this.annotations.get(annotation.id);
     if (el) {
+      el.style.height = `${annotation.height}%`;
+      el.style.top = `${annotation.y}%`;
       // Clear existing content except resize handle
       const handle = el.querySelector('.resize-handle');
       el.innerHTML = '';
