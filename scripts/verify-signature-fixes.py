@@ -1,9 +1,13 @@
-import json, os
+# Run against a running Vite preview: CHAMPDF_URL=http://127.0.0.1:3296 python scripts/verify-signature-fixes.py
+# Non-repo dependencies: pip install playwright PyMuPDF; python -m playwright install chromium
+# Set CHAMPDF_EVIDENCE to retain output in a chosen directory; otherwise a fresh temp directory is printed.
+import json, os, tempfile
 import pymupdf
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
-ROOT=Path(__file__).resolve().parents[1]
-OUT=Path(os.environ.get('CHAMPDF_EVIDENCE',str(ROOT.parent/'evidence'))); OUT.mkdir(exist_ok=True)
+OUT=Path(os.environ['CHAMPDF_EVIDENCE']) if 'CHAMPDF_EVIDENCE' in os.environ else Path(tempfile.mkdtemp(prefix='champdf-evidence-'))
+OUT.mkdir(exist_ok=True)
+print(f'Evidence: {OUT}')
 URL=os.environ.get('CHAMPDF_URL','http://127.0.0.1:3296')
 
 def run():
