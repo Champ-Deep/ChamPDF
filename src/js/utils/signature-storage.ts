@@ -122,9 +122,16 @@ export async function saveSignatureImage(
       const store = transaction.objectStore(STORE_NAME);
       const request = store.put(blob, id);
 
-      request.onsuccess = () => {
+      transaction.oncomplete = () => {
         db.close();
         resolve();
+      };
+      transaction.onabort = () => {
+        db.close();
+        reject(
+          transaction.error ||
+            new Error('Signature storage transaction aborted')
+        );
       };
 
       request.onerror = () => {
@@ -170,9 +177,16 @@ export async function deleteSignatureImage(id: string): Promise<void> {
       const store = transaction.objectStore(STORE_NAME);
       const request = store.delete(id);
 
-      request.onsuccess = () => {
+      transaction.oncomplete = () => {
         db.close();
         resolve();
+      };
+      transaction.onabort = () => {
+        db.close();
+        reject(
+          transaction.error ||
+            new Error('Signature storage transaction aborted')
+        );
       };
 
       request.onerror = () => {
@@ -194,8 +208,8 @@ export async function saveSignature(
   signature: SavedSignature,
   imageBlob: Blob
 ): Promise<void> {
-  saveSignatureMetadata(signature);
   await saveSignatureImage(signature.id, imageBlob);
+  saveSignatureMetadata(signature);
 }
 
 export async function deleteSignature(id: string): Promise<void> {

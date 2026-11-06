@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": { "deploymentEnabled": { "fix/signatures-text-size-nov6": false } },
   "buildCommand": "npm run build && rm -rf dist/libreoffice-wasm/node_modules",
   "outputDirectory": "dist",
   "rewrites": [

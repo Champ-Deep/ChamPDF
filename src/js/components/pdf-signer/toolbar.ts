@@ -3,19 +3,18 @@
  */
 
 import { createIcons, icons } from 'lucide';
+import { escapeHtml } from '../../utils/helpers.js';
 import { getAllSignaturesWithImages } from '../../utils/signature-storage.js';
+import type { Annotation } from './types.js';
 import { openSignatureLibrary } from '../../utils/signature-library-init.js';
 
 export type AnnotationType =
-  | 'signature'
-  | 'date'
-  | 'text'
-  | 'initials'
-  | 'checkbox';
+  'signature' | 'date' | 'text' | 'initials' | 'checkbox';
 
 export interface ToolbarCallbacks {
   onAddAnnotation: (type: AnnotationType, data?: { imageUrl?: string }) => void;
   onDeleteSelected: () => void;
+  onTextSizeChange: (size: number) => void;
 }
 
 export class SignerToolbar {
@@ -46,10 +45,10 @@ export class SignerToolbar {
                 : signaturesWithImages
                     .map(
                       ({ signature, imageUrl }) => `
-              <div class="signature-drag-item bg-gray-700 rounded p-2 cursor-grab hover:bg-gray-600 transition-colors"
+              <button type="button" class="signature-drag-item w-full bg-gray-700 rounded p-2 cursor-grab hover:bg-gray-600 transition-colors"
                    data-type="signature" data-image="${imageUrl}" draggable="true" title="Drag to place or click to add">
-                <img src="${imageUrl}" alt="${signature.name}" class="w-full h-10 object-contain pointer-events-none">
-              </div>
+                <img src="${imageUrl}" alt="${escapeHtml(signature.name)}" width="1800" height="600" class="w-full h-10 object-contain pointer-events-none">
+              </button>
             `
                     )
                     .join('')
@@ -88,6 +87,12 @@ export class SignerToolbar {
             <i data-lucide="check-square" class="w-4 h-4"></i>
             Checkbox
           </button>
+        </div>
+
+        <div class="space-y-2 pt-4 border-t border-gray-700">
+          <label for="text-font-size" class="block text-sm text-white">Text size (pt)</label>
+          <input id="text-font-size" class="signature-size-input" type="number" min="6" max="72" step="1" value="12" disabled aria-describedby="text-size-help">
+          <p id="text-size-help" class="text-xs text-gray-300">Select a text field to change its size.</p>
         </div>
 
         <!-- Delete Selected -->
@@ -153,9 +158,24 @@ export class SignerToolbar {
       ?.addEventListener('click', () => {
         openSignatureLibrary((imageUrl) => {
           // When a new signature is created/selected, add it
+          void this.refresh();
           this.callbacks.onAddAnnotation('signature', { imageUrl });
         });
       });
+
+    const sizeInput =
+      this.container.querySelector<HTMLInputElement>('#text-font-size')!;
+    sizeInput.addEventListener('change', () => {
+      const value = sizeInput.valueAsNumber;
+      if (!Number.isFinite(value)) {
+        sizeInput.value = sizeInput.dataset.size || '12';
+        return;
+      }
+      const size = Math.max(6, Math.min(72, value));
+      sizeInput.value = String(size);
+      sizeInput.dataset.size = String(size);
+      this.callbacks.onTextSizeChange(size);
+    });
 
     // Delete selected
     this.container
@@ -173,6 +193,15 @@ export class SignerToolbar {
     if (deleteBtn) {
       deleteBtn.disabled = !hasSelection;
     }
+  }
+
+  setTextSelection(annotation?: Annotation) {
+    const input =
+      this.container.querySelector<HTMLInputElement>('#text-font-size');
+    if (!input) return;
+    input.disabled = annotation?.type !== 'text';
+    input.value = String(annotation?.data.fontSize ?? 12);
+    input.dataset.size = input.value;
   }
 
   async refresh() {
