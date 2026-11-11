@@ -17,8 +17,8 @@ This builds the frontend (`:8080`) and the backend (`:8000`) together.
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-- Frontend: http://localhost:8080
-- Backend: http://localhost:8000 (Swagger UI at http://localhost:8000/docs)
+- Frontend: `http://localhost:8080`
+- Backend: `http://localhost:8000` (Swagger UI at `http://localhost:8000/docs`)
 
 The first backend build is large (CPU torch + Real-ESRGAN + faster-whisper + rembg).
 The **first request to each AI tool** also downloads that model once (LaMa ~200MB,
@@ -31,7 +31,7 @@ curl localhost:8000/health                 # {"status":"healthy","ffmpeg":true}
 curl localhost:8000/api/capabilities       # which AI features are enabled
 ```
 
-### Test each feature in the UI (http://localhost:8080)
+### Test each feature in the UI (`http://localhost:8080`)
 
 - **Image Watermark Remover** → choose **AI Inpaint**, draw a box (or **Auto-detect**), Process.
 - **Video Logo Remover** → upload a clip, keep **Auto-detect** on, optionally **Burn in captions**.
@@ -108,8 +108,9 @@ curl https://<backend-domain>/health              # if backend is publicly expos
   filesystem, which Railway resets on redeploy. To avoid repeated downloads, either
   mount a **Railway Volume** at the cache dirs (`/root/.cache`, `/root/.u2net`,
   `/root/.realesrgan`) or pre-download them in `backend/Dockerfile.railway`.
-- **Upload size:** Nginx allows `client_max_body_size 100M` for `/api/`; matches the
-  backend's 100 MB video / 10 MB image limits.
+- **Upload size:** Nginx allows `client_max_body_size 101M` for `/api/`.
+  FastAPI still enforces 100 MiB video / 10 MiB image file limits. The extra
+  1 MiB is for multipart boundaries and form fields, not larger video files.
 - **Healthcheck:** backend uses `/health` (responds instantly — it does not block on
   model loading), with a 120 s timeout configured in `railway.toml`.
 - **GPU:** for much faster inference, deploy the backend on a GPU host and install the
@@ -174,7 +175,7 @@ Browser ──/api/process-video──▶ Frontend (Nginx)  ──proxy_pass $BA
 So **connecting a compute server is a single env var**: set `BACKEND_URL` on the
 **frontend** service. No frontend rebuild is needed — it's applied at container
 start. The proxy is already tuned for server-side jobs: **300 s** timeouts,
-request buffering off (true streaming uploads), and `client_max_body_size 100M`.
+request buffering off (true streaming uploads), and `client_max_body_size 101M`.
 
 ### Option A — Two Railway services (recommended, easiest)
 
@@ -238,7 +239,7 @@ download. Expect 10 s–a few minutes on CPU for the first run (model/ffmpeg war
 
 | Old failure                              | Cause                                              | Fix in v2                                      |
 | ---------------------------------------- | -------------------------------------------------- | ---------------------------------------------- |
-| `413` on `/api/process-video`            | Nginx default ~1 MB body cap                       | `client_max_body_size 100M` on `/api/`         |
+| `413` on `/api/process-video`            | Nginx default ~1 MB cap or no multipart headroom   | `client_max_body_size 101M` on `/api/`         |
 | `504` / "unknown error" after ~60 s      | Nginx default 60 s proxy timeout < processing time | `proxy_*_timeout 300s` + buffering off         |
 | "server-side operation not running"      | Frontend couldn't reach the backend                | `BACKEND_URL` → backend via private networking |
 | Frontend crash-loop on bad `BACKEND_URL` | scheme-less/empty value                            | normalize script auto-fixes it                 |

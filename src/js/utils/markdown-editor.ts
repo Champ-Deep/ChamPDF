@@ -1,4 +1,7 @@
 import MarkdownIt from 'markdown-it';
+// markdown-it 15 exports the instance type under a separate name; the default
+// export is the callable factory, which is a value, not a type.
+import type { MarkdownIt as MarkdownItInstance } from 'markdown-it';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -29,8 +32,6 @@ import taskLists from 'markdown-it-task-lists';
 import anchor from 'markdown-it-anchor';
 import tocDoneRight from 'markdown-it-toc-done-right';
 import { applyTranslations } from '../i18n/i18n';
-
-
 
 // Register highlight.js languages
 hljs.registerLanguage('javascript', javascript);
@@ -266,7 +267,7 @@ Start editing to see the magic happen!
 
 export class MarkdownEditor {
   private container: HTMLElement;
-  private md: MarkdownIt;
+  private md: MarkdownItInstance;
   private editor: HTMLTextAreaElement | null = null;
   private preview: HTMLElement | null = null;
   private onBack?: () => void;
@@ -277,7 +278,7 @@ export class MarkdownEditor {
     html: true,
     breaks: false,
     linkify: true,
-    typographer: true
+    typographer: true,
   };
 
   constructor(container: HTMLElement, options: MarkdownEditorOptions) {
@@ -303,7 +304,8 @@ export class MarkdownEditor {
         startOnLoad: false,
         theme: 'default',
         securityLevel: 'loose',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
       });
       this.mermaidInitialized = true;
     }
@@ -311,10 +313,18 @@ export class MarkdownEditor {
 
   private configureLinkRenderer(): void {
     // Override link renderer to add target="_blank" and rel="noopener"
-    const defaultRender = this.md.renderer.rules.link_open ||
-      ((tokens: any[], idx: number, options: any, _env: any, self: any) => self.renderToken(tokens, idx, options));
+    const defaultRender =
+      this.md.renderer.rules.link_open ||
+      ((tokens: any[], idx: number, options: any, _env: any, self: any) =>
+        self.renderToken(tokens, idx, options));
 
-    this.md.renderer.rules.link_open = (tokens: any[], idx: number, options: any, env: any, self: any) => {
+    this.md.renderer.rules.link_open = (
+      tokens: any[],
+      idx: number,
+      options: any,
+      env: any,
+      self: any
+    ) => {
       const token = tokens[idx];
       token.attrSet('target', '_blank');
       token.attrSet('rel', 'noopener noreferrer');
@@ -422,7 +432,6 @@ export class MarkdownEditor {
     }
   }
 
-
   private setupEventListeners(): void {
     // Editor input
     this.editor?.addEventListener('input', () => {
@@ -441,9 +450,13 @@ export class MarkdownEditor {
     this.editor?.addEventListener('scroll', () => {
       if (this.syncScroll && !this.isSyncing && this.editor && this.preview) {
         this.isSyncing = true;
-        const scrollPercentage = this.editor.scrollTop / (this.editor.scrollHeight - this.editor.clientHeight);
-        this.preview.scrollTop = scrollPercentage * (this.preview.scrollHeight - this.preview.clientHeight);
-        setTimeout(() => this.isSyncing = false, 10);
+        const scrollPercentage =
+          this.editor.scrollTop /
+          (this.editor.scrollHeight - this.editor.clientHeight);
+        this.preview.scrollTop =
+          scrollPercentage *
+          (this.preview.scrollHeight - this.preview.clientHeight);
+        setTimeout(() => (this.isSyncing = false), 10);
       }
     });
 
@@ -451,9 +464,13 @@ export class MarkdownEditor {
     this.preview?.addEventListener('scroll', () => {
       if (this.syncScroll && !this.isSyncing && this.editor && this.preview) {
         this.isSyncing = true;
-        const scrollPercentage = this.preview.scrollTop / (this.preview.scrollHeight - this.preview.clientHeight);
-        this.editor.scrollTop = scrollPercentage * (this.editor.scrollHeight - this.editor.clientHeight);
-        setTimeout(() => this.isSyncing = false, 10);
+        const scrollPercentage =
+          this.preview.scrollTop /
+          (this.preview.scrollHeight - this.preview.clientHeight);
+        this.editor.scrollTop =
+          scrollPercentage *
+          (this.editor.scrollHeight - this.editor.clientHeight);
+        setTimeout(() => (this.isSyncing = false), 10);
       }
     });
 
@@ -474,22 +491,30 @@ export class MarkdownEditor {
     });
 
     // Settings modal close
-    document.getElementById('mdCloseSettings')?.addEventListener('click', () => {
-      const modal = document.getElementById('mdSettingsModal');
-      if (modal) {
-        modal.style.display = 'none';
-      }
-    });
-
-    // Close modal on overlay click
-    document.getElementById('mdSettingsModal')?.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).classList.contains('md-editor-modal-overlay')) {
+    document
+      .getElementById('mdCloseSettings')
+      ?.addEventListener('click', () => {
         const modal = document.getElementById('mdSettingsModal');
         if (modal) {
           modal.style.display = 'none';
         }
-      }
-    });
+      });
+
+    // Close modal on overlay click
+    document
+      .getElementById('mdSettingsModal')
+      ?.addEventListener('click', (e) => {
+        if (
+          (e.target as HTMLElement).classList.contains(
+            'md-editor-modal-overlay'
+          )
+        ) {
+          const modal = document.getElementById('mdSettingsModal');
+          if (modal) {
+            modal.style.display = 'none';
+          }
+        }
+      });
 
     // Settings checkboxes
     document.getElementById('mdOptHtml')?.addEventListener('change', (e) => {
@@ -507,10 +532,12 @@ export class MarkdownEditor {
       this.updateMarkdownIt();
     });
 
-    document.getElementById('mdOptTypographer')?.addEventListener('change', (e) => {
-      this.mdOptions.typographer = (e.target as HTMLInputElement).checked;
-      this.updateMarkdownIt();
-    });
+    document
+      .getElementById('mdOptTypographer')
+      ?.addEventListener('change', (e) => {
+        this.mdOptions.typographer = (e.target as HTMLInputElement).checked;
+        this.updateMarkdownIt();
+      });
 
     // Preset selector
     document.getElementById('mdPreset')?.addEventListener('change', (e) => {
@@ -549,7 +576,8 @@ export class MarkdownEditor {
         const start = this.editor!.selectionStart;
         const end = this.editor!.selectionEnd;
         const value = this.editor!.value;
-        this.editor!.value = value.substring(0, start) + '  ' + value.substring(end);
+        this.editor!.value =
+          value.substring(0, start) + '  ' + value.substring(end);
         this.editor!.selectionStart = this.editor!.selectionEnd = start + 2;
         this.updatePreview();
       }
@@ -563,18 +591,37 @@ export class MarkdownEditor {
 
     // Update options based on preset
     if (preset === 'commonmark') {
-      this.mdOptions = { html: false, breaks: false, linkify: false, typographer: false };
+      this.mdOptions = {
+        html: false,
+        breaks: false,
+        linkify: false,
+        typographer: false,
+      };
     } else if (preset === 'zero') {
-      this.mdOptions = { html: false, breaks: false, linkify: false, typographer: false };
+      this.mdOptions = {
+        html: false,
+        breaks: false,
+        linkify: false,
+        typographer: false,
+      };
     } else {
-      this.mdOptions = { html: true, breaks: false, linkify: true, typographer: true };
+      this.mdOptions = {
+        html: true,
+        breaks: false,
+        linkify: true,
+        typographer: true,
+      };
     }
 
     // Update UI checkboxes
-    (document.getElementById('mdOptHtml') as HTMLInputElement).checked = this.mdOptions.html;
-    (document.getElementById('mdOptBreaks') as HTMLInputElement).checked = this.mdOptions.breaks;
-    (document.getElementById('mdOptLinkify') as HTMLInputElement).checked = this.mdOptions.linkify;
-    (document.getElementById('mdOptTypographer') as HTMLInputElement).checked = this.mdOptions.typographer;
+    (document.getElementById('mdOptHtml') as HTMLInputElement).checked =
+      this.mdOptions.html;
+    (document.getElementById('mdOptBreaks') as HTMLInputElement).checked =
+      this.mdOptions.breaks;
+    (document.getElementById('mdOptLinkify') as HTMLInputElement).checked =
+      this.mdOptions.linkify;
+    (document.getElementById('mdOptTypographer') as HTMLInputElement).checked =
+      this.mdOptions.typographer;
 
     this.updateMarkdownIt();
   }
@@ -588,10 +635,9 @@ export class MarkdownEditor {
     }
   }
 
-
-  private createMarkdownIt(): MarkdownIt {
+  private createMarkdownIt(): MarkdownItInstance {
     // Use preset if commonmark or zero
-    let md: MarkdownIt;
+    let md: MarkdownItInstance;
     if (this.currentPreset === 'commonmark') {
       md = new MarkdownIt('commonmark');
     } else if (this.currentPreset === 'zero') {
@@ -604,28 +650,34 @@ export class MarkdownEditor {
         highlight: (str: string, lang: string) => {
           if (lang && hljs.getLanguage(lang)) {
             try {
-              return hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
+              return hljs.highlight(str, {
+                language: lang,
+                ignoreIllegals: true,
+              }).value;
             } catch {
               // Fall through to default
             }
           }
           return ''; // Use external default escaping
-        }
+        },
       });
     }
 
     // Apply plugins only for default preset (plugins may not work well with commonmark/zero)
     if (this.currentPreset === 'default') {
-      md.use(sub)           // Subscript: ~text~ -> <sub>text</sub>
-        .use(sup)           // Superscript: ^text^ -> <sup>text</sup>
-        .use(footnote)      // Footnotes: [^1] and [^1]: footnote text
-        .use(deflist)       // Definition lists
-        .use(abbr)          // Abbreviations: *[abbr]: full text
-        .use(emoji)         // Emoji: :smile: -> 😄
-        .use(ins)           // Inserted text: ++text++ -> <ins>text</ins>
-        .use(mark)          // Marked text: ==text== -> <mark>text</mark>
-        .use(taskLists, { enabled: true, label: true, labelAfter: true })  // Task lists: - [x] done
-        .use(anchor, { permalink: false })  // Header anchors
+      md.use(sub) // Subscript: ~text~ -> <sub>text</sub>
+        .use(sup) // Superscript: ^text^ -> <sup>text</sup>
+        .use(footnote) // Footnotes: [^1] and [^1]: footnote text
+        .use(deflist) // Definition lists
+        .use(abbr) // Abbreviations: *[abbr]: full text
+        .use(emoji) // Emoji: :smile: -> 😄
+        .use(ins) // Inserted text: ++text++ -> <ins>text</ins>
+        .use(mark) // Marked text: ==text== -> <mark>text</mark>
+        .use(taskLists, { enabled: true, label: true, labelAfter: true }) // Task lists: - [x] done
+        // markdown-it-anchor v10 types `permalink` as a generator function only.
+        // Omitting it is equivalent to the old `permalink: false`: no permalink is
+        // injected, only the heading id + tabindex.
+        .use(anchor) // Header anchors (ids only, no permalink symbol)
         .use(tocDoneRight); // Table of contents: ${toc}
     }
 
@@ -650,7 +702,9 @@ export class MarkdownEditor {
   private async renderMermaidDiagrams(): Promise<void> {
     if (!this.preview) return;
 
-    const mermaidBlocks = this.preview.querySelectorAll('pre > code.language-mermaid');
+    const mermaidBlocks = this.preview.querySelectorAll(
+      'pre > code.language-mermaid'
+    );
 
     for (let i = 0; i < mermaidBlocks.length; i++) {
       const block = mermaidBlocks[i] as HTMLElement;
@@ -948,7 +1002,9 @@ ${content}
     applyTranslations();
 
     // Special handling for select options (data-i18n on options doesn't work with applyTranslations)
-    const presetSelect = document.getElementById('mdPreset') as HTMLSelectElement;
+    const presetSelect = document.getElementById(
+      'mdPreset'
+    ) as HTMLSelectElement;
     if (presetSelect) {
       const options = presetSelect.querySelectorAll('option[data-i18n]');
       options.forEach((option) => {

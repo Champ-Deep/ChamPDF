@@ -74,7 +74,10 @@ class InpaintProcessor:
 
     def _run(self, image: Image.Image, mask: Image.Image) -> Image.Image:
         model = self._ensure_model()
-        return model(image.convert("RGB"), mask.convert("L"))
+        result = model(image.convert("RGB"), mask.convert("L"))
+        if result.size != image.size:
+            result = result.crop((0, 0, image.width, image.height))
+        return result
 
     async def inpaint(self, image_bytes: bytes, mask_bytes: bytes) -> bytes:
         """Inpaint using an externally supplied mask (white = remove)."""
@@ -114,4 +117,4 @@ class InpaintProcessor:
         """
         model = self._ensure_model()
         result = model(Image.fromarray(frame).convert("RGB"), Image.fromarray(mask).convert("L"))
-        return np.array(result.convert("RGB"))
+        return np.array(result.convert("RGB"))[: frame.shape[0], : frame.shape[1]]

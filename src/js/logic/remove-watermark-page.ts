@@ -8,9 +8,29 @@ import {
   InpaintingOptions,
 } from '@/types';
 import * as pdfjsLib from 'pdfjs-dist';
+import { initializeOpenCV } from './watermark-opencv';
+import {
+  WatermarkRegionEditor,
+  fractionToPixels,
+  pixelsToFraction,
+} from './watermark-regions';
+import {
+  detectWatermark,
+  buildGlyphMask,
+  clearDocumentMarks,
+  type Raster,
+} from './watermark-detect';
+import {
+  buildRepeatingWatermarkMask,
+  repeatingMaskToPixels,
+  type WatermarkMask,
+} from './watermark-mask';
 
 // Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
 
 const pageState: RemoveWatermarkState = {
   file: null,
@@ -19,15 +39,23 @@ const pageState: RemoveWatermarkState = {
   totalPages: 0,
   scale: 1.5,
   regions: [],
-  isDrawing: false,
-  startX: 0,
-  startY: 0,
+
   canvas: null,
   ctx: null,
 };
 
 let pdfJsDoc: any = null;
-let currentRect: WatermarkRegion | null = null;
+let editor: WatermarkRegionEditor;
+let renderTask: pdfjsLib.RenderTask | null = null;
+let renderGeneration = 0;
+let busy = false;
+const automaticMasks = new Map<number, WatermarkMask>();
+let nextMaskId = 0;
+let serverWatermarks = false;
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || '';
+
+const LOCAL_VECTOR_SCALE = 3;
+const MAX_RENDER_PIXELS = 40_000_000;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializePage);
@@ -82,11 +110,45 @@ function initializePage() {
 
   const autoDetectBtn = document.getElementById('auto-detect-btn');
   if (autoDetectBtn)
-    autoDetectBtn.addEventListener('click', autoDetectWatermarks);
+    autoDetectBtn.addEventListener('click', () => void autoDetectWatermarks());
+  document
+    .getElementById('server-detect-btn')
+    ?.addEventListener('click', () => void autoDetectWatermarks(true));
 
   setupCanvas();
   setupSettings();
   setupLogoStep();
+  void checkServerWatermarks();
+}
+
+async function checkServerWatermarks() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/capabilities`);
+    if (!res.ok) return;
+    const caps = await res.json();
+    if (!caps.pdf_watermark_objects) return;
+  } catch {
+    return;
+  }
+  serverWatermarks = true;
+  const select = document.getElementById(
+    'inpainting-method'
+  ) as HTMLSelectElement | null;
+  if (select && !select.querySelector('option[value="server"]')) {
+    const option = document.createElement('option');
+    option.value = 'server';
+    option.textContent = 'Remove watermark objects (Server, keeps text sharp)';
+    select.prepend(option);
+    select.value = 'server';
+    select.dispatchEvent(new Event('change'));
+  }
+  const serverBtn = document.getElementById('server-detect-btn');
+  if (serverBtn) {
+    serverBtn.textContent = 'Detect on server (uploads PDF)';
+    serverBtn.title =
+      'Upload the PDF to find watermark text, shapes and layers. No API key needed.';
+    if (pageState.file) serverBtn.classList.remove('hidden');
+  }
 }
 
 function handleFileUpload(e: Event) {
@@ -95,6 +157,7 @@ function handleFileUpload(e: Event) {
 }
 
 async function handleFiles(files: FileList) {
+  if (busy) return;
   const file = files[0];
   if (!file || file.type !== 'application/pdf') {
     showAlert('Invalid File', 'Please upload a valid PDF file.');
@@ -102,6 +165,7 @@ async function handleFiles(files: FileList) {
   }
 
   showLoader('Loading PDF...');
+  busy = true;
 
   try {
     // Load with pdf-lib for later reconstruction
@@ -114,6 +178,13 @@ async function handleFiles(files: FileList) {
     pdfJsDoc = await loadingTask.promise;
     pageState.totalPages = pdfJsDoc.numPages;
     pageState.currentPage = 1;
+    pageState.regions = [];
+    automaticMasks.clear();
+    editor.reset();
+    resetLogoStep();
+    document
+      .getElementById('server-detect-btn')
+      ?.classList.toggle('hidden', !serverWatermarks);
 
     updateFileDisplay();
     document.getElementById('canvas-panel')?.classList.remove('hidden');
@@ -122,6 +193,7 @@ async function handleFiles(files: FileList) {
     console.error(error);
     showAlert('Error', 'Failed to load PDF file.');
   } finally {
+    busy = false;
     hideLoader();
   }
 }
@@ -159,11 +231,16 @@ function updateFileDisplay() {
 }
 
 function resetState() {
+  if (busy) return;
+  renderGeneration++;
+  renderTask?.cancel();
   pageState.file = null;
   pageState.pdfDoc = null;
   pageState.currentPage = 1;
   pageState.totalPages = 0;
   pageState.regions = [];
+  automaticMasks.clear();
+  editor.reset();
   pdfJsDoc = null;
   resetLogoStep();
 
@@ -183,24 +260,39 @@ function resetState() {
 
 async function renderPage(pageNum: number) {
   if (!pdfJsDoc) return;
-
+  const generation = ++renderGeneration;
+  const previous = renderTask;
+  previous?.cancel();
+  if (previous) await previous.promise.catch(() => {});
   const page = await pdfJsDoc.getPage(pageNum);
-  const viewport = page.getViewport({ scale: pageState.scale });
-
-  if (!pageState.canvas) return;
-
-  pageState.canvas.width = viewport.width;
-  pageState.canvas.height = viewport.height;
-
-  const renderContext = {
+  if (!pageState.canvas || generation !== renderGeneration) return;
+  const base = page.getViewport({ scale: 1 });
+  const cssWidth = Math.min(
+    base.width * pageState.scale,
+    pageState.canvas.parentElement!.clientWidth
+  );
+  const viewport = page.getViewport({ scale: cssWidth / base.width });
+  const dpr = window.devicePixelRatio || 1;
+  pageState.canvas.width = Math.round(viewport.width * dpr);
+  pageState.canvas.height = Math.round(viewport.height * dpr);
+  pageState.canvas.style.width = `${viewport.width}px`;
+  pageState.canvas.style.height = 'auto';
+  editor.pageChanged();
+  renderTask = page.render({
+    canvas: pageState.canvas,
     canvasContext: pageState.ctx!,
-    viewport: viewport,
-  };
-
-  await page.render(renderContext).promise;
-
-  // Draw existing selections for this page
-  drawSelections();
+    viewport,
+    transform: [dpr, 0, 0, dpr, 0, 0],
+  });
+  try {
+    await renderTask.promise;
+  } catch (error) {
+    if (generation !== renderGeneration) return;
+    throw error;
+  }
+  if (generation !== renderGeneration) return;
+  renderTask = null;
+  editor.sync();
 
   // Update page info
   const pageInfo = document.getElementById('page-info');
@@ -223,141 +315,42 @@ function setupCanvas() {
 
   pageState.ctx = pageState.canvas.getContext('2d');
 
-  // Mouse events for drawing selections
-  pageState.canvas.addEventListener('mousedown', handleMouseDown);
-  pageState.canvas.addEventListener('mousemove', handleMouseMove);
-  pageState.canvas.addEventListener('mouseup', handleMouseUp);
-}
-
-function handleMouseDown(e: MouseEvent) {
-  const rect = pageState.canvas!.getBoundingClientRect();
-  pageState.isDrawing = true;
-  pageState.startX = e.clientX - rect.left;
-  pageState.startY = e.clientY - rect.top;
-
-  currentRect = {
-    x: pageState.startX,
-    y: pageState.startY,
-    width: 0,
-    height: 0,
-    pageIndex: pageState.currentPage - 1,
-  };
-}
-
-function handleMouseMove(e: MouseEvent) {
-  if (!pageState.isDrawing || !currentRect) return;
-
-  const rect = pageState.canvas!.getBoundingClientRect();
-  const currentX = e.clientX - rect.left;
-  const currentY = e.clientY - rect.top;
-
-  currentRect.width = currentX - pageState.startX;
-  currentRect.height = currentY - pageState.startY;
-
-  // Redraw
-  renderPage(pageState.currentPage);
-  drawCurrentSelection();
-}
-
-function handleMouseUp() {
-  if (!pageState.isDrawing || !currentRect) return;
-
-  pageState.isDrawing = false;
-
-  // Only add if the selection has meaningful size
-  if (Math.abs(currentRect.width) > 10 && Math.abs(currentRect.height) > 10) {
-    // Normalize negative dimensions
-    if (currentRect.width < 0) {
-      currentRect.x += currentRect.width;
-      currentRect.width = Math.abs(currentRect.width);
-    }
-    if (currentRect.height < 0) {
-      currentRect.y += currentRect.height;
-      currentRect.height = Math.abs(currentRect.height);
-    }
-
-    pageState.regions.push({ ...currentRect });
-    updateSelectionInfo();
-  }
-
-  currentRect = null;
-  renderPage(pageState.currentPage);
-}
-
-function drawCurrentSelection() {
-  if (!currentRect || !pageState.ctx) return;
-
-  pageState.ctx.strokeStyle = '#ef4444';
-  pageState.ctx.lineWidth = 2;
-  pageState.ctx.setLineDash([5, 5]);
-  pageState.ctx.strokeRect(
-    currentRect.x,
-    currentRect.y,
-    currentRect.width,
-    currentRect.height
+  editor = new WatermarkRegionEditor(
+    pageState.canvas,
+    document.getElementById('region-overlay')!,
+    document.getElementById('selection-info')!,
+    () => pageState.regions,
+    (regions) => {
+      pageState.regions = regions;
+    },
+    () => pageState.currentPage - 1
   );
-  pageState.ctx.fillStyle = 'rgba(239, 68, 68, 0.1)';
-  pageState.ctx.fillRect(
-    currentRect.x,
-    currentRect.y,
-    currentRect.width,
-    currentRect.height
-  );
-  pageState.ctx.setLineDash([]);
-}
-
-function drawSelections() {
-  if (!pageState.ctx) return;
-
-  const currentPageRegions = pageState.regions.filter(
-    (r) => r.pageIndex === pageState.currentPage - 1
-  );
-
-  currentPageRegions.forEach((region) => {
-    pageState.ctx!.strokeStyle = '#ef4444';
-    pageState.ctx!.lineWidth = 2;
-    pageState.ctx!.strokeRect(region.x, region.y, region.width, region.height);
-    pageState.ctx!.fillStyle = 'rgba(239, 68, 68, 0.2)';
-    pageState.ctx!.fillRect(region.x, region.y, region.width, region.height);
-  });
-}
-
-function updateSelectionInfo() {
-  const infoDiv = document.getElementById('selection-info');
-  if (!infoDiv) return;
-
-  const count = pageState.regions.length;
-  const currentPageCount = pageState.regions.filter(
-    (r) => r.pageIndex === pageState.currentPage - 1
-  ).length;
-
-  infoDiv.innerHTML = `
-    <span class="text-sm text-gray-400">
-      ${count} total region${count !== 1 ? 's' : ''} selected
-      ${currentPageCount > 0 ? `(${currentPageCount} on this page)` : ''}
-    </span>
-  `;
 }
 
 function changePage(delta: number) {
+  if (busy) return;
   const newPage = pageState.currentPage + delta;
   if (newPage < 1 || newPage > pageState.totalPages) return;
 
+  editor.pageChanged();
   pageState.currentPage = newPage;
-  renderPage(newPage);
+  void renderPage(newPage).catch((error) =>
+    showAlert('Preview failed', error.message)
+  );
 }
 
 function clearAllSelections() {
-  pageState.regions = [];
-  updateSelectionInfo();
-  renderPage(pageState.currentPage);
+  if (!busy) editor.clear();
 }
 
-async function autoDetectWatermarks() {
+async function autoDetectWatermarks(useServer = false) {
+  if (busy) return;
   if (!pageState.pdfDoc || !pageState.canvas) {
     showAlert('Error', 'Please upload a PDF file first.');
     return;
   }
+  busy = true;
+  editor.setEnabled(false);
 
   const btn = document.getElementById(
     'auto-detect-btn'
@@ -370,6 +363,86 @@ async function autoDetectWatermarks() {
   }
 
   try {
+    if (useServer && serverWatermarks) {
+      await detectOnServer();
+      return;
+    }
+    if (!useServer) {
+      const samples: Raster[] = [];
+      const count = Math.min(6, pageState.totalPages);
+      for (let i = 0; i < count; i++) {
+        const index =
+          count === 1
+            ? 1
+            : 1 + Math.round((i * (pageState.totalPages - 1)) / (count - 1));
+        const samplePage = await pdfJsDoc.getPage(index);
+        const base = samplePage.getViewport({ scale: 1 });
+        const viewport = samplePage.getViewport({
+          scale: Math.min(1.5, 1600 / base.width),
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const context = canvas.getContext('2d')!;
+        // Fit the viewport exactly to integer backing dimensions. Otherwise
+        // ceil(height) leaves a repeated partial white row that looks like ink.
+        await samplePage.render({
+          canvas,
+          canvasContext: context,
+          viewport,
+          transform: [
+            canvas.width / viewport.width,
+            0,
+            0,
+            canvas.height / viewport.height,
+            0,
+            0,
+          ],
+        }).promise;
+        samples.push(context.getImageData(0, 0, canvas.width, canvas.height));
+      }
+      const box = detectWatermark(samples);
+      const evidence = box ? buildRepeatingWatermarkMask(samples, box) : null;
+      // Inconclusive multi-page evidence must not become a broad per-page
+      // contrast mask that could erase nearby document content.
+      if (box && (samples.length === 1 || evidence)) {
+        const autoMaskId = evidence ? ++nextMaskId : undefined;
+        if (evidence && autoMaskId !== undefined)
+          automaticMasks.set(autoMaskId, evidence);
+        const regions = [...pageState.regions];
+        for (let pageIndex = 0; pageIndex < pageState.totalPages; pageIndex++) {
+          if (
+            !regions.some(
+              (r) =>
+                r.pageIndex === pageIndex &&
+                Math.abs(r.x - box.x) < 0.002 &&
+                Math.abs(r.y - box.y) < 0.002 &&
+                Math.abs(r.width - box.width) < 0.002 &&
+                Math.abs(r.height - box.height) < 0.002
+            )
+          )
+            regions.push({ ...box, pageIndex, autoMaskId });
+        }
+        editor.replace(regions);
+        document.getElementById('server-detect-btn')?.classList.add('hidden');
+        showAlert(
+          'On-device detection complete',
+          `Selected the same corner region on all ${pageState.totalPages} pages. Automatic multi-page removal uses repeating glyphs only. Moving or resizing a box switches it to manual local-contrast removal.`,
+          'success'
+        );
+      } else {
+        document
+          .getElementById('server-detect-btn')
+          ?.classList.remove('hidden');
+        showAlert(
+          'No local watermark found',
+          serverWatermarks
+            ? 'Draw a box over the mark, or use Detect on server. Server detection uploads the PDF and finds watermark text, shapes and layers that on-device detection cannot see.'
+            : 'Draw a region manually, or choose the optional server detection button. Server detection uploads this page and requires a configured API key.'
+        );
+      }
+      return;
+    }
     // Render the current page to a canvas at the same scale used for
     // selection so coordinates line up with pageState.regions.
     if (!pdfJsDoc) throw new Error('PDF not yet loaded');
@@ -424,20 +497,29 @@ async function autoDetectWatermarks() {
       return;
     }
 
-    // Append (don't replace) so users can keep manual selections too.
+    // The server returns image-pixel boxes; normalize exactly once.
+    const detected: WatermarkRegion[] = [];
     for (const wm of watermarks) {
-      pageState.regions.push({
-        x: wm.x,
-        y: wm.y,
-        width: wm.w,
-        height: wm.h,
-        pageIndex: pageState.currentPage - 1,
-      });
+      if (
+        ![wm.x, wm.y, wm.w, wm.h].every(Number.isFinite) ||
+        wm.w <= 0 ||
+        wm.h <= 0
+      )
+        continue;
+      const x = Math.max(0, wm.x),
+        y = Math.max(0, wm.y);
+      const width = Math.min(tempCanvas.width, wm.x + wm.w) - x;
+      const height = Math.min(tempCanvas.height, wm.y + wm.h) - y;
+      if (width > 0 && height > 0)
+        detected.push(
+          pixelsToFraction(
+            { x, y, width, height, pageIndex: pageState.currentPage - 1 },
+            tempCanvas.width,
+            tempCanvas.height
+          )
+        );
     }
-
-    updateSelectionInfo();
-    renderPage(pageState.currentPage);
-    drawSelections();
+    editor.replace([...pageState.regions, ...detected]);
 
     showAlert(
       'Auto-detect complete',
@@ -450,6 +532,8 @@ async function autoDetectWatermarks() {
       err instanceof Error ? err.message : 'Unknown error'
     );
   } finally {
+    busy = false;
+    editor.setEnabled(true);
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = originalLabel;
@@ -465,11 +549,119 @@ async function autoDetectWatermarks() {
   }
 }
 
+interface ServerWatermark {
+  pageIndex: number;
+  kind: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+}
+
+interface ServerRemovalReport {
+  removed: number;
+  imagePatches: number;
+  pages: number[];
+  unmatched: unknown[];
+}
+
+async function serverError(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.json();
+    return body.detail || fallback;
+  } catch {
+    return `${fallback} (HTTP ${res.status})`;
+  }
+}
+
+async function detectOnServer() {
+  const form = new FormData();
+  form.append('file', pageState.file!);
+  const res = await fetch(`${API_BASE_URL}/api/pdf/detect-watermarks`, {
+    method: 'POST',
+    body: form,
+  });
+  if (!res.ok)
+    throw new Error(await serverError(res, 'Server detection failed'));
+  const data: { regions: ServerWatermark[]; imagePages: number[] } =
+    await res.json();
+
+  if (!data.regions.length) {
+    const imagePage = data.imagePages.includes(pageState.currentPage - 1);
+    showAlert(
+      'No watermark objects found',
+      imagePage
+        ? 'This page is an image, so the mark is part of the picture. Draw a box over it and choose Remove Watermark: the server repaints only that area of the image.'
+        : 'Draw a box over the mark and choose Remove Watermark. The server removes what sits under the box.'
+    );
+    return;
+  }
+
+  const pad = 0.004;
+  const found: WatermarkRegion[] = data.regions.map((r) => {
+    const x = Math.max(0, r.x - pad);
+    const y = Math.max(0, r.y - pad);
+    return {
+      pageIndex: r.pageIndex,
+      x,
+      y,
+      width: Math.min(1 - x, r.width + 2 * pad),
+      height: Math.min(1 - y, r.height + 2 * pad),
+    };
+  });
+  editor.replace([...pageState.regions, ...found]);
+  const pages = new Set(found.map((r) => r.pageIndex)).size;
+  const labels = [...new Set(data.regions.map((r) => r.text || r.kind))]
+    .slice(0, 3)
+    .join(', ');
+  showAlert(
+    'Server detection complete',
+    `Found ${found.length} watermark mark${found.length === 1 ? '' : 's'} on ${pages} page${pages === 1 ? '' : 's'}${labels ? ` (${labels})` : ''}. Review the boxes, then choose Remove Watermark.`,
+    'success'
+  );
+}
+
+async function removeOnServer(
+  regions: WatermarkRegion[]
+): Promise<ServerRemovalReport> {
+  const form = new FormData();
+  form.append('file', pageState.file!);
+  if (regions.length)
+    form.append(
+      'regions',
+      JSON.stringify(
+        regions.map(({ pageIndex, x, y, width, height }) => ({
+          pageIndex,
+          x,
+          y,
+          width,
+          height,
+        }))
+      )
+    );
+  const res = await fetch(`${API_BASE_URL}/api/pdf/remove-watermarks`, {
+    method: 'POST',
+    body: form,
+  });
+  if (!res.ok) throw new Error(await serverError(res, 'Server removal failed'));
+  const report: ServerRemovalReport = JSON.parse(
+    res.headers.get('X-ChamPDF-Watermark-Report') || '{}'
+  );
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  pageState.pdfDoc = await PDFLibDocument.load(bytes);
+  pdfJsDoc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+  await renderPage(pageState.currentPage);
+  return {
+    removed: report.removed ?? 0,
+    imagePatches: report.imagePatches ?? 0,
+    pages: report.pages ?? [],
+    unmatched: report.unmatched ?? [],
+  };
+}
+
 function undoLastSelection() {
-  if (pageState.regions.length === 0) return;
-  pageState.regions.pop();
-  updateSelectionInfo();
-  renderPage(pageState.currentPage);
+  if (!busy) editor.undo();
 }
 
 function setupSettings() {
@@ -489,18 +681,28 @@ function setupSettings() {
     'inpainting-method'
   ) as HTMLSelectElement | null;
   const geminiNote = document.getElementById('gemini-method-note');
+  const serverNote = document.getElementById('server-method-note');
   const updateMethodUi = () => {
     if (!methodSelect) return;
     const isGemini = methodSelect.value === 'gemini';
+    const isServer = methodSelect.value === 'server';
     geminiNote?.classList.toggle('hidden', !isGemini);
-    if (radiusSlider) radiusSlider.disabled = isGemini;
+    serverNote?.classList.toggle('hidden', !isServer);
+    if (radiusSlider) radiusSlider.disabled = isGemini || isServer;
   };
   methodSelect?.addEventListener('change', updateMethodUi);
   updateMethodUi();
 }
 
 async function removeWatermarks() {
-  if (!pageState.pdfDoc || pageState.regions.length === 0) {
+  if (busy) return;
+  const method = (
+    document.getElementById('inpainting-method') as HTMLSelectElement
+  ).value as InpaintingOptions['method'];
+  if (
+    !pageState.pdfDoc ||
+    (pageState.regions.length === 0 && method !== 'server')
+  ) {
     showAlert(
       'Error',
       'Please select at least one watermark region to remove.'
@@ -509,12 +711,31 @@ async function removeWatermarks() {
   }
 
   showLoader('Removing watermarks...');
+  busy = true;
+  editor.setEnabled(false);
   const loaderProgress = document.getElementById('loader-progress');
 
   try {
-    const method = (
-      document.getElementById('inpainting-method') as HTMLSelectElement
-    ).value as 'telea' | 'ns' | 'gemini';
+    if (method === 'server') {
+      const report = await removeOnServer(pageState.regions);
+      hideLoader();
+      if (!report.removed && !report.imagePatches) {
+        showAlert(
+          'Nothing removed',
+          pageState.regions.length
+            ? 'The server found no watermark text, shape or image under these boxes. Adjust the boxes and try again.'
+            : 'No watermark was found automatically. Draw a box over the mark and try again.'
+        );
+        return;
+      }
+      enterLogoStep(report.pages.length);
+      if (report.unmatched.length)
+        showAlert(
+          'Some boxes were skipped',
+          `${report.unmatched.length} box${report.unmatched.length === 1 ? ' had' : 'es had'} nothing the server could remove, so ${report.unmatched.length === 1 ? 'it was' : 'they were'} left unchanged.`
+        );
+      return;
+    }
 
     // OpenCV is only needed for the local methods. Gemini path uploads to
     // the backend instead.
@@ -564,38 +785,17 @@ async function removeWatermarks() {
       error.message || 'Failed to remove watermarks. Please try again.'
     );
   } finally {
+    busy = false;
+    if (document.getElementById('logo-panel')?.classList.contains('hidden'))
+      editor.setEnabled(true);
     hideLoader();
   }
 }
 
 async function loadOpenCV(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).cv && (window as any).cv.Mat) {
-      resolve();
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = 'https://docs.opencv.org/4.x/opencv.js';
-    script.async = true;
-    script.onload = () => {
-      // Wait for OpenCV to be ready
-      const checkOpenCV = setInterval(() => {
-        if ((window as any).cv && (window as any).cv.Mat) {
-          clearInterval(checkOpenCV);
-          resolve();
-        }
-      }, 100);
-
-      // Timeout after 10 seconds
-      setTimeout(() => {
-        clearInterval(checkOpenCV);
-        reject(new Error('OpenCV.js failed to load'));
-      }, 10000);
-    };
-    script.onerror = () => reject(new Error('Failed to load OpenCV.js'));
-    document.head.appendChild(script);
-  });
+  if ((window as any).cv?.Mat) return;
+  const { cv } = await initializeOpenCV();
+  (window as any).cv = cv;
 }
 
 async function processPageWithInpainting(
@@ -605,60 +805,156 @@ async function processPageWithInpainting(
   regions: WatermarkRegion[],
   options: InpaintingOptions
 ) {
-  // Render page to canvas at higher resolution
+  // Render at the embedded full-page raster's native size where available.
   const page = await pdfJsDoc.getPage(pageIndex + 1);
-  const scale = 2.0; // Higher resolution for better quality
+  const viewport1 = page.getViewport({ scale: 1 });
+  let nativeWidth = viewport1.width;
+  let nativeHeight = viewport1.height;
+  let pngLike = false;
+  let rasterBacked = false;
+  const ops = await page.getOperatorList();
+  for (let i = 0; i < ops.fnArray.length; i++) {
+    const fn = ops.fnArray[i];
+    if (
+      fn !== pdfjsLib.OPS.paintImageXObject &&
+      fn !== pdfjsLib.OPS.paintInlineImageXObject
+    )
+      continue;
+    const arg = ops.argsArray[i]?.[0];
+    try {
+      const image =
+        typeof arg === 'string'
+          ? await new Promise<any>((resolve) => page.objs.get(arg, resolve))
+          : arg;
+      if (
+        image?.width &&
+        image?.height &&
+        image.width * image.height > nativeWidth * nativeHeight * 0.8
+      ) {
+        nativeWidth = image.width;
+        nativeHeight = image.height;
+        rasterBacked = true;
+        pngLike =
+          image.kind === pdfjsLib.ImageKind.RGBA_32BPP ||
+          image.kind === pdfjsLib.ImageKind.GRAYSCALE_1BPP;
+      }
+    } catch {
+      /* PDF.js may not expose this image; keep viewport dimensions. */
+    }
+  }
+  let scale = Math.max(
+    1,
+    nativeWidth / viewport1.width,
+    nativeHeight / viewport1.height
+  );
+  if (!rasterBacked) scale = Math.max(scale, LOCAL_VECTOR_SCALE);
+  scale = Math.min(
+    scale,
+    Math.max(
+      1,
+      Math.sqrt(MAX_RENDER_PIXELS / (viewport1.width * viewport1.height))
+    )
+  );
   const viewport = page.getViewport({ scale });
 
   const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = viewport.width;
-  tempCanvas.height = viewport.height;
+  tempCanvas.width = Math.round(viewport.width);
+  tempCanvas.height = Math.round(viewport.height);
   const tempCtx = tempCanvas.getContext('2d')!;
 
   await page.render({
     canvasContext: tempCtx,
+    canvas: tempCanvas,
     viewport: viewport,
   }).promise;
 
-  const scaleRatio = scale / pageState.scale;
-
-  let imageBytes: Uint8Array;
-
   if (options.method === 'gemini') {
-    imageBytes = await inpaintWithGemini(tempCanvas, regions, scaleRatio);
-  } else {
-    imageBytes = inpaintWithOpenCV(
-      tempCanvas,
-      tempCtx,
-      regions,
-      scaleRatio,
-      options
+    const bytes = await inpaintWithGemini(tempCanvas, regions);
+    const bitmap = await createImageBitmap(
+      new Blob([bytes as BlobPart], { type: 'image/png' })
     );
+    tempCtx.drawImage(bitmap, 0, 0, tempCanvas.width, tempCanvas.height);
+  } else if (
+    !rasterBacked &&
+    regions.every((region) => region.autoMaskId === undefined)
+  ) {
+    const imgData = tempCtx.getImageData(
+      0,
+      0,
+      tempCanvas.width,
+      tempCanvas.height
+    );
+    clearDocumentMarks(
+      imgData,
+      regions.map((region) =>
+        fractionToPixels(region, tempCanvas.width, tempCanvas.height)
+      )
+    );
+    tempCtx.putImageData(imgData, 0, 0);
+  } else {
+    inpaintWithOpenCV(tempCanvas, tempCtx, regions, options);
   }
 
-  // Replace page in PDF with processed image
-  const pdfPage = pdfLibDoc.getPage(pageIndex);
-  const jpgImage =
-    options.method === 'gemini'
-      ? await pdfLibDoc.embedPng(imageBytes)
-      : await pdfLibDoc.embedJpg(imageBytes);
+  await drawRegionPatches(
+    pdfLibDoc,
+    pageIndex,
+    tempCanvas,
+    regions,
+    rasterBacked && !pngLike ? 'jpeg' : 'png'
+  );
+}
 
-  const { width, height } = pdfPage.getSize();
-  pdfPage.drawImage(jpgImage, {
-    x: 0,
-    y: 0,
-    width: width,
-    height: height,
-  });
+async function drawRegionPatches(
+  pdfLibDoc: any,
+  pageIndex: number,
+  canvas: HTMLCanvasElement,
+  regions: WatermarkRegion[],
+  format: 'png' | 'jpeg'
+) {
+  const pdfPage = pdfLibDoc.getPage(pageIndex);
+  const encode = async (source: HTMLCanvasElement) => {
+    const bytes = dataUrlToBytes(
+      source.toDataURL(format === 'png' ? 'image/png' : 'image/jpeg', 0.95)
+    );
+    return format === 'png'
+      ? pdfLibDoc.embedPng(bytes)
+      : pdfLibDoc.embedJpg(bytes);
+  };
+
+  if (pdfPage.getRotation().angle % 360 !== 0) {
+    const { width, height } = pdfPage.getSize();
+    pdfPage.drawImage(await encode(canvas), { x: 0, y: 0, width, height });
+    return;
+  }
+
+  const crop = pdfPage.getCropBox();
+  const pad = 2;
+  for (const region of regions) {
+    const px = fractionToPixels(region, canvas.width, canvas.height);
+    const sx = Math.max(0, Math.floor(px.x) - pad);
+    const sy = Math.max(0, Math.floor(px.y) - pad);
+    const sw = Math.min(canvas.width - sx, Math.ceil(px.width) + 2 * pad);
+    const sh = Math.min(canvas.height - sy, Math.ceil(px.height) + 2 * pad);
+    if (sw < 1 || sh < 1) continue;
+    const patch = document.createElement('canvas');
+    patch.width = sw;
+    patch.height = sh;
+    patch.getContext('2d')!.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+    pdfPage.drawImage(await encode(patch), {
+      x: crop.x + (sx / canvas.width) * crop.width,
+      y: crop.y + crop.height - ((sy + sh) / canvas.height) * crop.height,
+      width: (sw / canvas.width) * crop.width,
+      height: (sh / canvas.height) * crop.height,
+    });
+  }
 }
 
 function inpaintWithOpenCV(
   tempCanvas: HTMLCanvasElement,
   tempCtx: CanvasRenderingContext2D,
   regions: WatermarkRegion[],
-  scaleRatio: number,
   options: InpaintingOptions
-): Uint8Array {
+): void {
   const cv = (window as any).cv;
 
   const imgData = tempCtx.getImageData(
@@ -668,44 +964,52 @@ function inpaintWithOpenCV(
     tempCanvas.height
   );
   const src = cv.matFromImageData(imgData);
-  const mask = new cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
-
-  regions.forEach((region) => {
-    const rect = new cv.Rect(
-      Math.floor(region.x * scaleRatio),
-      Math.floor(region.y * scaleRatio),
-      Math.floor(region.width * scaleRatio),
-      Math.floor(region.height * scaleRatio)
+  const glyphMask = buildGlyphMask(
+    imgData,
+    regions
+      .filter((region) => region.autoMaskId === undefined)
+      .map((region) =>
+        fractionToPixels(region, tempCanvas.width, tempCanvas.height)
+      )
+  );
+  for (const region of regions) {
+    if (region.autoMaskId === undefined) continue;
+    const evidence = automaticMasks.get(region.autoMaskId);
+    if (!evidence)
+      throw new Error(
+        'Watermark evidence expired. Run on-device detection again.'
+      );
+    const repeated = repeatingMaskToPixels(
+      evidence,
+      tempCanvas.width,
+      tempCanvas.height
     );
-    cv.rectangle(
-      mask,
-      rect.tl(),
-      rect.br(),
-      new cv.Scalar(255, 255, 255, 255),
-      -1
-    );
-  });
+    for (let i = 0; i < glyphMask.length; i++)
+      if (repeated[i]) glyphMask[i] = 255;
+  }
+  const mask = new cv.Mat(src.rows, src.cols, cv.CV_8UC1);
+  mask.data.set(glyphMask);
 
   const dst = new cv.Mat();
   const inpaintFlag =
     options.method === 'telea' ? cv.INPAINT_TELEA : cv.INPAINT_NS;
-  cv.inpaint(src, mask, dst, options.radius, inpaintFlag);
-
-  cv.imshow(tempCanvas, dst);
+  const rgb = new cv.Mat();
+  cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+  cv.inpaint(rgb, mask, dst, options.radius, inpaintFlag);
+  const rgba = new cv.Mat();
+  cv.cvtColor(dst, rgba, cv.COLOR_RGB2RGBA);
+  cv.imshow(tempCanvas, rgba);
 
   src.delete();
   mask.delete();
   dst.delete();
-
-  return dataUrlToBytes(tempCanvas.toDataURL('image/jpeg', 0.95));
+  rgb.delete();
+  rgba.delete();
 }
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || '';
 
 async function inpaintWithGemini(
   tempCanvas: HTMLCanvasElement,
-  regions: WatermarkRegion[],
-  scaleRatio: number
+  regions: WatermarkRegion[]
 ): Promise<Uint8Array> {
   // Build a binary mask matching the rendered canvas size: white = inpaint.
   const maskCanvas = document.createElement('canvas');
@@ -716,11 +1020,16 @@ async function inpaintWithGemini(
   maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
   maskCtx.fillStyle = '#fff';
   regions.forEach((region) => {
+    const pixels = fractionToPixels(
+      region,
+      tempCanvas.width,
+      tempCanvas.height
+    );
     maskCtx.fillRect(
-      Math.floor(region.x * scaleRatio),
-      Math.floor(region.y * scaleRatio),
-      Math.floor(region.width * scaleRatio),
-      Math.floor(region.height * scaleRatio)
+      Math.floor(pixels.x),
+      Math.floor(pixels.y),
+      Math.ceil(pixels.width),
+      Math.ceil(pixels.height)
     );
   });
 
@@ -859,6 +1168,7 @@ function setupLogoStep() {
 }
 
 function enterLogoStep(processedCount: number) {
+  editor.setEnabled(false);
   // Hide the selection settings; reveal the logo panel.
   document.getElementById('logo-panel')?.classList.remove('hidden');
   const processBtn = document.getElementById('process-btn');
@@ -870,9 +1180,6 @@ function enterLogoStep(processedCount: number) {
       processedCount !== 1 ? 's' : ''
     }. Now add a logo (optional).</span>`;
   }
-
-  // Make the canvas non-crosshair during placement.
-  pageState.canvas?.classList.remove('cursor-crosshair');
 
   // Default to the LakeB2B preset preview.
   logoState.source = 'lakeb2b';

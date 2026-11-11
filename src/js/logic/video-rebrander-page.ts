@@ -12,6 +12,7 @@
 import { createIcons, icons } from 'lucide';
 import { showAlert } from '../ui.js';
 import { formatBytes } from '../utils/helpers.js';
+import { readProcessedMedia } from '../utils/media-response.js';
 
 // API endpoint - configure based on environment
 // Use empty string to make relative URLs work with Nginx reverse proxy in production
@@ -282,17 +283,9 @@ async function handleProcess() {
 
     clearInterval(progressInterval);
 
-    if (!response.ok) {
-      const errorData = await response
-        .json()
-        .catch(() => ({ detail: 'Unknown error' }));
-      throw new Error(errorData.detail || `Server error: ${response.status}`);
-    }
-
     // Get the blob from response
+    const blob = await readProcessedMedia(response, 'video/mp4', '100MB');
     updateStatus('Processing complete!', 'Preparing download...');
-
-    const blob = await response.blob();
 
     // Create download URL
     if (state.downloadUrl) {

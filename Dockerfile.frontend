@@ -5,7 +5,7 @@
 # =============================================================================
 # STAGE 1: Build React App
 # =============================================================================
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -50,7 +50,13 @@ FROM nginxinc/nginx-unprivileged:stable-alpine-slim
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy Nginx configuration template
-COPY nginx.railway.conf.template /etc/nginx/templates/default.conf.template
+COPY --chown=nginx:nginx nginx.railway.conf.template /etc/nginx/templates/nginx.conf.template
+
+# This template contains pid, events and http, so it replaces nginx.conf.
+# Installing it under conf.d makes Nginx fail before the API proxy can start.
+# Limit envsubst to deployment variables and preserve Nginx's $host/$uri/etc.
+ENV NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+ENV NGINX_ENVSUBST_FILTER=^(PORT|BACKEND_URL)$
 
 # Normalize BACKEND_URL (prepend http:// if missing, default to localhost
 # if empty) before envsubst renders it. Prevents the container from

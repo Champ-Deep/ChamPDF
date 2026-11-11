@@ -119,7 +119,8 @@ http {
     tcp_nodelay on;
 
     # Increase buffer sizes
-    client_max_body_size 100M;
+    # Reserve multipart overhead around a 100 MiB video file.
+    client_max_body_size 101M;
     
     # Worker connections
     worker_connections 2048;

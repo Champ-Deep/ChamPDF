@@ -12,6 +12,8 @@ export default defineConfig({
     // Setup files to run before tests
     setupFiles: ['./src/tests/setup.ts'],
 
+    env: { VITE_API_URL: '' },
+
     // Coverage configuration
     coverage: {
       provider: 'v8',

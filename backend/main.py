@@ -3,6 +3,7 @@ Video Logo Remover & Rebrander API
 FastAPI backend for processing videos with FFmpeg
 """
 
+import json
 import uuid
 import io
 import asyncio
@@ -22,6 +23,13 @@ import aiofiles
 import logging
 
 from config import settings
+
+# api_v1 and sign both default to the Docker volume /app/data, which does not
+# exist on a laptop (every key and sign route then 500s). Outside Docker, keep
+# the SQLite file inside the checkout instead.
+if not os.environ.get("CHAMPDF_DB_PATH") and not os.path.isdir("/app/data"):
+    os.environ["CHAMPDF_DB_PATH"] = str(Path(__file__).parent / "data" / "champdf.db")
+
 from video_processor import VideoProcessor
 from image_processor import ImageProcessor
 from media_downloader import (
@@ -42,6 +50,15 @@ from api_v1 import (
     router as api_v1_router,
     self_serve_keys_available,
 )
+
+# ChampPDF Sign: template -> tracked link -> OTP -> signature -> sealed PDF,
+# with a hash-chained audit trail. Env-gated like everything else; see
+# docs/sign/README.md.
+from sign.router import router as sign_router
+from sign.store import init_sign_db
+from sign.service import sign_enabled as sign_feature_enabled
+from sign.providers import provider_name as sign_provider_name
+from sign.mailer import mail_configured as sign_mail_configured
 
 # Self-hosted AI engine (our branch): LaMa inpainting, OpenCV template watermark
 # detection, faster-whisper captions, Real-ESRGAN upscaling. These run locally and
@@ -64,8 +81,16 @@ from replicate_client import ReplicateError
 from groq_client import GroqError
 from ocr_processor import ocr_pdf, ocr_available, OcrError
 from pdf_signer import sign_pdf, verify_pdf, sign_available, default_tsa_url, SignError
+# Per-capability media engine switch (local | replicate via treg | openrouter | gemini).
+import media_providers
+import treg_client
+from media_providers import MediaError
 from table_extractor import extract_tables, table_extraction_available, TableExtractionError
+import pdf_watermark
 
+# Honour LOG_LEVEL; without this INFO is dropped, so the log-only sign mailer
+# (invitation links, OTP codes) prints nothing on a dev machine.
+logging.basicConfig(level=settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
 # Global semaphore to limit concurrency
@@ -104,6 +129,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"v1 API key store init failed: {e}")
 
+    # ChampPDF Sign system of record (same SQLite file, its own tables)
+    try:
+        init_sign_db()
+        logger.info("✅ Sign store initialized (provider=%s)", sign_provider_name())
+    except Exception as e:
+        logger.warning(f"Sign store init failed: {e}")
+
     logger.info("Backend startup complete - ready to accept connections")
 
     yield
@@ -114,8 +146,17 @@ async def lifespan(app: FastAPI):
     # shutil.rmtree(settings.BASE_TEMP_DIR, ignore_errors=True)
 
 app = FastAPI(
-    title="Video Logo Remover API",
-    description="Remove AI watermarks and rebrand videos with custom logos",
+    title="ChamPDF API",
+    description=(
+        "Document API: fill PDF forms, apply PAdES digital signatures with a "
+        "visible signature block, verify signed documents, plus merge, split, "
+        "watermark, OCR, Office conversion, and text/table extraction.\n\n"
+        "Endpoints under `/api/v1` are the public, API-key-authenticated "
+        "surface — the one to integrate against. Send "
+        "`Authorization: Bearer champdf_live_...` on every v1 call.\n\n"
+        "Unversioned `/api/*` endpoints back the ChamPDF web app and carry no "
+        "compatibility guarantee; do not build against them."
+    ),
     version="1.0.0",
     lifespan=lifespan
 )
@@ -131,6 +172,70 @@ app.add_middleware(
 
 # Public versioned API (API-key auth)
 app.include_router(api_v1_router)
+
+# ChampPDF Sign (/api/sign/*): sender routes are Clerk- or admin-token gated,
+# signer routes are capability-URL + OTP gated.
+app.include_router(sign_router)
+
+def _custom_openapi():
+    """OpenAPI schema with a server URL and declared auth schemes.
+
+    FastAPI emits neither by default, which makes the spec unusable as a
+    Postman/Insomnia import: requests land with no base URL and no
+    Authorization header, so every call 401s. Declaring them here means
+    `GET /openapi.json` is a working client out of the box.
+    """
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    from fastapi.openapi.utils import get_openapi
+
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+
+    public_base = os.environ.get(
+        "CHAMPDF_PUBLIC_BASE_URL", "https://champdf-api.64.227.154.215.sslip.io"
+    ).rstrip("/")
+    schema["servers"] = [{"url": public_base, "description": "Production"}]
+
+    schema.setdefault("components", {})["securitySchemes"] = {
+        "apiKey": {
+            "type": "http",
+            "scheme": "bearer",
+            "description": (
+                "API key issued for your integration: "
+                "`Authorization: Bearer champdf_live_...`"
+            ),
+        },
+        "adminToken": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-Admin-Token",
+            "description": "Admin token. Only for /api/v1/admin/* key management.",
+        },
+    }
+
+    # Every v1 endpoint is key-authenticated; the admin key-management
+    # endpoints take the admin token instead.
+    for path, item in schema.get("paths", {}).items():
+        if not path.startswith("/api/v1"):
+            continue
+        requirement = (
+            [{"adminToken": []}] if path.startswith("/api/v1/admin") else [{"apiKey": []}]
+        )
+        for operation in item.values():
+            if isinstance(operation, dict):
+                operation["security"] = requirement
+
+    app.openapi_schema = schema
+    return schema
+
+
+app.openapi = _custom_openapi
 
 # Initialize processors
 processor = VideoProcessor(logo_dir=settings.LOGO_DIR)
@@ -153,6 +258,17 @@ caption_processor = (
     if settings.ENABLE_CAPTIONS
     else None
 )
+
+# Hand the local engines to the provider switch; hosted engines are env-driven.
+media_providers.configure_local(
+    lama=lama_processor, upscaler=upscale_processor, image_processor=image_processor
+)
+
+
+def _media_http_error(e: MediaError) -> HTTPException:
+    status = {"not_configured": 503, "invalid_input": 422}.get(e.code, 502)
+    return HTTPException(status_code=status, detail=str(e))
+
 
 # Allowed extensions
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".avi"}
@@ -235,20 +351,20 @@ async def remove_background(
         # Acquire semaphore to prevent OOM
         async with process_semaphore:
             logger.info(f"Removing background from {file.filename}")
-            output_bytes = await image_processor.remove_background(
-                contents,
-                output_format=output_format
-            )
+            result = await media_providers.remove_background(contents, output_format=output_format)
 
         # Return processed image
         return StreamingResponse(
-            io.BytesIO(output_bytes),
+            io.BytesIO(result.data),
             media_type=f"image/{output_format}",
             headers={
-                "Content-Disposition": f"attachment; filename={file.filename.rsplit('.', 1)[0]}_no_bg.{output_format}"
+                "Content-Disposition": f"attachment; filename={file.filename.rsplit('.', 1)[0]}_no_bg.{output_format}",
+                "X-ChamPDF-Provider": result.provider,
             }
         )
 
+    except MediaError as e:
+        raise _media_http_error(e)
     except Exception as e:
         logger.error(f"Background removal error: {str(e)}")
         raise HTTPException(
@@ -438,19 +554,16 @@ async def inpaint_image_endpoint(
 
     try:
         async with process_semaphore:
-            result_png = await inpaint_image(
-                image_bytes=image_bytes,
-                mask_bytes=mask_bytes,
-                prompt=prompt,
-                radius=radius,
-            )
+            result = await media_providers.inpaint(image_bytes, mask_bytes, prompt=prompt, radius=radius)
+    except MediaError as e:
+        raise _media_http_error(e)
     except InpaintError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
     return StreamingResponse(
-        io.BytesIO(result_png),
+        io.BytesIO(result.data),
         media_type="image/png",
-        headers={"Content-Disposition": 'inline; filename="inpainted.png"'},
+        headers={"Content-Disposition": 'inline; filename="inpainted.png"', "X-ChamPDF-Provider": result.provider},
     )
 
 
@@ -504,23 +617,18 @@ async def edit_image_endpoint(
 
     try:
         async with process_semaphore:
-            result_png = await edit_image_with_prompt(
-                image_bytes=image_bytes, prompt=prompt
-            )
-    except EditError as e:
+            result = await media_providers.edit_image(image_bytes, prompt)
+    except MediaError as e:
         # 503 if the server is just not configured; 422 if the user input
         # was the problem; 502 for an actual upstream failure.
-        msg = str(e)
-        if "not configured" in msg:
-            raise HTTPException(status_code=503, detail=msg)
-        if "Prompt" in msg or "prompt is required" in msg.lower():
-            raise HTTPException(status_code=422, detail=msg)
-        raise HTTPException(status_code=502, detail=msg)
+        raise _media_http_error(e)
+    except EditError as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
     return StreamingResponse(
-        io.BytesIO(result_png),
+        io.BytesIO(result.data),
         media_type="image/png",
-        headers={"Content-Disposition": 'inline; filename="edited.png"'},
+        headers={"Content-Disposition": 'inline; filename="edited.png"', "X-ChamPDF-Provider": result.provider},
     )
 
 
@@ -635,13 +743,17 @@ async def cleanup_temp_files():
 async def get_capabilities():
     """Report which self-hosted AI features are enabled (frontend show/hide)."""
     return {
-        "background_removal": True,
+        "background_removal": media_providers.resolve("remove_background") is not None,
         "video_rebrand": True,
-        "inpaint": lama_processor is not None,
-        "upscale": upscale_processor is not None,
+        "inpaint": media_providers.resolve("inpaint") not in (None, "opencv"),
+        "upscale": media_providers.resolve("upscale") is not None,
         "captions": caption_processor is not None,
         "watermark_autodetect": watermark_detector.has_templates(),
-        "gemini_inpaint": bool(os.environ.get("GEMINI_API_KEY")),
+        # Name kept for the frontend; true when ANY prompt-editing engine is configured.
+        "gemini_inpaint": media_providers.resolve("edit_image") is not None,
+        "image_edit_provider": media_providers.resolve("edit_image"),
+        "media_providers": media_providers.describe(),
+        "treg": treg_client.describe(),
         "video_transcript": caption_processor is not None,
         "video_summary": summary_available(),
         "video_analyze": analyze_available(),
@@ -652,8 +764,14 @@ async def get_capabilities():
         "pdf_sign_advanced": sign_available(),
         "pdf_verify": sign_available(),
         "table_extraction": table_extraction_available(),
+        "pdf_watermark_objects": pdf_watermark.watermark_removal_available(),
+        "pdf_watermark_inpaint": media_providers.resolve("inpaint") or "opencv",
         "api_self_serve_keys": self_serve_keys_available(),
         "summary_models": SUGGESTED_MODELS,
+        # ChampPDF Sign. Full detail (seal, storage, templates) at /api/sign/status.
+        "sign_esign": sign_feature_enabled(),
+        "sign_provider": sign_provider_name(),
+        "sign_email": sign_mail_configured(),
     }
 
 
@@ -744,8 +862,8 @@ async def remove_image_watermark(
 
 @app.post("/api/inpaint")
 async def inpaint_with_mask(file: UploadFile = File(...), mask: UploadFile = File(...)):
-    """Generic LaMa inpainting: image + 1-channel mask (white = remove)."""
-    if not lama_processor:
+    """Generic inpainting: image + 1-channel mask (white = remove). LaMa locally, or a hosted model."""
+    if media_providers.resolve("inpaint") in (None, "opencv"):
         raise HTTPException(status_code=400, detail="AI inpainting is disabled on this server")
     if not process_semaphore:
         raise HTTPException(status_code=503, detail="Server initializing")
@@ -754,16 +872,18 @@ async def inpaint_with_mask(file: UploadFile = File(...), mask: UploadFile = Fil
     mask_bytes = await mask.read()
     try:
         async with process_semaphore:
-            output = await lama_processor.inpaint(image_bytes, mask_bytes)
+            result = await media_providers.inpaint(image_bytes, mask_bytes)
+    except MediaError as e:
+        raise _media_http_error(e)
     except Exception as e:
         logger.error(f"Inpaint error: {e}")
         raise HTTPException(status_code=500, detail=f"Processing failed: {e}")
 
     base = (file.filename or "image").rsplit(".", 1)[0]
     return StreamingResponse(
-        io.BytesIO(output),
+        io.BytesIO(result.data),
         media_type="image/png",
-        headers={"Content-Disposition": f"attachment; filename={base}_inpainted.png"},
+        headers={"Content-Disposition": f"attachment; filename={base}_inpainted.png", "X-ChamPDF-Provider": result.provider},
     )
 
 
@@ -863,8 +983,8 @@ async def upscale_image(
     scale: int = Form(4),
     output_format: str = Form("png"),
 ):
-    """Upscale an image with Real-ESRGAN (2x / 4x)."""
-    if not upscale_processor:
+    """Upscale an image (2x / 4x): Real-ESRGAN locally, or a hosted model."""
+    if media_providers.resolve("upscale") is None:
         raise HTTPException(status_code=400, detail="Upscaling is disabled on this server")
     if not process_semaphore:
         raise HTTPException(status_code=503, detail="Server initializing")
@@ -882,7 +1002,9 @@ async def upscale_image(
 
     try:
         async with process_semaphore:
-            output = await upscale_processor.upscale(contents, scale=scale, output_format=output_format)
+            result = await media_providers.upscale(contents, scale=scale, output_format=output_format)
+    except MediaError as e:
+        raise _media_http_error(e)
     except Exception as e:
         logger.error(f"Upscale error: {e}")
         raise HTTPException(status_code=500, detail=f"Processing failed: {e}")
@@ -890,9 +1012,9 @@ async def upscale_image(
     base = (file.filename or "image").rsplit(".", 1)[0]
     ext = "png" if output_format.lower() == "png" else "jpg"
     return StreamingResponse(
-        io.BytesIO(output),
+        io.BytesIO(result.data),
         media_type=f"image/{ext}",
-        headers={"Content-Disposition": f"attachment; filename={base}_upscaled_{scale}x.{ext}"},
+        headers={"Content-Disposition": f"attachment; filename={base}_upscaled_{scale}x.{ext}", "X-ChamPDF-Provider": result.provider},
     )
 
 
@@ -1178,6 +1300,66 @@ async def extract_tables_endpoint(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Table extraction failed: {e}")
 
     return {"tables": tables}
+
+
+async def _read_pdf_upload(file: UploadFile) -> bytes:
+    if not pdf_watermark.watermark_removal_available():
+        raise HTTPException(status_code=400, detail="PDF watermark removal is not configured on this server")
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+    contents = await file.read()
+    if len(contents) > settings.MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File too large")
+    return contents
+
+
+@app.post("/api/pdf/detect-watermarks")
+async def detect_pdf_watermarks(file: UploadFile = File(...)):
+    contents = await _read_pdf_upload(file)
+    try:
+        async with process_semaphore:
+            return await asyncio.to_thread(pdf_watermark.detect, contents)
+    except pdf_watermark.WatermarkError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"PDF watermark detection error: {e}")
+        raise HTTPException(status_code=500, detail=f"Detection failed: {e}")
+
+
+@app.post("/api/pdf/remove-watermarks")
+async def remove_pdf_watermarks(file: UploadFile = File(...), regions: Optional[str] = Form(None)):
+    contents = await _read_pdf_upload(file)
+    try:
+        parsed = json.loads(regions) if regions else None
+    except ValueError:
+        raise HTTPException(status_code=400, detail="regions must be a JSON array")
+    if parsed is not None and not isinstance(parsed, list):
+        raise HTTPException(status_code=400, detail="regions must be a JSON array")
+
+    loop = asyncio.get_running_loop()
+
+    def inpaint(image_png: bytes, mask_png: bytes) -> bytes:
+        return asyncio.run_coroutine_threadsafe(media_providers.inpaint(image_png, mask_png), loop).result().data
+
+    try:
+        async with process_semaphore:
+            output, report = await asyncio.to_thread(pdf_watermark.remove, contents, parsed, inpaint)
+    except pdf_watermark.WatermarkError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"PDF watermark removal error: {e}")
+        raise HTTPException(status_code=500, detail=f"Removal failed: {e}")
+
+    base = (file.filename or "document").rsplit(".", 1)[0]
+    return StreamingResponse(
+        io.BytesIO(output),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{base}_no_watermark.pdf"',
+            "X-ChamPDF-Watermark-Report": json.dumps(report),
+            "Access-Control-Expose-Headers": "X-ChamPDF-Watermark-Report",
+        },
+    )
 
 
 if __name__ == "__main__":

@@ -292,10 +292,10 @@ async function handleSinglePdfUpload(toolId, file) {
         resultsDiv.appendChild(infoSection.wrapper);
 
         const fieldsSection = createSection('Interactive Form Fields');
-        if (fieldObjects && Object.keys(fieldObjects).length > 0) {
-          for (const fieldName in fieldObjects) {
-            const field = fieldObjects[fieldName][0];
-            const value = (field as any).fieldValue || '- Not Set -';
+        if (fieldObjects && fieldObjects.size > 0) {
+          for (const [fieldName, fieldList] of fieldObjects) {
+            const field = fieldList[0];
+            const value = field && 'value' in field ? field.value ?? '- Not Set -' : '- Not Set -';
             fieldsSection.ul.appendChild(
               createListItem(fieldName, String(value))
             );

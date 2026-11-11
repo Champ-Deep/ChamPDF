@@ -67,6 +67,9 @@ WORKDIR /app
 # than an explicit per-file list so newly added modules (e.g. clerk_auth.py)
 # are always included — an omitted file here 500s /api/capabilities at runtime.
 COPY backend/*.py ./
+# ChampPDF Sign is a package (backend/sign/) with non-Python assets (template
+# specs, HTML bodies, CSS), so the wildcard above does not cover it.
+COPY backend/sign/ ./sign/
 
 # Persistent volume for the v1 API key SQLite store. Override with
 # CHAMPDF_DB_PATH env var if a different path is needed.

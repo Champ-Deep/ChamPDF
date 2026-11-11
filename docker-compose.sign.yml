@@ -1,0 +1,94 @@
+# ChampPDF Sign: optional Documenso engine (SIGN_PROVIDER=documenso).
+#
+# Runs Documenso UNMODIFIED from its published image, on a private network,
+# with its own Postgres. It is never published to the internet: the ChamPDF
+# backend reaches it over the compose network with a service token, and the
+# signer's OTP-gated page embeds the per-recipient signing URL. No patches, no
+# fork, nothing of Documenso's AGPL code lives in this repository.
+#
+# The default engine is "native" (PyMuPDF + pyHanko in the backend) and needs
+# none of this. Bring this up only when you want Documenso's signing UI.
+#
+#   docker compose -f docker-compose.dev.yml -f docker-compose.sign.yml up documenso
+#   # then, once it is healthy, create an API token in Documenso (Settings ->
+#   # API tokens) and set on the backend:
+#   #   SIGN_PROVIDER=documenso
+#   #   DOCUMENSO_BASE_URL=http://documenso:3000
+#   #   DOCUMENSO_API_TOKEN=<token>
+#
+# Pin the image tag before production use; "latest" is only for the first
+# bring-up. Documenso needs its own signing certificate for the seal it applies
+# (NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH); generate one with openssl and mount it.
+
+services:
+  documenso-db:
+    image: postgres:16-alpine
+    container_name: champdf-documenso-db
+    environment:
+      POSTGRES_USER: documenso
+      POSTGRES_PASSWORD: ${DOCUMENSO_DB_PASSWORD:-documenso_local_change_me}
+      POSTGRES_DB: documenso
+    volumes:
+      - documenso-db:/var/lib/postgresql/data
+    networks:
+      - sign-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U documenso']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  documenso:
+    image: documenso/documenso:latest
+    container_name: champdf-documenso
+    depends_on:
+      documenso-db:
+        condition: service_healthy
+    environment:
+      PORT: '3000'
+      NEXTAUTH_URL: ${DOCUMENSO_PUBLIC_URL:-http://localhost:3000}
+      NEXT_PUBLIC_WEBAPP_URL: ${DOCUMENSO_PUBLIC_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${DOCUMENSO_NEXTAUTH_SECRET:-change_me_nextauth_secret}
+      NEXT_PRIVATE_ENCRYPTION_KEY: ${DOCUMENSO_ENCRYPTION_KEY:-change_me_encryption_key_32_chars}
+      NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY: ${DOCUMENSO_ENCRYPTION_SECONDARY_KEY:-change_me_secondary_key_32chars}
+      NEXT_PRIVATE_DATABASE_URL: postgresql://documenso:${DOCUMENSO_DB_PASSWORD:-documenso_local_change_me}@documenso-db:5432/documenso
+      NEXT_PRIVATE_DIRECT_DATABASE_URL: postgresql://documenso:${DOCUMENSO_DB_PASSWORD:-documenso_local_change_me}@documenso-db:5432/documenso
+      NEXT_PRIVATE_SIGNING_TRANSPORT: local
+      NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH: /opt/documenso/cert.p12
+      NEXT_PRIVATE_SIGNING_PASSPHRASE: ${DOCUMENSO_CERT_PASSPHRASE:-}
+      NEXT_PRIVATE_SMTP_TRANSPORT: ${DOCUMENSO_SMTP_TRANSPORT:-smtp-auth}
+      NEXT_PRIVATE_SMTP_HOST: ${DOCUMENSO_SMTP_HOST:-}
+      NEXT_PRIVATE_SMTP_PORT: ${DOCUMENSO_SMTP_PORT:-587}
+      NEXT_PRIVATE_SMTP_USERNAME: ${DOCUMENSO_SMTP_USERNAME:-}
+      NEXT_PRIVATE_SMTP_PASSWORD: ${DOCUMENSO_SMTP_PASSWORD:-}
+      NEXT_PRIVATE_SMTP_FROM_NAME: ${DOCUMENSO_SMTP_FROM_NAME:-ChampPDF Sign}
+      NEXT_PRIVATE_SMTP_FROM_ADDRESS: ${DOCUMENSO_SMTP_FROM_ADDRESS:-notifications@sign.championsmail.com}
+    volumes:
+      - ${DOCUMENSO_CERT_PATH:-./backend/data/sign/documenso-cert.p12}:/opt/documenso/cert.p12:ro
+    # Deliberately no `ports:`. Only services on sign-internal can reach it.
+    networks:
+      - sign-internal
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://localhost:3000/api/health >/dev/null 2>&1 || exit 1',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+
+  # Put the ChamPDF backend on the same private network so DOCUMENSO_BASE_URL
+  # resolves. (Service name matches docker-compose.dev.yml.)
+  video-backend:
+    networks:
+      - default
+      - sign-internal
+
+networks:
+  sign-internal:
+    internal: true
+
+volumes:
+  documenso-db:

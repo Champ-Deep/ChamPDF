@@ -58,10 +58,13 @@ function generateSitemap() {
   console.log(`   Languages: ${languages.join(', ')}`);
 
   // Get all HTML files from dist root (English pages)
+  // Private pages that must never be listed (ChampPDF Sign signer page).
+  const SITEMAP_EXCLUDE = new Set(['sign-document', '404']);
   const htmlFiles = fs
     .readdirSync(DIST_DIR)
     .filter((file) => file.endsWith('.html'))
-    .map((file) => file.replace('.html', ''));
+    .map((file) => file.replace('.html', ''))
+    .filter((page) => !SITEMAP_EXCLUDE.has(page));
 
   const today = new Date().toISOString().split('T')[0];
 
