@@ -3,6 +3,7 @@ Video Logo Remover & Rebrander API
 FastAPI backend for processing videos with FFmpeg
 """
 
+import json
 import uuid
 import io
 import asyncio
@@ -85,6 +86,7 @@ import media_providers
 import treg_client
 from media_providers import MediaError
 from table_extractor import extract_tables, table_extraction_available, TableExtractionError
+import pdf_watermark
 
 # Honour LOG_LEVEL; without this INFO is dropped, so the log-only sign mailer
 # (invitation links, OTP codes) prints nothing on a dev machine.
@@ -762,6 +764,8 @@ async def get_capabilities():
         "pdf_sign_advanced": sign_available(),
         "pdf_verify": sign_available(),
         "table_extraction": table_extraction_available(),
+        "pdf_watermark_objects": pdf_watermark.watermark_removal_available(),
+        "pdf_watermark_inpaint": media_providers.resolve("inpaint") or "opencv",
         "api_self_serve_keys": self_serve_keys_available(),
         "summary_models": SUGGESTED_MODELS,
         # ChampPDF Sign. Full detail (seal, storage, templates) at /api/sign/status.
@@ -1296,6 +1300,66 @@ async def extract_tables_endpoint(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Table extraction failed: {e}")
 
     return {"tables": tables}
+
+
+async def _read_pdf_upload(file: UploadFile) -> bytes:
+    if not pdf_watermark.watermark_removal_available():
+        raise HTTPException(status_code=400, detail="PDF watermark removal is not configured on this server")
+    if not process_semaphore:
+        raise HTTPException(status_code=503, detail="Server initializing")
+    contents = await file.read()
+    if len(contents) > settings.MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File too large")
+    return contents
+
+
+@app.post("/api/pdf/detect-watermarks")
+async def detect_pdf_watermarks(file: UploadFile = File(...)):
+    contents = await _read_pdf_upload(file)
+    try:
+        async with process_semaphore:
+            return await asyncio.to_thread(pdf_watermark.detect, contents)
+    except pdf_watermark.WatermarkError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"PDF watermark detection error: {e}")
+        raise HTTPException(status_code=500, detail=f"Detection failed: {e}")
+
+
+@app.post("/api/pdf/remove-watermarks")
+async def remove_pdf_watermarks(file: UploadFile = File(...), regions: Optional[str] = Form(None)):
+    contents = await _read_pdf_upload(file)
+    try:
+        parsed = json.loads(regions) if regions else None
+    except ValueError:
+        raise HTTPException(status_code=400, detail="regions must be a JSON array")
+    if parsed is not None and not isinstance(parsed, list):
+        raise HTTPException(status_code=400, detail="regions must be a JSON array")
+
+    loop = asyncio.get_running_loop()
+
+    def inpaint(image_png: bytes, mask_png: bytes) -> bytes:
+        return asyncio.run_coroutine_threadsafe(media_providers.inpaint(image_png, mask_png), loop).result().data
+
+    try:
+        async with process_semaphore:
+            output, report = await asyncio.to_thread(pdf_watermark.remove, contents, parsed, inpaint)
+    except pdf_watermark.WatermarkError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"PDF watermark removal error: {e}")
+        raise HTTPException(status_code=500, detail=f"Removal failed: {e}")
+
+    base = (file.filename or "document").rsplit(".", 1)[0]
+    return StreamingResponse(
+        io.BytesIO(output),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{base}_no_watermark.pdf"',
+            "X-ChamPDF-Watermark-Report": json.dumps(report),
+            "Access-Control-Expose-Headers": "X-ChamPDF-Watermark-Report",
+        },
+    )
 
 
 if __name__ == "__main__":

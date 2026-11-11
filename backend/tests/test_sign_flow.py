@@ -197,6 +197,23 @@ def test_preview_renders_pdf(client):
     assert r.content.startswith(b"%PDF")
 
 
+def test_preview_shows_the_countersigner(client):
+    import fitz
+
+    r = client.post(
+        "/api/sign/documents/preview",
+        json={"template_id": "mutual-nda-v1", "fields": {
+            "counterparty_entity": "Acme", "counterparty_address": "1 MG Road", "purpose": "Testing"},
+            "signer": {"name": "Jane Doe", "email": "jane.doe@acme.example", "designation": "Director"},
+            "countersigner": {"name": "Sreedeep Surapaneni", "email": "deep@championsmail.com", "designation": "Director"}},
+        headers=ADMIN,
+    )
+    assert r.status_code == 200, r.text
+    with fitz.open(stream=r.content, filetype="pdf") as d:
+        text = "".join(p.get_text() for p in d)
+    assert "Jane Doe" in text and "Sreedeep Surapaneni" in text
+
+
 def test_validation_errors(client):
     r = client.post("/api/sign/documents", json={
         "template_id": "mutual-nda-v1", "fields": {"counterparty_entity": "Acme"},

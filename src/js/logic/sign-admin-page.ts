@@ -175,8 +175,32 @@ async function init(): Promise<void> {
     window.location.href = import.meta.env.BASE_URL;
   });
   wireTabs();
+  wireAuth();
   await loadStatus();
   await authenticate();
+}
+
+function wireAuth(): void {
+  el('auth-sign-in').addEventListener('click', () =>
+    document.getElementById('login-btn')?.click()
+  );
+  el('auth-admin-save').addEventListener('click', () => {
+    const t = el<HTMLInputElement>('auth-admin-token').value.trim();
+    if (!t) {
+      feedback('auth-feedback', 'Enter the admin token.');
+      return;
+    }
+    try {
+      sessionStorage.setItem(ADMIN_KEY, t);
+    } catch {
+      /* ignore */
+    }
+    authHeaders = { 'X-Admin-Token': t };
+    void openPortal();
+  });
+  el<HTMLInputElement>('auth-admin-token').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') el('auth-admin-save').click();
+  });
 }
 
 async function loadStatus(): Promise<void> {

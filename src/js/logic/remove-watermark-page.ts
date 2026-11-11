@@ -17,6 +17,7 @@ import {
 import {
   detectWatermark,
   buildGlyphMask,
+  clearDocumentMarks,
   type Raster,
 } from './watermark-detect';
 import {
@@ -50,6 +51,11 @@ let renderGeneration = 0;
 let busy = false;
 const automaticMasks = new Map<number, WatermarkMask>();
 let nextMaskId = 0;
+let serverWatermarks = false;
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || '';
+
+const LOCAL_VECTOR_SCALE = 3;
+const MAX_RENDER_PIXELS = 40_000_000;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializePage);
@@ -112,6 +118,37 @@ function initializePage() {
   setupCanvas();
   setupSettings();
   setupLogoStep();
+  void checkServerWatermarks();
+}
+
+async function checkServerWatermarks() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/capabilities`);
+    if (!res.ok) return;
+    const caps = await res.json();
+    if (!caps.pdf_watermark_objects) return;
+  } catch {
+    return;
+  }
+  serverWatermarks = true;
+  const select = document.getElementById(
+    'inpainting-method'
+  ) as HTMLSelectElement | null;
+  if (select && !select.querySelector('option[value="server"]')) {
+    const option = document.createElement('option');
+    option.value = 'server';
+    option.textContent = 'Remove watermark objects (Server, keeps text sharp)';
+    select.prepend(option);
+    select.value = 'server';
+    select.dispatchEvent(new Event('change'));
+  }
+  const serverBtn = document.getElementById('server-detect-btn');
+  if (serverBtn) {
+    serverBtn.textContent = 'Detect on server (uploads PDF)';
+    serverBtn.title =
+      'Upload the PDF to find watermark text, shapes and layers. No API key needed.';
+    if (pageState.file) serverBtn.classList.remove('hidden');
+  }
 }
 
 function handleFileUpload(e: Event) {
@@ -145,7 +182,9 @@ async function handleFiles(files: FileList) {
     automaticMasks.clear();
     editor.reset();
     resetLogoStep();
-    document.getElementById('server-detect-btn')?.classList.add('hidden');
+    document
+      .getElementById('server-detect-btn')
+      ?.classList.toggle('hidden', !serverWatermarks);
 
     updateFileDisplay();
     document.getElementById('canvas-panel')?.classList.remove('hidden');
@@ -324,6 +363,10 @@ async function autoDetectWatermarks(useServer = false) {
   }
 
   try {
+    if (useServer && serverWatermarks) {
+      await detectOnServer();
+      return;
+    }
     if (!useServer) {
       const samples: Raster[] = [];
       const count = Math.min(6, pageState.totalPages);
@@ -393,7 +436,9 @@ async function autoDetectWatermarks(useServer = false) {
           ?.classList.remove('hidden');
         showAlert(
           'No local watermark found',
-          'Draw a region manually, or choose the optional server detection button. Server detection uploads this page and requires a configured API key.'
+          serverWatermarks
+            ? 'Draw a box over the mark, or use Detect on server. Server detection uploads the PDF and finds watermark text, shapes and layers that on-device detection cannot see.'
+            : 'Draw a region manually, or choose the optional server detection button. Server detection uploads this page and requires a configured API key.'
         );
       }
       return;
@@ -504,6 +549,117 @@ async function autoDetectWatermarks(useServer = false) {
   }
 }
 
+interface ServerWatermark {
+  pageIndex: number;
+  kind: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+}
+
+interface ServerRemovalReport {
+  removed: number;
+  imagePatches: number;
+  pages: number[];
+  unmatched: unknown[];
+}
+
+async function serverError(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.json();
+    return body.detail || fallback;
+  } catch {
+    return `${fallback} (HTTP ${res.status})`;
+  }
+}
+
+async function detectOnServer() {
+  const form = new FormData();
+  form.append('file', pageState.file!);
+  const res = await fetch(`${API_BASE_URL}/api/pdf/detect-watermarks`, {
+    method: 'POST',
+    body: form,
+  });
+  if (!res.ok)
+    throw new Error(await serverError(res, 'Server detection failed'));
+  const data: { regions: ServerWatermark[]; imagePages: number[] } =
+    await res.json();
+
+  if (!data.regions.length) {
+    const imagePage = data.imagePages.includes(pageState.currentPage - 1);
+    showAlert(
+      'No watermark objects found',
+      imagePage
+        ? 'This page is an image, so the mark is part of the picture. Draw a box over it and choose Remove Watermark: the server repaints only that area of the image.'
+        : 'Draw a box over the mark and choose Remove Watermark. The server removes what sits under the box.'
+    );
+    return;
+  }
+
+  const pad = 0.004;
+  const found: WatermarkRegion[] = data.regions.map((r) => {
+    const x = Math.max(0, r.x - pad);
+    const y = Math.max(0, r.y - pad);
+    return {
+      pageIndex: r.pageIndex,
+      x,
+      y,
+      width: Math.min(1 - x, r.width + 2 * pad),
+      height: Math.min(1 - y, r.height + 2 * pad),
+    };
+  });
+  editor.replace([...pageState.regions, ...found]);
+  const pages = new Set(found.map((r) => r.pageIndex)).size;
+  const labels = [...new Set(data.regions.map((r) => r.text || r.kind))]
+    .slice(0, 3)
+    .join(', ');
+  showAlert(
+    'Server detection complete',
+    `Found ${found.length} watermark mark${found.length === 1 ? '' : 's'} on ${pages} page${pages === 1 ? '' : 's'}${labels ? ` (${labels})` : ''}. Review the boxes, then choose Remove Watermark.`,
+    'success'
+  );
+}
+
+async function removeOnServer(
+  regions: WatermarkRegion[]
+): Promise<ServerRemovalReport> {
+  const form = new FormData();
+  form.append('file', pageState.file!);
+  if (regions.length)
+    form.append(
+      'regions',
+      JSON.stringify(
+        regions.map(({ pageIndex, x, y, width, height }) => ({
+          pageIndex,
+          x,
+          y,
+          width,
+          height,
+        }))
+      )
+    );
+  const res = await fetch(`${API_BASE_URL}/api/pdf/remove-watermarks`, {
+    method: 'POST',
+    body: form,
+  });
+  if (!res.ok) throw new Error(await serverError(res, 'Server removal failed'));
+  const report: ServerRemovalReport = JSON.parse(
+    res.headers.get('X-ChamPDF-Watermark-Report') || '{}'
+  );
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  pageState.pdfDoc = await PDFLibDocument.load(bytes);
+  pdfJsDoc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+  await renderPage(pageState.currentPage);
+  return {
+    removed: report.removed ?? 0,
+    imagePatches: report.imagePatches ?? 0,
+    pages: report.pages ?? [],
+    unmatched: report.unmatched ?? [],
+  };
+}
+
 function undoLastSelection() {
   if (!busy) editor.undo();
 }
@@ -525,11 +681,14 @@ function setupSettings() {
     'inpainting-method'
   ) as HTMLSelectElement | null;
   const geminiNote = document.getElementById('gemini-method-note');
+  const serverNote = document.getElementById('server-method-note');
   const updateMethodUi = () => {
     if (!methodSelect) return;
     const isGemini = methodSelect.value === 'gemini';
+    const isServer = methodSelect.value === 'server';
     geminiNote?.classList.toggle('hidden', !isGemini);
-    if (radiusSlider) radiusSlider.disabled = isGemini;
+    serverNote?.classList.toggle('hidden', !isServer);
+    if (radiusSlider) radiusSlider.disabled = isGemini || isServer;
   };
   methodSelect?.addEventListener('change', updateMethodUi);
   updateMethodUi();
@@ -537,7 +696,13 @@ function setupSettings() {
 
 async function removeWatermarks() {
   if (busy) return;
-  if (!pageState.pdfDoc || pageState.regions.length === 0) {
+  const method = (
+    document.getElementById('inpainting-method') as HTMLSelectElement
+  ).value as InpaintingOptions['method'];
+  if (
+    !pageState.pdfDoc ||
+    (pageState.regions.length === 0 && method !== 'server')
+  ) {
     showAlert(
       'Error',
       'Please select at least one watermark region to remove.'
@@ -551,9 +716,26 @@ async function removeWatermarks() {
   const loaderProgress = document.getElementById('loader-progress');
 
   try {
-    const method = (
-      document.getElementById('inpainting-method') as HTMLSelectElement
-    ).value as 'telea' | 'ns' | 'gemini';
+    if (method === 'server') {
+      const report = await removeOnServer(pageState.regions);
+      hideLoader();
+      if (!report.removed && !report.imagePatches) {
+        showAlert(
+          'Nothing removed',
+          pageState.regions.length
+            ? 'The server found no watermark text, shape or image under these boxes. Adjust the boxes and try again.'
+            : 'No watermark was found automatically. Draw a box over the mark and try again.'
+        );
+        return;
+      }
+      enterLogoStep(report.pages.length);
+      if (report.unmatched.length)
+        showAlert(
+          'Some boxes were skipped',
+          `${report.unmatched.length} box${report.unmatched.length === 1 ? ' had' : 'es had'} nothing the server could remove, so ${report.unmatched.length === 1 ? 'it was' : 'they were'} left unchanged.`
+        );
+      return;
+    }
 
     // OpenCV is only needed for the local methods. Gemini path uploads to
     // the backend instead.
@@ -629,6 +811,7 @@ async function processPageWithInpainting(
   let nativeWidth = viewport1.width;
   let nativeHeight = viewport1.height;
   let pngLike = false;
+  let rasterBacked = false;
   const ops = await page.getOperatorList();
   for (let i = 0; i < ops.fnArray.length; i++) {
     const fn = ops.fnArray[i];
@@ -650,6 +833,7 @@ async function processPageWithInpainting(
       ) {
         nativeWidth = image.width;
         nativeHeight = image.height;
+        rasterBacked = true;
         pngLike =
           image.kind === pdfjsLib.ImageKind.RGBA_32BPP ||
           image.kind === pdfjsLib.ImageKind.GRAYSCALE_1BPP;
@@ -658,10 +842,18 @@ async function processPageWithInpainting(
       /* PDF.js may not expose this image; keep viewport dimensions. */
     }
   }
-  const scale = Math.max(
+  let scale = Math.max(
     1,
     nativeWidth / viewport1.width,
     nativeHeight / viewport1.height
+  );
+  if (!rasterBacked) scale = Math.max(scale, LOCAL_VECTOR_SCALE);
+  scale = Math.min(
+    scale,
+    Math.max(
+      1,
+      Math.sqrt(MAX_RENDER_PIXELS / (viewport1.width * viewport1.height))
+    )
   );
   const viewport = page.getViewport({ scale });
 
@@ -676,45 +868,93 @@ async function processPageWithInpainting(
     viewport: viewport,
   }).promise;
 
-  let imageBytes: Uint8Array;
-
   if (options.method === 'gemini') {
-    imageBytes = await inpaintWithGemini(tempCanvas, regions);
-  } else {
-    imageBytes = inpaintWithOpenCV(
-      tempCanvas,
-      tempCtx,
-      regions,
-      options,
-      pngLike
+    const bytes = await inpaintWithGemini(tempCanvas, regions);
+    const bitmap = await createImageBitmap(
+      new Blob([bytes as BlobPart], { type: 'image/png' })
     );
+    tempCtx.drawImage(bitmap, 0, 0, tempCanvas.width, tempCanvas.height);
+  } else if (
+    !rasterBacked &&
+    regions.every((region) => region.autoMaskId === undefined)
+  ) {
+    const imgData = tempCtx.getImageData(
+      0,
+      0,
+      tempCanvas.width,
+      tempCanvas.height
+    );
+    clearDocumentMarks(
+      imgData,
+      regions.map((region) =>
+        fractionToPixels(region, tempCanvas.width, tempCanvas.height)
+      )
+    );
+    tempCtx.putImageData(imgData, 0, 0);
+  } else {
+    inpaintWithOpenCV(tempCanvas, tempCtx, regions, options);
   }
 
-  // Replace page in PDF with processed image
-  const pdfPage = pdfLibDoc.getPage(pageIndex);
-  const embeddedImage =
-    options.method === 'gemini'
-      ? await pdfLibDoc.embedPng(imageBytes)
-      : pngLike
-        ? await pdfLibDoc.embedPng(imageBytes)
-        : await pdfLibDoc.embedJpg(imageBytes);
+  await drawRegionPatches(
+    pdfLibDoc,
+    pageIndex,
+    tempCanvas,
+    regions,
+    rasterBacked && !pngLike ? 'jpeg' : 'png'
+  );
+}
 
-  const { width, height } = pdfPage.getSize();
-  pdfPage.drawImage(embeddedImage, {
-    x: 0,
-    y: 0,
-    width: width,
-    height: height,
-  });
+async function drawRegionPatches(
+  pdfLibDoc: any,
+  pageIndex: number,
+  canvas: HTMLCanvasElement,
+  regions: WatermarkRegion[],
+  format: 'png' | 'jpeg'
+) {
+  const pdfPage = pdfLibDoc.getPage(pageIndex);
+  const encode = async (source: HTMLCanvasElement) => {
+    const bytes = dataUrlToBytes(
+      source.toDataURL(format === 'png' ? 'image/png' : 'image/jpeg', 0.95)
+    );
+    return format === 'png'
+      ? pdfLibDoc.embedPng(bytes)
+      : pdfLibDoc.embedJpg(bytes);
+  };
+
+  if (pdfPage.getRotation().angle % 360 !== 0) {
+    const { width, height } = pdfPage.getSize();
+    pdfPage.drawImage(await encode(canvas), { x: 0, y: 0, width, height });
+    return;
+  }
+
+  const crop = pdfPage.getCropBox();
+  const pad = 2;
+  for (const region of regions) {
+    const px = fractionToPixels(region, canvas.width, canvas.height);
+    const sx = Math.max(0, Math.floor(px.x) - pad);
+    const sy = Math.max(0, Math.floor(px.y) - pad);
+    const sw = Math.min(canvas.width - sx, Math.ceil(px.width) + 2 * pad);
+    const sh = Math.min(canvas.height - sy, Math.ceil(px.height) + 2 * pad);
+    if (sw < 1 || sh < 1) continue;
+    const patch = document.createElement('canvas');
+    patch.width = sw;
+    patch.height = sh;
+    patch.getContext('2d')!.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+    pdfPage.drawImage(await encode(patch), {
+      x: crop.x + (sx / canvas.width) * crop.width,
+      y: crop.y + crop.height - ((sy + sh) / canvas.height) * crop.height,
+      width: (sw / canvas.width) * crop.width,
+      height: (sh / canvas.height) * crop.height,
+    });
+  }
 }
 
 function inpaintWithOpenCV(
   tempCanvas: HTMLCanvasElement,
   tempCtx: CanvasRenderingContext2D,
   regions: WatermarkRegion[],
-  options: InpaintingOptions,
-  pngLike: boolean
-): Uint8Array {
+  options: InpaintingOptions
+): void {
   const cv = (window as any).cv;
 
   const imgData = tempCtx.getImageData(
@@ -765,13 +1005,7 @@ function inpaintWithOpenCV(
   dst.delete();
   rgb.delete();
   rgba.delete();
-
-  return dataUrlToBytes(
-    tempCanvas.toDataURL(pngLike ? 'image/png' : 'image/jpeg', 0.95)
-  );
 }
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || '';
 
 async function inpaintWithGemini(
   tempCanvas: HTMLCanvasElement,
