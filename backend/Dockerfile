@@ -27,11 +27,8 @@ RUN pip install --no-cache-dir torch torchvision --index-url https://download.py
     pip install --no-cache-dir --no-deps simple-lama-inpainting==0.1.2 && \
     pip install --no-cache-dir --no-deps pdf2docx==0.5.8
 
-# Pre-download rembg model (~176MB) to speed up first run
-# This is optional but recommended for production
-RUN python -c "from rembg import remove; import requests; from PIL import Image; import io; \
-    r = requests.get('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/240px-Cat03.jpg'); \
-    remove(Image.open(io.BytesIO(r.content)))" || echo "Model pre-download failed, will download on first use"
+# Pre-download rembg model (~176MB); fail the build if it cannot be cached.
+RUN python -c "from rembg import new_session; model = 'u2net'; session = new_session(model); assert session.name() == model, 'Unexpected rembg model: ' + model"
 
 # Copy application code
 COPY . .
