@@ -120,6 +120,8 @@ Decision 2 (t_dd6c9751) --------------------------------------------------------
 P1-1 -> P1-R2 (blocked on its decision)
 ```
 
+Card ids: P1-1 t_7304f08a, P1-2 t_14b8bf95, P1-3 t_6e63fb23, P1-4 t_a8244206, P1-5 t_c7bd6b4e, P1-6 t_be34d835, P1-R2 t_2f96e85f (blocked, decision), P2-SIGN t_ea172d6b (blocked, gate).
+
 ## 9. Standing checks every Phase 1 card runs before review
 
 ```
