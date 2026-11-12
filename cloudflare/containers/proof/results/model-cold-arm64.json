@@ -1,0 +1,143 @@
+{
+  "host": "arm64 OrbStack, not Cloudflare",
+  "image": "champdf-p1-weights",
+  "cache_metric": "du -sk allocated KiB multiplied by 1024",
+  "operations": {
+    "remove-bg": {
+      "endpoint": "/api/remove-background",
+      "calls": [
+        {
+          "status": 200,
+          "seconds": 3.369591,
+          "curl_exit": 0
+        },
+        {
+          "status": 200,
+          "seconds": 2.932918,
+          "curl_exit": 0
+        }
+      ],
+      "network": "none",
+      "cache_before_bytes": {
+        "/root/.u2net": 176001024,
+        "/root/.cache/huggingface": 0,
+        "/root/.cache/torch": 0,
+        "/root/.realesrgan": 0
+      },
+      "cache_after_bytes": {
+        "/root/.u2net": 176001024,
+        "/root/.cache/huggingface": 0,
+        "/root/.cache/torch": 0,
+        "/root/.realesrgan": 0
+      },
+      "cache_added_bytes": {
+        "/root/.u2net": 0,
+        "/root/.cache/huggingface": 0,
+        "/root/.cache/torch": 0,
+        "/root/.realesrgan": 0
+      }
+    },
+    "transcribe": {
+      "endpoint": "/api/transcribe-video",
+      "calls": [
+        {
+          "status": 200,
+          "seconds": 26.029872,
+          "curl_exit": 0
+        },
+        {
+          "status": 200,
+          "seconds": 6.99439,
+          "curl_exit": 0
+        }
+      ],
+      "network": "default",
+      "cache_before_bytes": {
+        "/root/.u2net": 176001024,
+        "/root/.cache/huggingface": 0,
+        "/root/.cache/torch": 0,
+        "/root/.realesrgan": 0
+      },
+      "cache_after_bytes": {
+        "/root/.u2net": 176001024,
+        "/root/.cache/huggingface": 147910656,
+        "/root/.cache/torch": 0,
+        "/root/.realesrgan": 0
+      },
+      "cache_added_bytes": {
+        "/root/.u2net": 0,
+        "/root/.cache/huggingface": 147910656,
+        "/root/.cache/torch": 0,
+        "/root/.realesrgan": 0
+      }
+    },
+    "lama-inpaint": {
+      "endpoint": "/api/inpaint-image",
+      "calls": [
+        {
+          "status": 200,
+          "seconds": 28.815631,
+          "curl_exit": 0
+        },
+        {
+          "status": 200,
+          "seconds": 1.041023,
+          "curl_exit": 0
+        }
+      ],
+      "network": "default",
+      "cache_before_bytes": {
+        "/root/.u2net": 176001024,
+        "/root/.cache/huggingface": 0,
+        "/root/.cache/torch": 0,
+        "/root/.realesrgan": 0
+      },
+      "cache_after_bytes": {
+        "/root/.u2net": 176001024,
+        "/root/.cache/huggingface": 0,
+        "/root/.cache/torch": 205807616,
+        "/root/.realesrgan": 0
+      },
+      "cache_added_bytes": {
+        "/root/.u2net": 0,
+        "/root/.cache/huggingface": 0,
+        "/root/.cache/torch": 205807616,
+        "/root/.realesrgan": 0
+      }
+    },
+    "upscale": {
+      "endpoint": "/api/upscale-image",
+      "calls": [
+        {
+          "status": 200,
+          "seconds": 16.004396,
+          "curl_exit": 0
+        },
+        {
+          "status": 200,
+          "seconds": 7.881641,
+          "curl_exit": 0
+        }
+      ],
+      "network": "default",
+      "cache_before_bytes": {
+        "/root/.u2net": 176001024,
+        "/root/.cache/huggingface": 0,
+        "/root/.cache/torch": 0,
+        "/root/.realesrgan": 0
+      },
+      "cache_after_bytes": {
+        "/root/.u2net": 176001024,
+        "/root/.cache/huggingface": 0,
+        "/root/.cache/torch": 0,
+        "/root/.realesrgan": 67063808
+      },
+      "cache_added_bytes": {
+        "/root/.u2net": 0,
+        "/root/.cache/huggingface": 0,
+        "/root/.cache/torch": 0,
+        "/root/.realesrgan": 67063808
+      }
+    }
+  }
+}
