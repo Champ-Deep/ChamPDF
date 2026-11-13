@@ -1,0 +1,22 @@
+{
+  "name": "champdf-containers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts",
+    "check:config": "node scripts/check-config.mjs",
+    "bundle": "wrangler deploy --dry-run --outdir dist --env",
+    "manifest": "node scripts/release-manifest.mjs",
+    "dev": "wrangler dev --env local"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "0.3.7",
+    "jose": "6.2.13"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261023.1",
+    "typescript": "5.9.3",
+    "wrangler": "4.152.0"
+  }
+}

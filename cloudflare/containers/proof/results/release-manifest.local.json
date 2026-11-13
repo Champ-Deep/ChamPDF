@@ -1,0 +1,36 @@
+{
+  "env": "local",
+  "git_sha": "fa7415927ba635eb3a5286d1c7945da9df8ab060",
+  "git_dirty": true,
+  "worker_bundle_sha256": "4a066a70d2424768b879bd6cf512fb5e510bbfae53d593329c5d91d99dbd63a6",
+  "wrangler_version": "4.152.0",
+  "lockfile_sha256": "a65c765fc102476d5053f85cf16015b958c64c1bde9c9dbea07ca7ebf87d530b",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "container_image": "../../backend/Dockerfile",
+  "container_instance_type": "standard-4",
+  "container_digest": {
+    "kind": "local-image-id",
+    "value": "sha256:7fc32b5d1676a64b1f7a494f0073d085856d96665810282809e3e74ec1887951"
+  },
+  "d1_migrations": [
+    {
+      "file": "0001_champdf_init.sql",
+      "sha256": "6a8230a48da991d8fe0e88031eaad44cd7ec69f51629ad3e7b5d501b5d6a1271"
+    }
+  ],
+  "do_migrations": [
+    "v1"
+  ],
+  "bindings": {
+    "d1": [
+      "champdf-local"
+    ],
+    "r2": [
+      "champdf-files-local"
+    ]
+  },
+  "generated_at": "2026-10-24T00:30:08.787Z"
+}

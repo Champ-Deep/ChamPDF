@@ -1,0 +1,111 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "champdf-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "durable_objects": { "bindings": [{ "name": "CHAMPDF", "class_name": "ChamPdfBackend" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChamPdfBackend"] }],
+  "containers": [
+    {
+      "class_name": "ChamPdfBackend",
+      "image": "../../backend/Dockerfile",
+      "image_build_context": "../../backend",
+      "instance_type": "standard-4",
+      "max_instances": 2
+    }
+  ],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "champdf-local", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+  ],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "champdf-files-local" }],
+  "vars": { "ENVIRONMENT": "local", "ACCESS_MODE": "none", "CONTAINER_INSTANCES": "1" },
+
+  "env": {
+    "local": {
+      "name": "champdf-api-local",
+      "durable_objects": { "bindings": [{ "name": "CHAMPDF", "class_name": "ChamPdfBackend" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChamPdfBackend"] }],
+      "containers": [
+        {
+          "class_name": "ChamPdfBackend",
+          "image": "../../backend/Dockerfile",
+          "image_build_context": "../../backend",
+          "instance_type": "standard-4",
+          "max_instances": 2
+        }
+      ],
+      "d1_databases": [
+        { "binding": "DB", "database_name": "champdf-local", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+      ],
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "champdf-files-local" }],
+      "vars": { "ENVIRONMENT": "local", "ACCESS_MODE": "none", "CONTAINER_INSTANCES": "2" }
+    },
+
+    "deepify": {
+      "name": "champdf-api-deepify",
+      "durable_objects": { "bindings": [{ "name": "CHAMPDF", "class_name": "ChamPdfBackend" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChamPdfBackend"] }],
+      "containers": [
+        {
+          "class_name": "ChamPdfBackend",
+          "image": "../../backend/Dockerfile",
+          "image_build_context": "../../backend",
+          "instance_type": "standard-4",
+          "max_instances": 2
+        }
+      ],
+      "d1_databases": [
+        { "binding": "DB", "database_name": "champdf-deepify", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+      ],
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "champdf-files-deepify" }],
+      "vars": { "ENVIRONMENT": "deepify", "ACCESS_MODE": "shared-token", "CONTAINER_INSTANCES": "2" }
+    },
+
+    "staging": {
+      "name": "champdf-api-staging",
+      "durable_objects": { "bindings": [{ "name": "CHAMPDF", "class_name": "ChamPdfBackend" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChamPdfBackend"] }],
+      "containers": [
+        {
+          "class_name": "ChamPdfBackend",
+          "image": "../../backend/Dockerfile",
+          "image_build_context": "../../backend",
+          "instance_type": "standard-4",
+          "max_instances": 2
+        }
+      ],
+      "d1_databases": [
+        { "binding": "DB", "database_name": "champdf-staging", "database_id": "TODO_STAGING_D1_ID", "migrations_dir": "migrations" }
+      ],
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "champdf-files-staging" }],
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "ACCESS_MODE": "cf-access",
+        "CONTAINER_INSTANCES": "2",
+        "ACCESS_TEAM_DOMAIN": "TODO_ACCESS_TEAM_DOMAIN",
+        "ACCESS_AUD": "TODO_ACCESS_AUD"
+      }
+    },
+
+    "production": {
+      "name": "champdf-api",
+      "durable_objects": { "bindings": [{ "name": "CHAMPDF", "class_name": "ChamPdfBackend" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChamPdfBackend"] }],
+      "containers": [
+        {
+          "class_name": "ChamPdfBackend",
+          "image": "TODO_PINNED_REGISTRY_REF_WITH_DIGEST",
+          "instance_type": "standard-4",
+          "max_instances": 4
+        }
+      ],
+      "d1_databases": [
+        { "binding": "DB", "database_name": "champdf-prod", "database_id": "TODO_PROD_D1_ID", "migrations_dir": "migrations" }
+      ],
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "champdf-files-prod" }],
+      "vars": { "ENVIRONMENT": "production", "ACCESS_MODE": "none", "CONTAINER_INSTANCES": "4" }
+    }
+  }
+}
