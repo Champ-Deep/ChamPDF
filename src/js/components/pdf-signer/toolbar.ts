@@ -3,6 +3,7 @@
  */
 
 import { createIcons, icons } from 'lucide';
+import { escapeHtml } from '../../utils/helpers.js';
 import { getAllSignaturesWithImages } from '../../utils/signature-storage.js';
 import { openSignatureLibrary } from '../../utils/signature-library-init.js';
 import { readSigningImage } from './image-background.js';
@@ -52,10 +53,10 @@ export class SignerToolbar {
                 : signaturesWithImages
                     .map(
                       ({ signature, imageUrl }) => `
-              <div class="signature-drag-item bg-gray-700 rounded p-2 cursor-grab hover:bg-gray-600 transition-colors"
+              <button type="button" class="signature-drag-item w-full bg-gray-700 rounded p-2 cursor-grab hover:bg-gray-600 transition-colors"
                    data-type="signature" data-image="${imageUrl}" draggable="true" title="Drag to place or click to add">
-                <img src="${imageUrl}" alt="${signature.name}" class="w-full h-10 object-contain pointer-events-none">
-              </div>
+                <img src="${imageUrl}" alt="${escapeHtml(signature.name)}" width="1800" height="600" class="w-full h-10 object-contain pointer-events-none">
+              </button>
             `
                     )
                     .join('')
@@ -113,7 +114,7 @@ export class SignerToolbar {
               .join('')}
           </select>
           <label for="text-font-size" class="block text-sm text-gray-200">Font size (pt)</label>
-          <input id="text-font-size" type="number" min="6" max="72" step="1" class="w-full bg-gray-700 text-white rounded p-2 min-h-11">
+          <input id="text-font-size" type="number" min="6" max="72" step="1" class="signature-size-input">
           <label for="text-color" class="block text-sm text-gray-200">Text color</label>
           <input id="text-color" type="color" class="w-full min-h-11 bg-gray-700 rounded">
           <p class="text-xs text-gray-300">Type directly in the box. Drag its border to move, or its corner to resize. Enlarge the box if text overflows. PDF fonts support Latin text.</p>
@@ -277,6 +278,7 @@ export class SignerToolbar {
       ?.addEventListener('click', () => {
         openSignatureLibrary((imageUrl) => {
           // When a new signature is created/selected, add it
+          void this.refresh();
           this.callbacks.onAddAnnotation('signature', { imageUrl });
         });
       });
