@@ -21,7 +21,7 @@ def run():
   context=browser.new_context(viewport={'width':1440,'height':1000},accept_downloads=True)
   page=context.new_page(); page.on('pageerror',lambda e: errors.append(str(e)))
   page.on('console',lambda m: errors.append(m.text) if m.type=='error' else None)
-  page.goto(URL+'/'); page.locator('#open-signatures-btn').click()
+  page.goto(URL+'/',wait_until='networkidle'); page.locator('#open-signatures-btn').click()
   expect(page.locator('#signature-library-modal')).to_be_visible()
   page.screenshot(path=str(OUT/'fix-home-signatures.png'))
   page.locator('#tab-create-signature').click(); page.locator('#sig-name-input').fill('Review Signature')
@@ -32,9 +32,9 @@ def run():
   assert quality['width']<1800 and quality['height']<600 and quality['ink']>0 and quality['corner']==0 and quality['ink']/(quality['width']*quality['height'])>0.08, quality  # trimmed to the ink, not the 1800x600 canvas
   results.append({'check':'home, save, trimmed transparent PNG','quality':quality})
   page.keyboard.press('Escape'); expect(page.locator('#signature-library-modal')).not_to_be_visible()
-  page.reload(); page.locator('#open-signatures-btn').click(); expect(page.locator('.signature-card')).to_have_count(1)
+  page.reload(wait_until='networkidle'); page.locator('#open-signatures-btn').click(); expect(page.locator('.signature-card')).to_have_count(1)
   page.screenshot(path=str(OUT/'fix-saved-signatures.png'))
-  page.goto(URL+'/sign-pdf.html'); page.locator('#file-input').set_input_files(str(OUT/'fixture.pdf'))
+  page.goto(URL+'/sign-pdf.html',wait_until='networkidle'); page.locator('#file-input').set_input_files(str(OUT/'fixture.pdf'))
   expect(page.locator('.signature-drag-item')).to_have_count(1)
   page.locator('.signature-drag-item').click(); expect(page.locator('.annotation-box img')).to_have_count(1)
   page.locator('[data-type="text"].tool-btn').click()
@@ -72,7 +72,7 @@ def run():
   pdf[0].get_pixmap().save(OUT/'signed-pdf-render.png');pdf.close()
   results.append({'check':'reuse after reload, placement, 24pt, zoom, pages, size bounds, PDF download','passed':True})
   for width,height in [(375,812),(768,1024),(1440,1000)]:
-   page.set_viewport_size({'width':width,'height':height});page.goto(URL+'/');
+   page.set_viewport_size({'width':width,'height':height});page.goto(URL+'/',wait_until='networkidle');
    if width<768:
     # The existing mobile navigation exposes the same library action.
     page.locator('#mobile-menu-button').click()
@@ -89,7 +89,7 @@ def run():
      preview=page.locator('#sig-preview-canvas');preview.scroll_into_view_if_needed()
      reachable=preview.evaluate('(el)=>{const r=el.getBoundingClientRect();const footer=document.getElementById("signature-library-use").getBoundingClientRect();return r.bottom<=footer.top && r.top>=0}')
      assert reachable,'Preview cannot be scrolled clear of footer'
-   page.goto(URL+'/sign-pdf.html');page.locator('#file-input').set_input_files(str(OUT/'fixture.pdf'))
+   page.goto(URL+'/sign-pdf.html',wait_until='networkidle');page.locator('#file-input').set_input_files(str(OUT/'fixture.pdf'))
    page.locator('[data-type="text"].tool-btn').click();page.locator('.annotation-box textarea').fill('Approved')
    size=page.locator('#text-font-size');size.fill('18');size.press('Tab')
    page.wait_for_timeout(400)
@@ -106,10 +106,10 @@ def run():
   page.locator('#signature-library-use').click()
   expect(page.locator('.annotation-box img')).to_have_count(1)
   expect(page.locator('.signature-drag-item')).to_have_count(2)
-  page.goto(URL+'/create-signature.html');page.locator('#signature-name').fill('Third Signature')
+  page.goto(URL+'/create-signature.html',wait_until='networkidle');page.locator('#signature-name').fill('Third Signature')
   page.once('dialog',lambda dialog: dialog.accept());page.locator('#save-to-library-btn').click()
   page.wait_for_function("JSON.parse(localStorage.getItem('champdf_signatures') || '[]').length === 3")
-  page.goto(URL+'/sign-pdf.html');page.locator('#file-input').set_input_files(str(OUT/'fixture.pdf'))
+  page.goto(URL+'/sign-pdf.html',wait_until='networkidle');page.locator('#file-input').set_input_files(str(OUT/'fixture.pdf'))
   expect(page.locator('.signature-drag-item')).to_have_count(3)
   results.append({'check':'create inside sign flow, keyboard selection, toolbar refresh, standalone creation and next-flow reuse','passed':True})
   assert not errors,errors
