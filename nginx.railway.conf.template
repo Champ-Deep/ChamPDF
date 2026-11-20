@@ -38,7 +38,13 @@ http {
         # API REVERSE PROXY - Forward /api/* requests to FastAPI backend
         # =================================================================
         location ^~ /api/ {
-            proxy_pass ${BACKEND_URL};
+            # Re-resolve the backend at request time. A literal proxy_pass host is
+            # resolved once at boot, so a backend redeploy left nginx on a dead
+            # private IP and every /api call hung (12 Nov 2026). fd12::10 is
+            # Railway's private-network DNS (from /etc/resolv.conf in the service).
+            resolver [fd12::10] valid=10s;
+            set $champdf_backend ${BACKEND_URL};
+            proxy_pass $champdf_backend;
             proxy_http_version 1.1;
 
             # Preserve original request headers
