@@ -1,4 +1,5 @@
 import { createIcons, icons } from 'lucide';
+import { renderSignatureCanvas } from '../utils/signature-canvas.js';
 import {
   saveSignature,
   getSignatures,
@@ -62,7 +63,7 @@ const state: SignatureState = {
 // Canvas dimensions for high-quality export
 const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 200;
-const DEVICE_PIXEL_RATIO = 2; // For retina displays
+const DEVICE_PIXEL_RATIO = 3;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializePage);
@@ -296,7 +297,11 @@ function updateButtonStates() {
   }
 }
 
-function generateSignatureBlob(): Promise<Blob> {
+async function generateSignatureBlob(): Promise<Blob> {
+  const font = SIGNATURE_STYLES.find(
+    (s) => s.id === state.selectedStyle
+  )?.fontFamily;
+  if (font) await document.fonts.load(`48px "${font}"`);
   return new Promise((resolve, reject) => {
     const style = SIGNATURE_STYLES.find((s) => s.id === state.selectedStyle);
     if (!style) {
@@ -306,26 +311,13 @@ function generateSignatureBlob(): Promise<Blob> {
 
     // Create a new canvas for export
     const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = CANVAS_WIDTH * DEVICE_PIXEL_RATIO;
-    exportCanvas.height = CANVAS_HEIGHT * DEVICE_PIXEL_RATIO;
-
-    const ctx = exportCanvas.getContext('2d');
-    if (!ctx) {
-      reject(new Error('Could not get canvas context'));
-      return;
-    }
-
-    ctx.scale(DEVICE_PIXEL_RATIO, DEVICE_PIXEL_RATIO);
-
-    // Transparent background (don't fill)
-
-    const fontSize = Math.min(48 * state.size, 72);
-    ctx.font = `${fontSize}px "${style.fontFamily}", cursive`;
-    ctx.fillStyle = state.color;
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'center';
-
-    ctx.fillText(state.name, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+    renderSignatureCanvas(
+      exportCanvas,
+      state.name,
+      style.fontFamily,
+      state.color,
+      Math.min(48 * state.size, 72)
+    );
 
     exportCanvas.toBlob(
       (blob) => {

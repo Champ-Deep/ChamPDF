@@ -1,20 +1,30 @@
 <!-- Signature Library Modal -->
-<div id="signature-library-modal" class="hidden fixed inset-0 z-50">
+<div
+  id="signature-library-modal"
+  class="hidden fixed inset-0 z-50"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="signature-library-title"
+>
   <div id="signature-library-backdrop" class="fixed inset-0 bg-black/50"></div>
   <div class="fixed inset-0 flex items-center justify-center p-4">
     <div
-      class="bg-gray-800 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden border border-gray-700 shadow-2xl"
+      class="bg-gray-800 flex flex-col rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden border border-gray-700 shadow-2xl"
     >
       <!-- Header -->
       <div
         class="flex items-center justify-between p-4 border-b border-gray-700"
       >
-        <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+        <h2
+          id="signature-library-title"
+          class="text-lg font-semibold text-white flex items-center gap-2"
+        >
           <i data-lucide="pen-tool" class="w-5 h-5 text-orange-400"></i>
           My Signatures
         </h2>
         <button
           id="close-signature-library"
+          aria-label="Close signatures"
           class="text-gray-400 hover:text-white transition-colors"
         >
           <i data-lucide="x" class="w-5 h-5"></i>
@@ -36,6 +46,15 @@
           Create New
         </button>
       </div>
+
+      <p class="px-4 pt-3 text-sm text-gray-300">
+        Saved in this browser on this device. Not synced to an account.
+      </p>
+      <p
+        id="signature-library-error"
+        role="alert"
+        class="px-4 text-sm text-red-300"
+      ></p>
 
       <!-- Content Area -->
       <div class="p-4 overflow-y-auto" style="max-height: 50vh">

@@ -29,7 +29,18 @@ export function getTextStyle(data: Annotation['data']): TextStyle {
       ? Math.max(6, Math.min(72, data.fontSize!))
       : 12,
     color: /^#[0-9a-f]{6}$/i.test(data.color || '') ? data.color! : '#000000',
+    bold: data.bold === true,
+    italic: data.italic === true,
+    align:
+      data.align === 'center' || data.align === 'right' ? data.align : 'left',
   };
+}
+
+// pdf-lib names: HelveticaBoldOblique, TimesRomanBoldItalic, CourierBold, ...
+function pdfFontName(style: TextStyle): StandardFonts {
+  const slant = style.fontFamily === 'TimesRoman' ? 'Italic' : 'Oblique';
+  const key = `${style.fontFamily}${style.bold ? 'Bold' : ''}${style.italic ? slant : ''}`;
+  return StandardFonts[key as keyof typeof StandardFonts];
 }
 
 export async function drawTextBox(
@@ -40,7 +51,7 @@ export async function drawTextBox(
   const text = annotation.data.text || '';
   if (!text) return;
   const style = getTextStyle(annotation.data);
-  const font = await doc.embedFont(TEXT_FONTS[style.fontFamily].pdf);
+  const font = await doc.embedFont(pdfFontName(style));
   const { width, height } = page.getSize();
   const boxWidth = (annotation.width / 100) * width - 4;
   const boxHeight = (annotation.height / 100) * height - 4;
@@ -97,13 +108,22 @@ export async function drawTextBox(
   const x = (annotation.x / 100) * width + 2;
   const top = height - (annotation.y / 100) * height - 2;
   lines.forEach((line, i) => {
-    if (line)
+    if (line) {
+      const free =
+        boxWidth - font.widthOfTextAtSize(line.trimEnd(), style.fontSize);
+      const dx =
+        style.align === 'center'
+          ? free / 2
+          : style.align === 'right'
+            ? free
+            : 0;
       page.drawText(line, {
-        x,
+        x: x + Math.max(0, dx),
         y: top - style.fontSize - i * lineHeight,
         size: style.fontSize,
         font,
         color,
       });
+    }
   });
 }

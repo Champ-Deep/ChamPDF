@@ -1,0 +1,109 @@
+/* Origin UI Input, https://21st.dev/@originui/components/input. Vanilla port. */
+.signature-size-input {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #6b7280;
+  border-radius: 8px;
+  background: #374151;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 1px 2px #0000000d;
+}
+.signature-size-input:focus-visible,
+#signature-library-modal :focus-visible {
+  outline: 2px solid #ff8544;
+  outline-offset: 3px;
+}
+.signature-size-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#signature-library-modal button {
+  min-height: 44px;
+  min-width: 44px;
+}
+#signature-library-modal .sig-color-btn {
+  flex-shrink: 0;
+}
+#signature-library-modal .sig-color-btn:last-child {
+  margin-right: 4px;
+}
+#signature-library-modal .sig-color-btn {
+  width: 44px;
+  height: 44px;
+}
+#signature-library-modal .flex.gap-3:has(.sig-color-btn) {
+  flex-wrap: wrap;
+}
+#signature-library-modal #signature-library-use {
+  background: #9a3412;
+  color: #fff;
+}
+#signature-library-modal #tab-create-signature,
+#signature-library-modal #tab-saved-signatures {
+  color: #e5e7eb;
+}
+#signature-library-modal #sig-preview-canvas {
+  background: #fff;
+  border-radius: 4px;
+}
+
+#signature-library-modal input {
+  min-height: 44px;
+}
+#signature-library-modal .signature-card img,
+#signer-toolbar .signature-drag-item img {
+  background: #fff;
+  border-radius: 4px;
+}
+#pdf-viewer-wrapper {
+  justify-content: flex-start;
+}
+#pdf-page-container {
+  flex-shrink: 0;
+  margin-inline: auto;
+}
+#signer-toolbar button {
+  min-height: 44px;
+}
+#signer-toolbar #add-new-signature {
+  color: #ffb186;
+}
+#signer-toolbar .text-gray-500 {
+  color: #d1d5db;
+}
+@media (prefers-reduced-motion: reduce) {
+  #signature-library-modal *,
+  #signer-toolbar * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+@media (max-width: 767px) {
+  #signature-library-modal input,
+  .signature-size-input {
+    font-size: 16px;
+  }
+  #signature-editor > .flex.gap-4 {
+    flex-direction: column;
+    height: auto !important;
+  }
+  #signer-toolbar {
+    width: 100%;
+    max-height: 300px;
+  }
+  #pdf-scroll-container {
+    height: 65vh;
+    flex: none;
+  }
+  #pdf-scroll-container + .flex {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #signature-editor button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

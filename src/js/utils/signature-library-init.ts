@@ -4,11 +4,14 @@
  */
 
 import { createIcons, icons } from 'lucide';
+import { escapeHtml } from './helpers.js';
+import './signature-controls.css';
+import modalMarkup from '../../partials/signature-library-modal.html?raw';
+import { renderSignatureCanvas } from './signature-canvas.js';
 import {
   getSignatures,
   getSignatureImage,
   deleteSignature,
-  setDefaultSignature,
   saveSignature,
   getAllSignaturesWithImages,
   type SavedSignature,
@@ -56,7 +59,7 @@ const SIGNATURE_STYLES: SignatureStyle[] = [
 
 const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 200;
-const DEVICE_PIXEL_RATIO = 2;
+const DEVICE_PIXEL_RATIO = 3;
 
 interface CreateState {
   name: string;
@@ -71,11 +74,16 @@ const createState: CreateState = {
 };
 
 let selectedSignatureId: string | null = null;
+let returnFocus: HTMLElement | null = null;
 let onSelectCallback: ((imageUrl: string) => void) | null = null;
 
 export function initSignatureLibraryModal() {
-  const modal = document.getElementById('signature-library-modal');
-  if (!modal) return;
+  if (!document.getElementById('signature-library-modal')) {
+    document.body.insertAdjacentHTML('beforeend', modalMarkup);
+  }
+  const modal = document.getElementById('signature-library-modal')!;
+  if (modal.dataset.initialized) return;
+  modal.dataset.initialized = 'true';
 
   const openBtn = document.getElementById('open-signatures-btn');
   const openBtnMobile = document.getElementById('open-signatures-btn-mobile');
@@ -93,6 +101,7 @@ export function initSignatureLibraryModal() {
   // Close modal handlers
   const closeModal = () => {
     modal.classList.add('hidden');
+    returnFocus?.focus();
     selectedSignatureId = null;
     updateUseButtonState();
   };
@@ -103,6 +112,23 @@ export function initSignatureLibraryModal() {
 
   // Use selected signature
   useBtn?.addEventListener('click', async () => {
+    if (
+      !document
+        .getElementById('create-signature-panel')
+        ?.classList.contains('hidden')
+    ) {
+      (useBtn as HTMLButtonElement).disabled = true;
+      document.getElementById('signature-library-error')!.textContent = '';
+      try {
+        await saveNewSignature();
+      } catch {
+        document.getElementById('signature-library-error')!.textContent =
+          'Signature could not be saved on this device. Check browser storage and try again.';
+      } finally {
+        updateCreateButtonState();
+      }
+      return;
+    }
     if (selectedSignatureId && onSelectCallback) {
       const blob = await getSignatureImage(selectedSignatureId);
       if (blob) {
@@ -111,6 +137,26 @@ export function initSignatureLibraryModal() {
       }
     }
     closeModal();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (modal.classList.contains('hidden')) return;
+    if (event.key === 'Escape') closeModal();
+    if (event.key === 'Tab') {
+      const controls = [
+        ...modal.querySelectorAll<HTMLElement>('button:not(:disabled), input'),
+      ].filter((el) => el.getClientRects().length);
+      const first = controls[0],
+        last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      }
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
   });
 
   // Tab switching
@@ -124,13 +170,19 @@ export function initSignatureLibraryModal() {
 export function openSignatureLibrary(
   callback?: (imageUrl: string) => void
 ): void {
-  const modal = document.getElementById('signature-library-modal');
-  if (!modal) return;
+  initSignatureLibraryModal();
+  const modal = document.getElementById('signature-library-modal')!;
 
   onSelectCallback = callback || null;
+  document.getElementById('signature-library-error')!.textContent = '';
   selectedSignatureId = null;
 
+  returnFocus =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
   modal.classList.remove('hidden');
+  document.getElementById('close-signature-library')?.focus();
   switchToTab('saved');
   renderSignaturesList();
   createIcons({ icons });
@@ -206,11 +258,13 @@ async function renderSignaturesList() {
     card.dataset.signatureId = signature.id;
 
     card.innerHTML = `
-      <img src="${imageUrl}" alt="${signature.name}" class="w-full h-16 object-contain mb-2 pointer-events-none">
-      <p class="text-sm text-white truncate">${signature.name}</p>
-      <p class="text-xs text-gray-400">${new Date(signature.createdAt).toLocaleDateString()}</p>
+      <button type="button" class="select-signature-btn w-full text-left" aria-label="Select ${escapeHtml(signature.name)}">
+        <img src="${imageUrl}" alt="" width="1800" height="600" class="w-full h-16 object-contain mb-2 pointer-events-none">
+        <span class="block text-sm text-white truncate pr-10">${escapeHtml(signature.name)}</span>
+        <span class="block text-xs text-gray-300">${new Date(signature.createdAt).toLocaleDateString()}</span>
+      </button>
       ${signature.isDefault ? '<span class="absolute top-2 right-2 text-xs bg-orange-600 text-white px-1.5 py-0.5 rounded">Default</span>' : ''}
-      <button class="delete-signature-btn absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-600 rounded" title="Delete">
+      <button class="delete-signature-btn absolute bottom-2 right-2 transition-opacity p-1 hover:bg-red-600 rounded" title="Delete">
         <i data-lucide="trash-2" class="w-4 h-4 text-red-400 hover:text-white"></i>
       </button>
     `;
@@ -359,15 +413,6 @@ function initCreatePanel() {
   updateStyleSelection();
   updateColorSelection();
   renderPreview();
-
-  // Override use button for create tab
-  const useBtn = document.getElementById('signature-library-use');
-  useBtn?.addEventListener('click', async () => {
-    const tabCreate = document.getElementById('tab-create-signature');
-    if (tabCreate?.classList.contains('text-orange-500')) {
-      await saveNewSignature();
-    }
-  });
 }
 
 function updateStyleSelection() {
@@ -439,22 +484,16 @@ async function saveNewSignature() {
   );
   if (!style) return;
 
+  await document.fonts.load(`48px "${style.fontFamily}"`);
+
   // Generate PNG blob
   const exportCanvas = document.createElement('canvas');
-  exportCanvas.width = CANVAS_WIDTH * DEVICE_PIXEL_RATIO;
-  exportCanvas.height = CANVAS_HEIGHT * DEVICE_PIXEL_RATIO;
-
-  const ctx = exportCanvas.getContext('2d');
-  if (!ctx) return;
-
-  ctx.scale(DEVICE_PIXEL_RATIO, DEVICE_PIXEL_RATIO);
-
-  const fontSize = 48;
-  ctx.font = `${fontSize}px "${style.fontFamily}", cursive`;
-  ctx.fillStyle = createState.color;
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'center';
-  ctx.fillText(createState.name, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+  renderSignatureCanvas(
+    exportCanvas,
+    createState.name,
+    style.fontFamily,
+    createState.color
+  );
 
   const blob = await new Promise<Blob>((resolve, reject) => {
     exportCanvas.toBlob(
@@ -489,5 +528,5 @@ async function saveNewSignature() {
 
   // Switch to saved tab and refresh
   switchToTab('saved');
-  renderSignaturesList();
+  await renderSignaturesList();
 }

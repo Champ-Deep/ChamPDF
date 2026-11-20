@@ -25,10 +25,17 @@ describe('text box export', () => {
       fontFamily: 'Helvetica',
       fontSize: 12,
       color: '#000000',
+      bold: false,
+      italic: false,
+      align: 'left',
     });
     expect(
       getTextStyle({ fontSize: 500, color: 'red', fontFamily: 'bad' as never })
-    ).toEqual({ fontFamily: 'Helvetica', fontSize: 72, color: '#000000' });
+    ).toMatchObject({
+      fontFamily: 'Helvetica',
+      fontSize: 72,
+      color: '#000000',
+    });
     expect(getTextStyle({ fontSize: NaN })).toMatchObject({ fontSize: 12 });
   });
   it('wraps unbroken identifiers and preserves explicit blank lines', async () => {

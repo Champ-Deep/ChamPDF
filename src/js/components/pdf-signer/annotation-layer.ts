@@ -346,6 +346,9 @@ export class AnnotationLayer {
     input.style.fontSize = `${style.fontSize * this.scale}px`;
     input.style.fontFamily = TEXT_FONTS[style.fontFamily].css;
     input.style.color = style.color;
+    input.style.fontWeight = style.bold ? '700' : '400';
+    input.style.fontStyle = style.italic ? 'italic' : 'normal';
+    input.style.textAlign = style.align;
     input.style.lineHeight = '1.2';
     input.style.padding = `${2 * this.scale}px`;
     input.style.overflowWrap = 'anywhere';

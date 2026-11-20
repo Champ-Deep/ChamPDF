@@ -1,3 +1,4 @@
+import { trimTransparent } from './signature-canvas.js';
 /**
  * Signature Storage Utility
  * Persists user signatures using localStorage (metadata) and IndexedDB (PNG images)
@@ -122,9 +123,16 @@ export async function saveSignatureImage(
       const store = transaction.objectStore(STORE_NAME);
       const request = store.put(blob, id);
 
-      request.onsuccess = () => {
+      transaction.oncomplete = () => {
         db.close();
         resolve();
+      };
+      transaction.onabort = () => {
+        db.close();
+        reject(
+          transaction.error ||
+            new Error('Signature storage transaction aborted')
+        );
       };
 
       request.onerror = () => {
@@ -148,7 +156,7 @@ export async function getSignatureImage(id: string): Promise<Blob | null> {
 
       request.onsuccess = () => {
         db.close();
-        resolve(request.result || null);
+        resolve(request.result ? trimTransparent(request.result) : null);
       };
 
       request.onerror = () => {
@@ -170,9 +178,16 @@ export async function deleteSignatureImage(id: string): Promise<void> {
       const store = transaction.objectStore(STORE_NAME);
       const request = store.delete(id);
 
-      request.onsuccess = () => {
+      transaction.oncomplete = () => {
         db.close();
         resolve();
+      };
+      transaction.onabort = () => {
+        db.close();
+        reject(
+          transaction.error ||
+            new Error('Signature storage transaction aborted')
+        );
       };
 
       request.onerror = () => {
@@ -194,13 +209,15 @@ export async function saveSignature(
   signature: SavedSignature,
   imageBlob: Blob
 ): Promise<void> {
-  saveSignatureMetadata(signature);
   await saveSignatureImage(signature.id, imageBlob);
+  saveSignatureMetadata(signature);
+  document.dispatchEvent(new Event('signatures-changed'));
 }
 
 export async function deleteSignature(id: string): Promise<void> {
   deleteSignatureMetadata(id);
   await deleteSignatureImage(id);
+  document.dispatchEvent(new Event('signatures-changed'));
 }
 
 export async function getSignatureWithImage(
