@@ -1,0 +1,42 @@
+name: Cloudflare containers config
+
+# Config-only gate for cloudflare/containers. Builds nothing remote, deploys nothing, needs no secrets.
+# Staging/production deploys are manual steps in cloudflare/containers/DEPLOY.md.
+on:
+  pull_request:
+    paths: ["cloudflare/containers/**", "backend/sign/store.py", "backend/api_v1.py", ".github/workflows/cloudflare-containers.yml"]
+  workflow_dispatch:
+
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudflare/containers
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: cloudflare/containers/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit -p .
+      - run: npm test
+      - name: Env overlays are isolated and structurally complete
+        run: node scripts/check-config.mjs
+      - name: D1 migration is regenerated from the Python schemas (no hand edits)
+        run: python3 scripts/gen-d1-migration.py && git diff --exit-code -- migrations
+      - name: Worker bundles for every env that can resolve without secrets
+        run: |
+          for e in local deepify staging; do
+            npx wrangler deploy --dry-run --containers-rollout none --outdir dist/$e --env $e
+          done
+      - name: D1 migration applies on a local D1
+        run: npx wrangler d1 migrations apply champdf-local --local --env local
+      - name: Release manifest (no container digest; image is built by the release job, not here)
+        run: node scripts/release-manifest.mjs staging
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-manifest-staging-${{ github.sha }}
+          path: cloudflare/containers/dist/staging/release-manifest.json
