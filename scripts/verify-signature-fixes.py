@@ -29,8 +29,8 @@ def run():
   expect(page.locator('.signature-card')).to_have_count(1)
   expect(page.locator('#signature-library-modal')).to_be_visible()
   quality=page.locator('.signature-card img').evaluate('''async img=>{await img.decode(); const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);const d=ctx.getImageData(0,0,c.width,c.height).data;let ink=0,transparent=0;for(let i=3;i<d.length;i+=4){if(d[i])ink++;else transparent++;}return {width:c.width,height:c.height,ink,transparent,corner:d[3]}}''')
-  assert quality['width']==1800 and quality['height']==600 and quality['ink']>0 and quality['corner']==0
-  results.append({'check':'home, save, transparent 3x PNG','quality':quality})
+  assert quality['width']<1800 and quality['height']<600 and quality['ink']>0 and quality['corner']==0 and quality['ink']/(quality['width']*quality['height'])>0.08, quality  # trimmed to the ink, not the 1800x600 canvas
+  results.append({'check':'home, save, trimmed transparent PNG','quality':quality})
   page.keyboard.press('Escape'); expect(page.locator('#signature-library-modal')).not_to_be_visible()
   page.reload(); page.locator('#open-signatures-btn').click(); expect(page.locator('.signature-card')).to_have_count(1)
   page.screenshot(path=str(OUT/'fix-saved-signatures.png'))
@@ -45,6 +45,10 @@ def run():
   box=page.locator('.annotation-box').last.bounding_box()
   page.mouse.move(box['x']+2,box['y']+2);page.mouse.down();page.mouse.move(box['x']+2,box['y']+82,steps=10);page.mouse.up()
   text.focus();expect(size).to_have_value('24')
+  page.locator('#text-bold').check();page.locator('#text-italic').check();page.locator('#text-align').select_option('center')
+  expect(text).to_have_css('font-weight','700');expect(text).to_have_css('font-style','italic');expect(text).to_have_css('text-align','center')
+  sig=page.locator('.annotation-box img').first.evaluate('(img)=>{const b=img.parentElement.getBoundingClientRect();return {boxRatio:b.width/b.height,imgRatio:img.naturalWidth/img.naturalHeight}}')
+  assert abs(sig['boxRatio']-sig['imgRatio'])/sig['imgRatio']<0.08, sig  # box hugs the signature
   assert text.evaluate('(el)=>el.clientHeight >= parseFloat(getComputedStyle(el).lineHeight) + 8'), '24pt text is vertically clipped'
   page.screenshot(path=str(OUT/'fix-text-size.png'),full_page=True)
   page.locator('#zoom-in').click();expect(page.locator('#zoom-level')).to_have_text('125%')
@@ -63,7 +67,7 @@ def run():
   download.value.save_as(str(OUT/'signed-fixture.pdf'))
   pdf=pymupdf.open(OUT/'signed-fixture.pdf')
   spans=[s for b in pdf[0].get_text('dict')['blocks'] if 'lines' in b for line in b['lines'] for s in line['spans']]
-  assert any(s['text']=='Approved' and s['size']==24 for s in spans),spans
+  assert any(s['text']=='Approved' and s['size']==24 and 'Bold' in s['font'] and (s['flags']&2) for s in spans),spans
   assert pdf[0].get_images(), 'Signature image missing from PDF'
   pdf[0].get_pixmap().save(OUT/'signed-pdf-render.png');pdf.close()
   results.append({'check':'reuse after reload, placement, 24pt, zoom, pages, size bounds, PDF download','passed':True})

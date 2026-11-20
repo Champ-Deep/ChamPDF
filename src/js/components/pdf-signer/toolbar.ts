@@ -33,7 +33,11 @@ export class SignerToolbar {
     this.container = container;
     this.callbacks = callbacks;
     this.render();
+    // Library saves/deletes made in the modal must show in the sidebar at once.
+    document.addEventListener('signatures-changed', this.onSignaturesChanged);
   }
+
+  private onSignaturesChanged = () => void this.refresh();
 
   async render() {
     const signaturesWithImages = await getAllSignaturesWithImages();
@@ -115,6 +119,16 @@ export class SignerToolbar {
           </select>
           <label for="text-font-size" class="block text-sm text-gray-200">Font size (pt)</label>
           <input id="text-font-size" type="number" min="6" max="72" step="1" class="signature-size-input">
+          <div class="flex gap-2">
+            <label class="flex-1 flex items-center gap-2 text-sm text-gray-200 min-h-11"><input id="text-bold" type="checkbox"><b>Bold</b></label>
+            <label class="flex-1 flex items-center gap-2 text-sm text-gray-200 min-h-11"><input id="text-italic" type="checkbox"><i>Italic</i></label>
+          </div>
+          <label for="text-align" class="block text-sm text-gray-200">Alignment</label>
+          <select id="text-align" class="w-full bg-gray-700 text-white rounded p-2 min-h-11">
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
           <label for="text-color" class="block text-sm text-gray-200">Text color</label>
           <input id="text-color" type="color" class="w-full min-h-11 bg-gray-700 rounded">
           <p class="text-xs text-gray-300">Type directly in the box. Drag its border to move, or its corner to resize. Enlarge the box if text overflows. PDF fonts support Latin text.</p>
@@ -195,6 +209,21 @@ export class SignerToolbar {
           this.callbacks.onUpdateTextStyle?.({ fontSize: input.valueAsNumber });
         else this.setStatus('Enter a font size between 6 and 72 points.');
       });
+    for (const id of ['bold', 'italic'] as const)
+      this.container
+        .querySelector(`#text-${id}`)
+        ?.addEventListener('change', (e) =>
+          this.callbacks.onUpdateTextStyle?.({
+            [id]: (e.target as HTMLInputElement).checked,
+          })
+        );
+    this.container
+      .querySelector('#text-align')
+      ?.addEventListener('change', (e) =>
+        this.callbacks.onUpdateTextStyle?.({
+          align: (e.target as HTMLSelectElement).value as TextStyle['align'],
+        })
+      );
     this.container
       .querySelector('#text-color')
       ?.addEventListener('input', (e) => {
@@ -328,6 +357,13 @@ export class SignerToolbar {
       ).value = String(style.fontSize);
       (this.container.querySelector('#text-color') as HTMLInputElement).value =
         style.color;
+      (this.container.querySelector('#text-bold') as HTMLInputElement).checked =
+        style.bold;
+      (
+        this.container.querySelector('#text-italic') as HTMLInputElement
+      ).checked = style.italic;
+      (this.container.querySelector('#text-align') as HTMLSelectElement).value =
+        style.align;
     }
     const remove = this.container.querySelector(
       '#remove-image-background'
@@ -358,6 +394,10 @@ export class SignerToolbar {
 
   destroy() {
     this.destroyed = true;
+    document.removeEventListener(
+      'signatures-changed',
+      this.onSignaturesChanged
+    );
     this.container.innerHTML = '';
   }
 }

@@ -180,7 +180,7 @@ export class PDFSigner {
     );
   }
 
-  private addAnnotation(
+  private async addAnnotation(
     type: AnnotationType,
     data?: { imageUrl?: string },
     x?: number,
@@ -209,6 +209,24 @@ export class PDFSigner {
     } else if (type === 'initials') {
       width = 10;
       height = 6;
+    }
+
+    // Fit the box to the image so there is no empty margin around a signature.
+    if (data?.imageUrl && this.pageContainer) {
+      const img = new Image();
+      img.src = data.imageUrl;
+      try {
+        await img.decode();
+        const page = this.pageContainer.getBoundingClientRect();
+        if (img.naturalWidth && page.width && page.height)
+          height =
+            (((width / 100) * page.width * img.naturalHeight) /
+              img.naturalWidth /
+              page.height) *
+            100;
+      } catch {
+        // keep the default box if the image cannot be decoded
+      }
     }
 
     const annotation: Annotation = {

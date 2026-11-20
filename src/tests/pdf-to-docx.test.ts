@@ -175,7 +175,9 @@ describe('buildDocx', () => {
       ]),
       page([{ kind: 'text', paragraph: { runs: [run('three')] } }]),
     ]);
-    const xml = await (await unzip(blob))
+    const xml = await (
+      await unzip(blob)
+    )
       .file('word/document.xml')!
       .async('string');
     parseXml(xml);
@@ -223,7 +225,9 @@ describe('buildDocx', () => {
         },
       ]),
     ]);
-    const xml = await (await unzip(blob))
+    const xml = await (
+      await unzip(blob)
+    )
       .file('word/document.xml')!
       .async('string');
     parseXml(xml);

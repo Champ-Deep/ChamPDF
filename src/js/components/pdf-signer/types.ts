@@ -6,6 +6,9 @@ export interface TextStyle {
   fontFamily: 'Helvetica' | 'TimesRoman' | 'Courier';
   fontSize: number; // PDF points, independent of editor zoom
   color: string;
+  bold: boolean;
+  italic: boolean;
+  align: 'left' | 'center' | 'right';
 }
 
 export interface Annotation {
@@ -24,6 +27,9 @@ export interface Annotation {
     fontFamily?: TextStyle['fontFamily'];
     fontSize?: number;
     color?: string;
+    bold?: boolean;
+    italic?: boolean;
+    align?: TextStyle['align'];
   };
 }
 

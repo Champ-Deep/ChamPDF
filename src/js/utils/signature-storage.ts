@@ -1,3 +1,4 @@
+import { trimTransparent } from './signature-canvas.js';
 /**
  * Signature Storage Utility
  * Persists user signatures using localStorage (metadata) and IndexedDB (PNG images)
@@ -155,7 +156,7 @@ export async function getSignatureImage(id: string): Promise<Blob | null> {
 
       request.onsuccess = () => {
         db.close();
-        resolve(request.result || null);
+        resolve(request.result ? trimTransparent(request.result) : null);
       };
 
       request.onerror = () => {
@@ -210,11 +211,13 @@ export async function saveSignature(
 ): Promise<void> {
   await saveSignatureImage(signature.id, imageBlob);
   saveSignatureMetadata(signature);
+  document.dispatchEvent(new Event('signatures-changed'));
 }
 
 export async function deleteSignature(id: string): Promise<void> {
   deleteSignatureMetadata(id);
   await deleteSignatureImage(id);
+  document.dispatchEvent(new Event('signatures-changed'));
 }
 
 export async function getSignatureWithImage(
