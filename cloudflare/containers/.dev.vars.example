@@ -1,0 +1,3 @@
+# Copy to .dev.vars (gitignored). Generate each value with: openssl rand -hex 24
+CHAMPDF_INTERNAL_TOKEN=
+CHAMPDF_ADMIN_TOKEN=

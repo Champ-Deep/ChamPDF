@@ -8,7 +8,7 @@ export interface GateEnv {
   STAGING_TOKEN?: string;
 }
 
-function safeEqual(a: string, b: string): boolean {
+export function safeEqual(a: string, b: string): boolean {
   const ea = new TextEncoder().encode(a), eb = new TextEncoder().encode(b);
   if (ea.length !== eb.length) return false;
   let diff = 0;

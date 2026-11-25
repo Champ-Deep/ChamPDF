@@ -20,7 +20,7 @@
     { "binding": "DB", "database_name": "champdf-local", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
   ],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "champdf-files-local" }],
-  "vars": { "ENVIRONMENT": "local", "ACCESS_MODE": "none", "CONTAINER_INSTANCES": "1" },
+  "vars": { "ENVIRONMENT": "local", "ACCESS_MODE": "none", "CONTAINER_INSTANCES": "1", "SIGN_ORIGIN": "http://127.0.0.1:8001" },
 
   "env": {
     "local": {
@@ -40,7 +40,7 @@
         { "binding": "DB", "database_name": "champdf-local", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
       ],
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "champdf-files-local" }],
-      "vars": { "ENVIRONMENT": "local", "ACCESS_MODE": "none", "CONTAINER_INSTANCES": "2" }
+      "vars": { "ENVIRONMENT": "local", "ACCESS_MODE": "none", "CONTAINER_INSTANCES": "2", "SIGN_ORIGIN": "http://127.0.0.1:8001" }
     },
 
     "deepify": {
@@ -60,7 +60,7 @@
         { "binding": "DB", "database_name": "champdf-deepify", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
       ],
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "champdf-files-deepify" }],
-      "vars": { "ENVIRONMENT": "deepify", "ACCESS_MODE": "shared-token", "CONTAINER_INSTANCES": "2" }
+      "vars": { "ENVIRONMENT": "deepify", "ACCESS_MODE": "shared-token", "CONTAINER_INSTANCES": "2", "SIGN_ORIGIN": "http://127.0.0.1:8001" }
     },
 
     "staging": {
@@ -85,7 +85,8 @@
         "ACCESS_MODE": "cf-access",
         "CONTAINER_INSTANCES": "2",
         "ACCESS_TEAM_DOMAIN": "TODO_ACCESS_TEAM_DOMAIN",
-        "ACCESS_AUD": "TODO_ACCESS_AUD"
+        "ACCESS_AUD": "TODO_ACCESS_AUD",
+        "SIGN_ORIGIN": "TODO_SIGN_ORIGIN"
       }
     },
 
