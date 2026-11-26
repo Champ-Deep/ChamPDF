@@ -12,7 +12,7 @@ fx() { CHAMPDF_DB_PATH="$T/src.db" PYTHONPATH="$HERE/../../backend" python3 -c "
 fx 'import api_v1; api_v1.init_db()'
 K1=$(fx 'import api_v1; print(api_v1.create_key("admin-issued")["key"])')
 K2=$(fx 'import api_v1; print(api_v1.create_key("clerk-issued", clerk_user_id="user_fixture", scopes=["pdf"])["key"])')
-K3=$(fx 'import api_v1; print(api_v1.create_key("to-revoke", monthly_quota=50)["key"])')
+K3=$(fx 'import api_v1; print(api_v1.create_key("to-revoke'"'"'s", monthly_quota=50)["key"])')
 fx 'import api_v1; assert api_v1.revoke_key(3)'
 : "${K1:?}" "${K2:?}" "${K3:?}"  # raw keys stay in shell variables only
 
@@ -41,6 +41,6 @@ else:
 PY
 
 "${W[@]}" execute "${D[@]}" --command "INSERT INTO api_keys (key_hash, label, month_bucket, created_at) VALUES ('fixture-new', 'new', '2026-11', '2026-11-26')" >/dev/null
-MAXID=3
+MAXID=$(python3 -c "import sqlite3,sys;print(sqlite3.connect('file:$T/src.db?mode=ro',uri=True).execute('SELECT max(id) FROM api_keys').fetchone()[0])")
 NEWID=$("${W[@]}" execute "${D[@]}" --json --command "SELECT id FROM api_keys WHERE key_hash='fixture-new'" | python3 -c 'import json,sys;print(json.load(sys.stdin)[0]["results"][0]["id"])')
 [ "$NEWID" -gt "$MAXID" ] && echo "AUTOINCREMENT OK: new id $NEWID > max imported id $MAXID" || { echo "AUTOINCREMENT FAIL: $NEWID"; exit 1; }
