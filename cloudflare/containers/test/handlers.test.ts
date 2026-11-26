@@ -166,6 +166,22 @@ test("sign: /api/sign/status goes to SIGN_ORIGIN with query, body and manual red
   await withFetch(originCalls, () => worker.fetch(new Request("https://api.test/api/sign"), e));
   assert.equal(originCalls[1].url, "http://127.0.0.1:8001/api/sign");
 });
+test("sign: percent-encoded slashes (/api/sign%2Fstatus, /api%2Fsign/status) still go to SIGN_ORIGIN with the raw path", async () => {
+  // uvicorn decodes %2F before routing, so these would hit the container's sign router.
+  for (const p of ["/api/sign%2Fstatus", "/api%2Fsign/status", "/api%2fsign%2fstatus"]) {
+    const { e, doCalls, originCalls } = routing("http://127.0.0.1:8001");
+    const res = await withFetch(originCalls, () => worker.fetch(new Request(`https://api.test${p}?x=1`), e));
+    assert.equal(res.headers.get("x-champdf-route"), "sign-origin", p);
+    assert.equal(originCalls[0]?.url, `http://127.0.0.1:8001${p}?x=1`, p);
+    assert.deepEqual(doCalls, [], p);
+  }
+});
+test("sign: malformed percent-encoding is 400 and reaches neither SIGN_ORIGIN nor the DO", async () => {
+  const { e, doCalls, originCalls } = routing("http://127.0.0.1:8001");
+  const res = await withFetch(originCalls, () => worker.fetch(new Request("https://api.test/api/sign%E0%A4%A/status"), e));
+  assert.equal(res.status, 400);
+  assert.equal(originCalls.length + doCalls.length, 0);
+});
 test("sign: /api/sign-pdf and /api/verify-signature stay on the container DO", async () => {
   const { e, doCalls, originCalls } = routing("http://127.0.0.1:8001");
   for (const p of ["/api/sign-pdf", "/api/verify-signature", "/api/signature"]) {

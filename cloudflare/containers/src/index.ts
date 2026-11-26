@@ -141,8 +141,11 @@ export default {
     if (denied) return denied;
 
     const url = new URL(req.url);
+    // Match the decoded path: uvicorn decodes %2F, so "/api%2Fsign/x" would reach the container's sign router.
+    let path: string;
+    try { path = decodeURIComponent(url.pathname); } catch { return detail(400, "bad path"); }
     // Exact match or "/api/sign/": "/api/sign-pdf" and "/api/verify-signature" are stateless and stay in the container.
-    if (url.pathname === "/api/sign" || url.pathname.startsWith("/api/sign/")) return sign(req, env, url);
+    if (path === "/api/sign" || path.startsWith("/api/sign/")) return sign(req, env, url);
 
     const n = Math.max(1, Number(env.CONTAINER_INSTANCES) || 1);
     // ?instance=N pins an instance for tests; ignored in production.
