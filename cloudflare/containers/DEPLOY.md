@@ -55,3 +55,27 @@ What Deepify proves: the Worker bundle and the image run together on workerd, ou
 ## 4. Production
 
 Not covered. Gate: staging evidence for every item in REPORT.md section "Still unproven", plus Deep's explicit approval. The production overlay must be filled with the digest-pinned image from the staging manifest, not rebuilt.
+
+## 5. Phase 1 key cutover (blocked on Decision 2 and Deep's approval)
+
+Docs only. Every remote step below is a human step, not run by agents. Agents may run only the local proof: `bash proof/keys_import_check.sh`.
+
+Order: freeze, copy, export, import, parity, cutover. The copy does not carry usage counters (`requests_used`, `last_used_at`) or any revoke done on Railway after the copy. Re-apply any such revoke on D1 before cutover. `execute --file` size limit on a large key set is untested; split keys.sql if the import is refused.
+
+1. Freeze key issuance on Railway first, so no key is created after the copy. Human step, not run by agents.
+   - Admin issuance: unset `CHAMPDF_ADMIN_TOKEN` on the backend service (`backend/api_v1.py` returns "Admin endpoints disabled" when it is unset).
+   - Self-serve issuance: unset `CLERK_ISSUER` and `CLERK_JWKS_URL`. There is no narrower switch: `require_clerk_user` gates on the same `clerk_configured()`.
+   - Side effect: with Clerk unconfigured, `backend/sign/auth.py:110-115` returns 503 "Sign-in is not configured" for every non-admin Sign call. Sign stays on Railway in Phase 1 (`src/index.ts:23`), so Sign sign-in is down for the whole freeze window. The human decides whether that window is acceptable. Existing API keys keep working.
+   - Redeploy and confirm `POST /api/v1/admin/keys` and the self-serve route both refuse.
+2. Copy the Railway volume DB (`CHAMPDF_DB_PATH`, default `/app/data/champdf.db`) to a local file, read only. Human step, not run by agents. Treat the copy as secret (it holds key hashes). Do not edit the original.
+3. Export: `python3 scripts/export-keys.py --db <copy> --out keys.sql`. Expect `exported N keys` on stderr. `request_log` is not exported and stays on the Railway volume as the archive.
+4. Import into remote D1 (human step, not run by agents): `npx wrangler d1 migrations apply <db> --remote --env <env>` then `npx wrangler d1 execute <db> --remote --env <env> --file keys.sql`.
+5. Verify parity (human step, not run by agents). Run the same query against the copy and remote D1 and compare:
+   `SELECT id, key_hash, label, monthly_quota, disabled_at, clerk_user_id, scopes FROM api_keys ORDER BY id`
+   (remote: `npx wrangler d1 execute <db> --remote --env <env> --json --command "<query>"`). Counts and rows must be equal.
+6. Cut over (human step, not run by agents):
+   - Frontend: set `BACKEND_URL` (read by `nginx.conf:31-38` `proxy_pass ${BACKEND_URL}` and the envsubst filter in `Dockerfile.frontend:59-72`) to the new API origin. The brief called this `BACKEND_ORIGIN`; that name does not exist in the repo.
+   - Hosted MCP service: set `CHAMPDF_API_BASE_URL` to the new public https origin. The `railway.toml` comment shows the private `http://champdf-backend.railway.internal`, which the Cloudflare API cannot be reached on. Check its `CHAMPDF_API_KEY` is one of the imported keys and is not disabled.
+   - `CHAMPDF_KEYS_BACKEND=d1` is already set by the Worker (`src/index.ts:42`). Confirm, do not set it again.
+   - Restore `CLERK_ISSUER` and `CLERK_JWKS_URL` on Railway now. Sign keeps running there after cutover and needs them. Issuance on the new API is then governed by its own config.
+7. Rollback: point `BACKEND_URL` and `CHAMPDF_API_BASE_URL` back at Railway and restore `CHAMPDF_ADMIN_TOKEN` and the CLERK vars unset in step 1. The Railway SQLite is untouched, so keys issued before the freeze still work. Keys issued on D1 after cutover are not copied back.
