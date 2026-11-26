@@ -1,0 +1,10 @@
+{
+  "keys.health": "SELECT 1 FROM api_keys LIMIT 1",
+  "keys.insert": "INSERT INTO api_keys (key_hash, label, monthly_quota, month_bucket, requests_used, created_at, clerk_user_id, scopes) VALUES (?, ?, ?, ?, 0, ?, ?, ?)",
+  "keys.active_for_clerk": "SELECT * FROM api_keys WHERE clerk_user_id = ? AND disabled_at IS NULL ORDER BY id DESC LIMIT 1",
+  "keys.by_hash": "SELECT * FROM api_keys WHERE key_hash = ? LIMIT 1",
+  "keys.revoke": "UPDATE api_keys SET disabled_at = ? WHERE id = ? AND disabled_at IS NULL",
+  "keys.list": "SELECT id, label, monthly_quota, month_bucket, requests_used, created_at, last_used_at, disabled_at, scopes FROM api_keys ORDER BY id DESC",
+  "log.insert": "INSERT INTO request_log (key_id, ts, endpoint, status, latency_ms) VALUES (?, ?, ?, ?, ?)",
+  "keys.bump_usage": "UPDATE api_keys SET requests_used = CASE WHEN month_bucket = ? THEN requests_used + 1 ELSE 1 END, month_bucket = ?, last_used_at = ? WHERE id = ?"
+}
