@@ -175,3 +175,27 @@ python3 proof/container_probe.py champdf-backend-proof <fixtures>/out result.jso
 npx wrangler dev --env local          # Worker + DO + container, builds linux/amd64
 docker exec -i <container> python - write abc < proof/d1_from_container.py
 ```
+
+## 8. Phase 1 local result
+
+Command: `bash proof/phase1_e2e.sh` (wrangler 4.152.0, `--env local`, Docker via OrbStack). Tested commit: `8a13ca5` (cf/p1-keys-import merged with cf/p1-weights; the script and result file are added on top). Result: 13 of 13 pass.
+
+Metered endpoints, from `_meter` calls in `backend/api_v1.py`: pdf/merge, split, delete-pages, rotate, compress, watermark, info, to-text, to-images, from-images, sign, form-fields, fill-form, verify-signature, ocr, extract-tables, convert/to-pdf, convert/pdf-to-docx. The usage check uses `pdf/info`. Image and video v1 endpoints are not metered. The verify route is `/api/v1/pdf/verify-signature`.
+
+| id | pass | status | seconds | note |
+|---|---|---|---|---|
+| keys_cross_instance | yes | 200,200 | 15.55 | admin create on instance 0, whoami on instance 1 |
+| keys_survive_replace | yes | 200,200 | 13.04 | removed 2 wrangler containers, fresh containers answered with the same key on both instances |
+| usage_metered | yes | 200 | 8.25 | 5 calls to /api/v1/pdf/info (metered, backend/api_v1.py _meter pdf/info) over both instances; 200s counted 5, requests_used 5, request_log rows 5 |
+| revoke_everywhere | yes | 401,401 | 0.95 | admin DELETE then whoami on instance 0 and 1 (delete status 200) |
+| sign_split | yes | 200 | 0.01 | route=sign-origin, instance header present=False, p1-sign log shows request=True |
+| sign_pdf_stays | yes | 200 | 3.57 | x-champdf-instance present=True, intact=True, tampered intact=False |
+| ssrf_d1 | yes | 500,500 | 8.62 | leaks=0, api_keys count before=2 after=2 |
+| office_to_pdf | yes | 200 | 4.07 | magic b'%PDF-1.7' expected b'%PDF' |
+| ocr | yes | 200 | 23.19 | magic b'%PDF-1.7' expected b'%PDF' |
+| video_720p | yes | 200 | 17.7 | magic b'ftypisom' expected b'ftyp' |
+| remove_bg_first_call | yes | 200 | 8.91 | magic b'\x89PNG\r\n\x1a\n' expected b'\x89PNG'; fresh container after removing 2, limit 15 s incl. cold start |
+| video_1080p_30s | yes | 200 | 250.45 | 31944504 bytes out; local Worker+DO under OrbStack, NOT the real Cloudflare path |
+| gate_still_failing | yes | 0,1 | 0.42 | check:config exit 0, --deployable exit 1 |
+
+Latencies are emulated amd64 under OrbStack on an Apple-silicon Mac, not Cloudflare numbers. video_1080p_30s is the local Worker + Durable Object path, not the real Cloudflare path. The first run on a cold build waited about 11 minutes for the amd64 image build before the first request.

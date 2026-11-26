@@ -1,0 +1,80 @@
+{
+  "keys_cross_instance": {
+    "pass": true,
+    "status": "200,200",
+    "seconds": 15.55,
+    "note": "admin create on instance 0, whoami on instance 1"
+  },
+  "keys_survive_replace": {
+    "pass": true,
+    "status": "200,200",
+    "seconds": 13.04,
+    "note": "removed 2 wrangler containers, fresh containers answered with the same key on both instances"
+  },
+  "usage_metered": {
+    "pass": true,
+    "status": "200",
+    "seconds": 8.25,
+    "note": "5 calls to /api/v1/pdf/info (metered, backend/api_v1.py _meter pdf/info) over both instances; 200s counted 5, requests_used 5, request_log rows 5"
+  },
+  "revoke_everywhere": {
+    "pass": true,
+    "status": "401,401",
+    "seconds": 0.95,
+    "note": "admin DELETE then whoami on instance 0 and 1 (delete status 200)"
+  },
+  "sign_split": {
+    "pass": true,
+    "status": 200,
+    "seconds": 0.01,
+    "note": "route=sign-origin, instance header present=False, p1-sign log shows request=True"
+  },
+  "sign_pdf_stays": {
+    "pass": true,
+    "status": 200,
+    "seconds": 3.57,
+    "note": "x-champdf-instance present=True, intact=True, tampered intact=False"
+  },
+  "ssrf_d1": {
+    "pass": true,
+    "status": "500,500",
+    "seconds": 8.62,
+    "note": "leaks=0, api_keys count before=2 after=2"
+  },
+  "office_to_pdf": {
+    "pass": true,
+    "status": 200,
+    "seconds": 4.07,
+    "note": "magic b'%PDF-1.7' expected b'%PDF'"
+  },
+  "ocr": {
+    "pass": true,
+    "status": 200,
+    "seconds": 23.19,
+    "note": "magic b'%PDF-1.7' expected b'%PDF'"
+  },
+  "video_720p": {
+    "pass": true,
+    "status": 200,
+    "seconds": 17.7,
+    "note": "magic b'ftypisom' expected b'ftyp'"
+  },
+  "remove_bg_first_call": {
+    "pass": true,
+    "status": 200,
+    "seconds": 8.91,
+    "note": "magic b'\\x89PNG\\r\\n\\x1a\\n' expected b'\\x89PNG'; fresh container after removing 2, limit 15 s incl. cold start"
+  },
+  "video_1080p_30s": {
+    "pass": true,
+    "status": 200,
+    "seconds": 250.45,
+    "note": "31944504 bytes out; local Worker+DO under OrbStack, NOT the real Cloudflare path"
+  },
+  "gate_still_failing": {
+    "pass": true,
+    "status": "0,1",
+    "seconds": 0.42,
+    "note": "check:config exit 0, --deployable exit 1"
+  }
+}
