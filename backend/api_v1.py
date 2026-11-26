@@ -23,11 +23,13 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import logging
 import os
 import secrets
 import sqlite3
 import time
+import urllib.request
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -68,8 +70,47 @@ def _db_path() -> Path:
 # --------------------------------------------------------------------------
 
 
+def _backend() -> str:
+    """`sqlite` (default, Railway) or `d1` (Cloudflare Container, via the Worker outbound handler)."""
+    return os.environ.get("CHAMPDF_KEYS_BACKEND", "sqlite")
+
+
+def _d1(batch: list) -> list:
+    """Run [(statement name, params), ...] as ONE atomic D1 batch. Contract: cloudflare/containers/PHASE1.md s5.
+
+    Any store failure is a 503, never "no row": require_api_key turns no row into 401.
+    """
+    try:
+        token = os.environ.get("CHAMPDF_INTERNAL_TOKEN")
+        if not token:
+            raise RuntimeError("CHAMPDF_INTERNAL_TOKEN not set")
+        req = urllib.request.Request(
+            os.environ.get("CHAMPDF_D1_URL") or "http://d1.champdf.internal/",
+            data=json.dumps({"batch": [{"q": q, "params": list(p)} for q, p in batch]}).encode(),
+            headers={"content-type": "application/json", "x-champdf-internal": token},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as r:  # 4xx/5xx raise HTTPError
+            if r.status != 200:
+                raise RuntimeError(f"d1 status {r.status}")
+            out = json.load(r)
+        if not isinstance(out, list) or len(out) != len(batch) or not all(x.get("success") for x in out):
+            raise RuntimeError("d1 returned an unexpected batch result")
+        return out
+    except Exception as e:
+        logger.error("D1 key store unavailable: %s", e)
+        raise HTTPException(status_code=503, detail={"code": "key_store_unavailable"}) from e
+
+
 def init_db() -> None:
     """Create the keys table on startup if missing."""
+    if _backend() == "d1":
+        # Schema is owned by cloudflare/containers/migrations/0001_champdf_init.sql; probe only.
+        try:
+            _d1([("keys.health", [])])
+        except HTTPException:
+            logger.error("D1 key store health probe failed; continuing startup")
+        return
     with sqlite3.connect(_db_path()) as conn:
         conn.execute(
             """
@@ -185,19 +226,23 @@ def create_key(
     raw = API_KEY_PREFIX + secrets.token_hex(KEY_RANDOM_BYTES)
     hashed = _hash_key(raw)
     now = datetime.now(timezone.utc).isoformat()
-    with sqlite3.connect(_db_path()) as conn:
-        cur = conn.execute(
-            """
-            INSERT INTO api_keys
-                (key_hash, label, monthly_quota, month_bucket, requests_used,
-                 created_at, clerk_user_id, scopes)
-            VALUES (?, ?, ?, ?, 0, ?, ?, ?)
-            """,
-            (hashed, label, monthly_quota, _current_month_bucket(), now,
-             clerk_user_id, scopes_str),
-        )
-        conn.commit()
-        key_id = cur.lastrowid
+    if _backend() == "d1":
+        key_id = _d1([("keys.insert", [hashed, label, monthly_quota, _current_month_bucket(), now,
+                                       clerk_user_id, scopes_str])])[0]["meta"]["last_row_id"]
+    else:
+        with sqlite3.connect(_db_path()) as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO api_keys
+                    (key_hash, label, monthly_quota, month_bucket, requests_used,
+                     created_at, clerk_user_id, scopes)
+                VALUES (?, ?, ?, ?, 0, ?, ?, ?)
+                """,
+                (hashed, label, monthly_quota, _current_month_bucket(), now,
+                 clerk_user_id, scopes_str),
+            )
+            conn.commit()
+            key_id = cur.lastrowid
     return {
         "id": key_id,
         "key": raw,
@@ -210,6 +255,9 @@ def create_key(
 
 def get_active_key_for_clerk_user(clerk_user_id: str) -> Optional[Dict[str, Any]]:
     """Return the user's current (non-revoked) key record, or None."""
+    if _backend() == "d1":
+        rows = _d1([("keys.active_for_clerk", [clerk_user_id])])[0]["results"]
+        return rows[0] if rows else None
     with sqlite3.connect(_db_path()) as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
@@ -224,6 +272,9 @@ def get_active_key_for_clerk_user(clerk_user_id: str) -> Optional[Dict[str, Any]
 
 
 def get_key_by_hash(hashed: str) -> Optional[Dict[str, Any]]:
+    if _backend() == "d1":
+        rows = _d1([("keys.by_hash", [hashed])])[0]["results"]
+        return rows[0] if rows else None
     with sqlite3.connect(_db_path()) as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
@@ -235,6 +286,8 @@ def get_key_by_hash(hashed: str) -> Optional[Dict[str, Any]]:
 
 def revoke_key(key_id: int) -> bool:
     now = datetime.now(timezone.utc).isoformat()
+    if _backend() == "d1":
+        return _d1([("keys.revoke", [now, key_id])])[0]["meta"]["changes"] > 0
     with sqlite3.connect(_db_path()) as conn:
         cur = conn.execute(
             "UPDATE api_keys SET disabled_at = ? WHERE id = ? AND disabled_at IS NULL",
@@ -245,6 +298,8 @@ def revoke_key(key_id: int) -> bool:
 
 
 def list_keys() -> list:
+    if _backend() == "d1":
+        return _d1([("keys.list", [])])[0]["results"]
     with sqlite3.connect(_db_path()) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
@@ -262,6 +317,13 @@ def _record_request(key_id: int, endpoint: str, status: int, latency_ms: int) ->
     """Log + increment monthly usage. Safe to call after the response is sent."""
     now = datetime.now(timezone.utc).isoformat()
     bucket = _current_month_bucket()
+    if _backend() == "d1":
+        try:  # one batch, so the log row and the usage bump land together or not at all
+            _d1([("log.insert", [key_id, now, endpoint, status, latency_ms]),
+                 ("keys.bump_usage", [bucket, bucket, now, key_id])])
+        except HTTPException:
+            logger.error("usage not recorded for key %s (%s)", key_id, endpoint)
+        return
     with sqlite3.connect(_db_path()) as conn:
         conn.execute(
             "INSERT INTO request_log (key_id, ts, endpoint, status, latency_ms) VALUES (?, ?, ?, ?, ?)",
