@@ -1,0 +1,86 @@
+{
+  "keys_cross_instance": {
+    "pass": false,
+    "status": "500,None",
+    "seconds": 617.59,
+    "note": "admin create on instance 0, whoami on instance 1"
+  },
+  "keys_survive_replace": {
+    "pass": false,
+    "status": "500,None",
+    "seconds": 201.49,
+    "note": "removed 2 wrangler containers, fresh containers answered with the same key on both instances"
+  },
+  "usage_metered": {
+    "pass": false,
+    "status": "mixed",
+    "seconds": 4.84,
+    "note": "5 calls to /api/v1/pdf/info (metered, backend/api_v1.py _meter pdf/info) over both instances; 200s counted 0, requests_used None, request_log rows None"
+  },
+  "revoke_everywhere": {
+    "pass": false,
+    "status": "None,None",
+    "seconds": 0.0,
+    "note": "admin DELETE then whoami on instance 0 and 1 (delete status None)"
+  },
+  "sign_split": {
+    "pass": false,
+    "status": null,
+    "seconds": 0.0,
+    "note": "route=None, instance header present=False, p1-sign log shows request=False"
+  },
+  "sign_pdf_stays": {
+    "pass": false,
+    "status": null,
+    "seconds": 0,
+    "note": "not run or aborted"
+  },
+  "ssrf_d1": {
+    "pass": false,
+    "status": null,
+    "seconds": 0,
+    "note": "not run or aborted"
+  },
+  "ssrf_probe_direct": {
+    "pass": false,
+    "status": null,
+    "seconds": 0,
+    "note": "not run or aborted"
+  },
+  "office_to_pdf": {
+    "pass": false,
+    "status": null,
+    "seconds": 0,
+    "note": "not run or aborted"
+  },
+  "ocr": {
+    "pass": false,
+    "status": null,
+    "seconds": 0,
+    "note": "not run or aborted"
+  },
+  "remove_bg_first_call": {
+    "pass": false,
+    "status": null,
+    "seconds": 0,
+    "note": "not run or aborted"
+  },
+  "video_720p": {
+    "pass": false,
+    "status": null,
+    "seconds": 0,
+    "note": "not run or aborted"
+  },
+  "video_1080p_30s": {
+    "pass": false,
+    "status": null,
+    "seconds": 0,
+    "note": "not run or aborted"
+  },
+  "gate_still_failing": {
+    "pass": false,
+    "status": null,
+    "seconds": 0,
+    "note": "not run or aborted"
+  }
+}

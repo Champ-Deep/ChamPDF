@@ -175,3 +175,30 @@ python3 proof/container_probe.py champdf-backend-proof <fixtures>/out result.jso
 npx wrangler dev --env local          # Worker + DO + container, builds linux/amd64
 docker exec -i <container> python - write abc < proof/d1_from_container.py
 ```
+
+## 8. Phase 1 local result
+
+Command: `bash proof/phase1_e2e.sh` (wrangler 4.152.0, `--env local`, Docker via OrbStack, fresh `--persist-to` state dir, preflight refuses leftover `workerd-champdf-api-local-*` containers). Tested commit: `19d7ce5` base (cf/p1-keys-import `bcdccb3` merged with cf/p1-weights) plus the script change in this commit. Result: 0 of 14 pass from a clean state.
+
+The first request after a clean start returns 500 (`Failed to start container`) after about 610 s, so every later check fails. This is blocked on P1-1 (t_7304f08a, `src/index.ts`): the Container class relies on the library default 20 s port-ready timeout, and a reviewer A/B showed a longer `startAndWaitForPorts` timeout makes the same request answer 200 in under 6 s and the full script pass 13/13. The cause is a candidate, not proven. The earlier 13/13 pass depended on a warm leftover container and is withdrawn. `ssrf_probe_direct` (in-container 401/401/200 probe) is new in this round and has not yet been proven armed.
+
+Metered endpoints, from `_meter` calls in `backend/api_v1.py`: pdf/merge, split, delete-pages, rotate, compress, watermark, info, to-text, to-images, from-images, sign, form-fields, fill-form, verify-signature, ocr, extract-tables, convert/to-pdf, convert/pdf-to-docx. The usage check uses `pdf/info`. Image and video v1 endpoints are not metered. The verify route is `/api/v1/pdf/verify-signature`.
+
+| id | pass | status | seconds | note |
+|---|---|---|---|---|
+| keys_cross_instance | no | 500,None | 617.59 | admin create on instance 0, whoami on instance 1 |
+| keys_survive_replace | no | 500,None | 201.49 | removed 2 wrangler containers, fresh containers answered with the same key on both instances |
+| usage_metered | no | mixed | 4.84 | 5 calls to /api/v1/pdf/info (metered, backend/api_v1.py _meter pdf/info) over both instances; 200s counted 0, requests_used None, request_log rows None |
+| revoke_everywhere | no | None,None | 0.0 | admin DELETE then whoami on instance 0 and 1 (delete status None) |
+| sign_split | no | None | 0.0 | route=None, instance header present=False, p1-sign log shows request=False |
+| sign_pdf_stays | no | None | 0 | not run or aborted |
+| ssrf_d1 | no | None | 0 | not run or aborted |
+| ssrf_probe_direct | no | None | 0 | not run or aborted |
+| office_to_pdf | no | None | 0 | not run or aborted |
+| ocr | no | None | 0 | not run or aborted |
+| remove_bg_first_call | no | None | 0 | not run or aborted |
+| video_720p | no | None | 0 | not run or aborted |
+| video_1080p_30s | no | None | 0 | not run or aborted |
+| gate_still_failing | no | None | 0 | not run or aborted |
+
+Latencies are emulated amd64 under OrbStack on an Apple-silicon Mac, not Cloudflare numbers. In the earlier warm run remove_bg_first_call took 8.91 s (reviewer 13.89 s) against a 15 s limit, so it sits within 1.1 s of its limit on this Mac.
